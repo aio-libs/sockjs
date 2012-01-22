@@ -21,7 +21,7 @@ except ImportError:
 OPEN      = "o\n"
 CLOSE     = "c"
 MESSAGE   = "a"
-HEARTBEAT = "h"
+HEARTBEAT = "h\n"
 
 
 # ------------------

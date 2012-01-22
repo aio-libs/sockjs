@@ -97,11 +97,13 @@
       <label for="xhr-streaming">xhr-streaming</label>
     </li>
     <li>
-      <input id="iframe-eventsource" type="checkbox" value="iframe-eventsource" checked="checked"></input>
+      <input id="iframe-eventsource" type="checkbox" value="iframe-eventsource"
+             disabled="disabled"></input>
       <label for="iframe-eventsource">iframe-eventsource</label>
     </li>
     <li>
-      <input id="iframe-htmlfile" type="checkbox" value="iframe-htmlfile" checked="checked"></input>
+      <input id="iframe-htmlfile" type="checkbox" value="iframe-htmlfile" 
+             disabled="disabled"></input>
       <label for="iframe-htmlfile">iframe-htmlfile</label>
     </li>
     <li>
@@ -109,7 +111,8 @@
       <label for="xhr-polling">xhr-polling</label>
     </li>
     <li>
-      <input id="iframe-xhr-polling" type="checkbox" value="iframe-xhr-polling" checked="checked"></input>
+      <input id="iframe-xhr-polling" type="checkbox" value="iframe-xhr-polling" 
+             disabled="disabled"></input>
       <label for="iframe-xhr-polling">iframe-xhr-polling</label>
     </li>
     <li>

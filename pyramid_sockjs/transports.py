@@ -2,7 +2,7 @@ import gevent
 from gevent.queue import Empty
 from pyramid.compat import url_unquote
 from pyramid.httpexceptions import HTTPBadRequest
-from pyramid_sockjs.protocol import OPEN, MESSAGE
+from pyramid_sockjs.protocol import OPEN, MESSAGE, HEARTBEAT
 from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
 
 def enum(*sequential, **named):
@@ -59,10 +59,34 @@ class XHRSendPollingTransport(PollingTransport):
         response.status = 204
 
 
+from gevent.pywsgi import WSGIHandler
+
+class XHRStreamingStop(Exception):
+    """ """
+
+orig_handle_error = WSGIHandler.handle_error
+
+def handle_error(self, type, value, tb):
+    if issubclass(type, XHRStreamingStop):
+        del tb
+        return
+
+    return orig_handle_error(type, value, tb)
+
+WSGIHandler.handle_error = handle_error
+
+
 def XHRStreamingTransport(session, request,
                           INIT_STREAM = 'h' *  2048 + '\n' + OPEN):
     meth = request.environ['REQUEST_METHOD']
     input = request.environ['wsgi.input']
+    request.response.headers = (
+        ('Content-Type', 'text/html; charset=UTF-8'),
+        ("Access-Control-Allow-Origin", "*"),
+        ("Access-Control-Allow-Credentials", "true"),
+        ("Access-Control-Allow-Methods", "POST, GET, OPTIONS"),
+        ("Access-Control-Max-Age", 3600),
+        ("Connection", "close"))
 
     if not session.connected and not session.expired:
         request.response.app_iter = XHRStreamingIterator(
@@ -82,42 +106,44 @@ from geventwebsocket.websocket import _get_write
 
 class XHRStreamingIterator(object):
 
-    def __init__(self, session, init=None, input=None):
+    TIMING = 5.0
+
+    def __init__(self, session, init_stream=None, input=None):
         self.session = session
-        self.init = init
-        self.init_sent = False
+        self.init_stream = init_stream
         self.write = _get_write(input.rfile)
-        self.rfile = input.rfile
 
     def __iter__(self):
         return self
 
     def next(self):
-        if self.init and not self.init_sent:
-            self.init_sent = True
-            return self.init
+        if self.init_stream:
+            self.write(self.init_stream)
+
+        timing = self.TIMING
+        session = self.session
 
         while True:
             try:
-                message = self.session._messages(timeout=5.0)
+                message = session._messages(timeout=timing)
             except Empty:
-                continue
+                message = HEARTBEAT
+                session.heartbeat()
+            else:
+                message = message_frame(message)
 
             if message is None:
                 session.close()
                 raise StopIteration()
 
-            if not self.session.connected:
-                break
+            if not session.connected:
+                raise StopIteration()
 
-            print (self.rfile.closed,)
             try:
-                self.write(message_frame(message))
+                self.write(message)
             except:
-                import traceback
-                traceback.print_exc()
-                self.session.close()
-                break
+                session.close()
+                raise XHRStreamingStop()
 
     __next__ = next
 
@@ -132,7 +158,7 @@ def JSONPolling(session, request):
         if callback is None:
             raise Exception('"callback" parameter is required')
 
-        response.text = '%s("o");\r\n' % callback
+        response.text = '%s("o");' % callback
         session.open()
 
     elif meth == "GET":
@@ -141,7 +167,7 @@ def JSONPolling(session, request):
             raise Exception('"callback" parameter is required')
 
         try:
-            messages = session._messages(timeout=self.TIMING)
+            messages = session._messages(timeout=5.0)
         except Empty:
             messages = '[]'
         response.text = "%s('%s%s');\r\n"%(callback, MESSAGE, encode(messages))
@@ -185,9 +211,12 @@ def WebSocketTransport(session, request):
 
         while True:
             try:
-                message = session._messages(2.0)
+                message = session._messages(5.0)
             except Empty:
-                continue
+                message = HEARTBEAT
+                session.heartbeat()
+            else:
+                message = message_frame(message)
 
             if message is None:
                 websocket.send(close_frame('Go away'))
@@ -199,7 +228,7 @@ def WebSocketTransport(session, request):
                 break
 
             try:
-                websocket.send(message_frame(message))
+                websocket.send(message)
             except:
                 session.close()
                 break

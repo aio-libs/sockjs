@@ -50,12 +50,16 @@ class Session(object):
         else:
             self.expires = datetime.now() + timeout
 
+    def heartbeat(self):
+        self.heartbeats += 1
+
     def expire(self):
         """ Manually expire a session. """
         self.expired = True
         self.connected = False
 
     def send(self, msg):
+        log.info('outgoing message: %s, %s', self.id, msg)
         if isinstance(msg, string_types):
             msg = [msg]
         self.tick()
@@ -70,6 +74,7 @@ class Session(object):
         return self.queue.get(timeout=timeout)
 
     def open(self):
+        log.info('open session: %s', self.id)
         self.tick()
         self.connected = True
         try:
@@ -78,6 +83,7 @@ class Session(object):
             log.exception("Exceptin in .on_open method.")
 
     def message(self, msg):
+        log.info('incoming message: %s, %s', self.id, msg)
         self.tick()
         try:
             self.on_message(msg)
@@ -85,7 +91,7 @@ class Session(object):
             log.exception("Exceptin in .on_message method.")
 
     def close(self):
-        print 'Closing: %s'%self.id
+        log.info('close session: %s', self.id)
         self.expire()
         try:
             self.on_close()
@@ -149,7 +155,7 @@ class SessionManager(object):
             # Session is to be GC'd immedietely
             if session.expires < current_time:
                 del self.sessions[session.id]
-                if self.connected:
+                if session.connected:
                     session.close()
                 continue
             else:
@@ -207,9 +213,6 @@ class GetSessionManager(object):
 
     def __call__(self, name=''):
         try:
-            manager = self.registry.__sockjs_managers__[name]
+            return self.registry.__sockjs_managers__[name]
         except AttributeError:
             raise KeyError(name)
-
-        manager.start()
-        return manager

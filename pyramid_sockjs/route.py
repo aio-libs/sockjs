@@ -19,8 +19,9 @@ handler_types = {
     'jsonp'        : (True, transports.JSONPolling),
     'jsonp_send'   : (False, transports.JSONPolling),
 
-    'htmlfile'     : (True, transports.HTMLFileTransport()),
-    'iframe'       : (True, transports.IFrameTransport()),
+    #'eventsource'  :
+    #'htmlfile'     : (True, transports.HTMLFileTransport()),
+    #'iframe'       : (True, transports.IFrameTransport()),
 }
 
 
@@ -61,6 +62,7 @@ class SockJSRoute(object):
     def __init__(self, name, session_manager):
         self.name = name
         self.session_manager = session_manager
+        #session_manager.start()
 
     def handler(self, request):
         matchdict = request.matchdict
@@ -96,7 +98,8 @@ class SockJSRoute(object):
             return HTTPBadRequest(str(exc))
 
     def info(self, request):
-        request.response.body = str(map(str, []))
+        request.response.body = \
+            str(map(str, self.session_manager.sessions.values()))
         return request.response
 
     def iframe(self, request):
