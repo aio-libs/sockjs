@@ -71,14 +71,14 @@ def handle_error(self, type, value, tb):
         del tb
         return
 
-    return orig_handle_error(type, value, tb)
+    return orig_handle_error(self, type, value, tb)
 
 WSGIHandler.handle_error = handle_error
 
 
 def XHRStreamingTransport(session, request,
                           INIT_STREAM = 'h' *  2048 + '\n' + OPEN):
-    meth = request.environ['REQUEST_METHOD']
+    meth = request.method
     input = request.environ['wsgi.input']
     request.response.headers = (
         ('Content-Type', 'text/html; charset=UTF-8'),
@@ -90,14 +90,14 @@ def XHRStreamingTransport(session, request,
 
     if not session.connected and not session.expired:
         request.response.app_iter = XHRStreamingIterator(
-            session, INIT_STREAM, input=input)
+            session, INIT_STREAM, input)
         session.open()
 
     elif meth in ('GET', 'POST'):
         request.response.app_iter = XHRStreamingIterator(session, input=input)
 
     else:
-        raise Exception("No support for such method: " + request_method)
+        raise Exception("No support for such method: %s"%meth)
 
     return request.response
 
@@ -126,15 +126,14 @@ class XHRStreamingIterator(object):
         while True:
             try:
                 message = session._messages(timeout=timing)
+                if message is None:
+                    session.close()
+                    raise StopIteration()
             except Empty:
                 message = HEARTBEAT
                 session.heartbeat()
             else:
                 message = message_frame(message)
-
-            if message is None:
-                session.close()
-                raise StopIteration()
 
             if not session.connected:
                 raise StopIteration()
@@ -192,14 +191,6 @@ def JSONPolling(session, request):
 
     session.manager.release(session)
     return request.response
-
-
-class HTMLFileTransport(object):
-    pass
-
-
-class IFrameTransport(object):
-    pass
 
 
 def WebSocketTransport(session, request):

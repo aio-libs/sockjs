@@ -112,7 +112,7 @@
     </li>
     <li>
       <input id="iframe-xhr-polling" type="checkbox" value="iframe-xhr-polling" 
-             disabled="disabled"></input>
+             checked="checked"></input>
       <label for="iframe-xhr-polling">iframe-xhr-polling</label>
     </li>
     <li>

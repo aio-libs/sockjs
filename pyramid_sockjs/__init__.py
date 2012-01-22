@@ -1,5 +1,8 @@
 # pyramid_sockjs
 
+from pyramid_sockjs.session import Session, SessionManager
+
+
 def includeme(cfg):
     from pyramid_sockjs.route import add_sockjs_route
     from pyramid_sockjs.session import GetSessionManager

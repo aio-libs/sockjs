@@ -3,6 +3,7 @@ from pyramid.exceptions import ConfigurationError
 from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
 
 from pyramid_sockjs import transports
+from pyramid_sockjs.protocol import IFRAME_HTML
 from pyramid_sockjs.session import Session, SessionManager
 from pyramid_sockjs.websocket import HandshakeError
 from pyramid_sockjs.websocket import init_websocket
@@ -18,15 +19,12 @@ handler_types = {
 
     'jsonp'        : (True, transports.JSONPolling),
     'jsonp_send'   : (False, transports.JSONPolling),
-
-    #'eventsource'  :
-    #'htmlfile'     : (True, transports.HTMLFileTransport()),
-    #'iframe'       : (True, transports.IFrameTransport()),
 }
 
 
 def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
-                     session=Session, session_manager=None):
+                     session=Session, session_manager=None,
+                     sockjs_cdn='http://cdn.sockjs.org/sockjs-0.2.0.min.js'):
     # set session manager
     if session_manager is None:
         session_manager = SessionManager(name, cfg.registry, session=session)
@@ -39,8 +37,11 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
 
     cfg.registry.__sockjs_managers__[name] = session_manager
 
+    # start gc
+    session_manager.start()
+
     # register routes
-    sockjs = SockJSRoute(name, session_manager)
+    sockjs = SockJSRoute(name, session_manager, sockjs_cdn)
 
     if prefix.endswith('/'):
         prefix = prefix[:-1]
@@ -54,15 +55,20 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
     cfg.add_view(route_name=route_name, view=sockjs.info)
 
     route_name = 'sockjs-iframe-%s'%name
-    cfg.add_route(route_name, '%s/iframe{version}.html')
+    cfg.add_route(route_name, '%s/iframe.html'%prefix)
+    cfg.add_view(route_name=route_name, view=sockjs.iframe)
+
+    route_name = 'sockjs-iframe-ver-%s'%name
+    cfg.add_route(route_name, '%s/iframe{version}.html'%prefix)
+    cfg.add_view(route_name=route_name, view=sockjs.iframe)
 
 
 class SockJSRoute(object):
 
-    def __init__(self, name, session_manager):
+    def __init__(self, name, session_manager, sockjs_cdn):
         self.name = name
         self.session_manager = session_manager
-        #session_manager.start()
+        self.iframe_html = IFRAME_HTML%sockjs_cdn
 
     def handler(self, request):
         matchdict = request.matchdict
@@ -103,4 +109,5 @@ class SockJSRoute(object):
         return request.response
 
     def iframe(self, request):
+        request.response.body = self.iframe_html
         return request.response

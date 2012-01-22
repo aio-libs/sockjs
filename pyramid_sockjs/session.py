@@ -110,6 +110,7 @@ class Session(object):
 
 class SessionManager(object):
     """ A basic session manager """
+
     _gc_thread = None
 
     def __init__(self, name, registry, session=Session,
@@ -120,8 +121,8 @@ class SessionManager(object):
         self.sessions = {}
         self.acquired = {}
         self.pool = []
-        self.gc_cycle = gc_cycle
         self.timeout = timeout
+        self._gc_cycle = gc_cycle
 
     def route_url(self, request):
         return request.route_url(self.name)
@@ -130,7 +131,7 @@ class SessionManager(object):
         if self._gc_thread is None:
             def _gc_sessions():
                 while True:
-                    gevent.sleep(self.gc_cycle)
+                    gevent.sleep(self._gc_cycle)
                     self._gc()
 
             self._gc_thread = gevent.Greenlet(_gc_sessions)
@@ -188,6 +189,11 @@ class SessionManager(object):
     def release(self, session):
         if session.id in self.acquired:
             del self.acquired[session.id]
+
+    def active_sessions(self):
+        for session in self.sessions.values():
+            if not session.expired:
+                yield session
 
     def clear(self):
         """ Manually expire all sessions in the pool. """

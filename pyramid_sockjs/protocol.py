@@ -26,8 +26,7 @@ HEARTBEAT = "h\n"
 
 # ------------------
 
-IFRAME_HTML = """
-<!DOCTYPE html>
+IFRAME_HTML = """<!DOCTYPE html>
 <html>
 <head>
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />

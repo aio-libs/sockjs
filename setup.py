@@ -20,7 +20,7 @@ def read(f):
 
 setup(name='pyramid_sockjs',
       version=version,
-      description=('SockJS server implementation.'),
+      description=('SockJS server implementation for Pyramid.'),
       long_description='\n\n'.join((read('README.rst'), read('CHANGES.txt'))),
       classifiers=[
           "Intended Audience :: Developers",
