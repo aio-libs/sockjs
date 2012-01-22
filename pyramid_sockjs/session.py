@@ -1,60 +1,32 @@
-from weakref import WeakValueDictionary
-
+import logging
 import gevent
 from gevent.queue import Queue
-from gevent.event import Event
+from heapq import heappush, heappop
+from datetime import datetime, timedelta
+from pyramid.compat import string_types
 
-
-class GetSessions(object):
-
-    def __init__(self, registry):
-        self.registry = registry
-
-    def __call__(self, name='sockjs'):
-        try:
-            return self.registry.__sockjs_sessions__
-        except AttributeError:
-            sessions = Sessions()
-            self.registry.__sockjs_sessions__ = sessions
-            return sessions
-
-
-class Sessions(WeakValueDictionary):
-
-    def flush(registry, lid):
-        if lid in self:
-            del self[lid]
-
-    def get(self, session_id='', create_if_null=False):
-        """Return an existing or new client Session."""
-
-        # Is it an existing session?
-        session = WeakValueDictionary.get(self, session_id)
-
-        # Otherwise let the client choose their session_id, if
-        # this transport direction allows
-        if session is None:
-            if create_if_null:
-                session = MemorySession(session_id)
-                self[session_id] = session
-
-        elif session:
-            session.incr_hits()
-
-        return session
+log = logging.getLogger('pyramid_sockjs')
 
 
 class Session(object):
-    """
-    Base class for Session objects. Provides for different
-    backends for queueing messages for sessions.
 
-    Subclasses are expected to overload the add_message and
-    get_messages to reflect their storage system.
-    """
+    acquired = False
+    timeout = timedelta(seconds=10)
+
+    def __init__(self, id, timeout=timedelta(seconds=10)):
+        self.id = id
+        self.expired = False
+        self.timeout = timeout
+        self.expires = datetime.now() + timeout
+
+        self.queue = Queue()
+
+        self.hits = 0
+        self.heartbeats = 0
+        self.connected = False
 
     def __str__(self):
-        result = ['session_id=%r' % self.session_id]
+        result = ['session_id=%r' % self.id]
 
         if self.connected:
             result.append('connected')
@@ -70,77 +42,174 @@ class Session(object):
 
         return ' '.join(result)
 
-    def incr_hits(self):
-        self.hits += 1
+    def tick(self, timeout=None):
+        self.expired = False
 
-        if self.hits > 0:
-            self.connected = True
+        if timeout is None:
+            self.expires = datetime.now() + self.timeout
+        else:
+            self.expires = datetime.now() + timeout
 
-        self.clear_disconnect_timeout()
-
-    def is_new(self):
-        return self.hits == 0
-
-    def clear_disconnect_timeout(self):
-        self.timeout.set()
-
-    def heartbeat(self):
-        self.clear_disconnect_timeout()
-        self.heartbeats += 1
-        return self.heartbeats
-
-    def add_message(self, msg):
-        raise NotImplemented()
-
-    def get_messages(self, **kwargs):
-        raise NotImplemented()
-
-    def kill(self):
-        raise NotImplemented()
-
-
-class MemorySession(Session):
-    """
-    In memory session with a outgoing gevent Queue as the message
-    store.
-    """
-
-    timer = 10.0
-
-    def __init__(self, session_id):
-        self.session_id = session_id
-
-        self.queue = Queue()
-
-        self.hits = 0
-        self.heartbeats = 0
+    def expire(self):
+        """ Manually expire a session. """
+        self.expired = True
         self.connected = False
-        self.timeout = Event()
 
-        def disconnect_timeout():
-            self.timeout.clear()
-
-            if self.timeout.wait(self.timer):
-                gevent.spawn(disconnect_timeout)
-            else:
-                self.server.flush_session(self.session_id)
-                self.kill()
-
-        #gevent.spawn(disconnect_timeout)
-
-    def add_message(self, msg):
-        self.clear_disconnect_timeout()
+    def send(self, msg):
+        if isinstance(msg, string_types):
+            msg = [msg]
+        self.tick()
         self.queue.put_nowait(msg)
 
-    def get_messages(self, **kwargs):
-        return self.queue.get(**kwargs)
+    def send_raw(self, msg):
+        self.tick()
+        self.queue.put_nowait(msg)
 
-    def kill(self):
-        if self.connected:
-            self.connected = False
-        else:
-            pass
+    def _messages(self, timeout=None):
+        self.tick()
+        return self.queue.get(timeout=timeout)
+
+    def open(self):
+        self.tick()
+        self.connected = True
+        try:
+            self.on_open()
+        except:
+            log.exception("Exceptin in .on_open method.")
+
+    def message(self, msg):
+        self.tick()
+        try:
+            self.on_message(msg)
+        except:
+            log.exception("Exceptin in .on_message method.")
+
+    def close(self):
+        print 'Closing: %s'%self.id
+        self.expire()
+        try:
+            self.on_close()
+        except:
+            log.exception("Exceptin in .on_message method.")
+
+    def on_open(self):
+        """ override in subsclass """
+
+    def on_message(self, msg):
+        """ override in subsclass """
+
+    def on_close(self):
+        """ override in subsclass """
 
 
-#class RedisSession(Session):
-    #pass
+class SessionManager(object):
+    """ A basic session manager """
+    _gc_thread = None
+
+    def __init__(self, name, registry, session=Session,
+                 gc_cycle=5.0, timeout = timedelta(seconds=10)):
+        self.name = 'sockjs-%s'%name
+        self.registry = registry
+        self.factory = session
+        self.sessions = {}
+        self.acquired = {}
+        self.pool = []
+        self.gc_cycle = gc_cycle
+        self.timeout = timeout
+
+    def route_url(self, request):
+        return request.route_url(self.name)
+
+    def start(self):
+        if self._gc_thread is None:
+            def _gc_sessions():
+                while True:
+                    gevent.sleep(self.gc_cycle)
+                    self._gc()
+
+            self._gc_thread = gevent.Greenlet(_gc_sessions)
+
+        if not self._gc_thread.started:
+            self._gc_thread.start()
+
+    def _gc(self):
+        current_time = datetime.now()
+
+        while self.pool:
+            expires, session = self.pool[0]
+
+            # Every session is fresh
+            if expires > current_time:
+                break
+
+            expires, session = heappop(self.pool)
+            if session.id not in self.sessions:
+                continue
+
+            # Session is to be GC'd immedietely
+            if session.expires < current_time:
+                del self.sessions[session.id]
+                if self.connected:
+                    session.close()
+                continue
+            else:
+                heappush(self.pool, (session.expires, session))
+
+    def add(self, session):
+        if session.expired:
+            raise ValueError("Can't add expired session")
+
+        session.manager = self
+        session.registry = self.registry
+
+        self.sessions[session.id] = session
+        heappush(self.pool, (session.expires, session))
+
+    def get(self, id):
+        return self.sessions.get(id, None)
+
+    def acquire(self, id, create=False):
+        session = self.sessions.get(id, None)
+        if session is None and create:
+            session = self.factory(id, self.timeout)
+            self.add(session)
+
+        session.tick()
+        session.hits += 1
+        self.acquired[session.id] = True
+        return session
+
+    def release(self, session):
+        if session.id in self.acquired:
+            del self.acquired[session.id]
+
+    def clear(self):
+        """ Manually expire all sessions in the pool. """
+        while self.pool:
+            expr, session = heappop(self.pool)
+            session.expire()
+            del self.sessions[session.id]
+
+    def broadcast(self, msg):
+        for session in self.sessions.values():
+            if not session.expired:
+                session.send(msg)
+
+    def __del__(self):
+        self.clear()
+
+
+class GetSessionManager(object):
+    """ Pyramid's request.get_sockjs_manager implementation """
+
+    def __init__(self, registry):
+        self.registry = registry
+
+    def __call__(self, name=''):
+        try:
+            manager = self.registry.__sockjs_managers__[name]
+        except AttributeError:
+            raise KeyError(name)
+
+        manager.start()
+        return manager

@@ -1,135 +1,103 @@
-import base64
-from hashlib import md5, sha1
-
-import gevent
-from gevent.pywsgi import Input
-from geventwebsocket.websocket import WebSocketHybi
-
-from pyramid.view import view_config
+import logging
+from pyramid.exceptions import ConfigurationError
 from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
 
 from pyramid_sockjs import transports
+from pyramid_sockjs.session import Session, SessionManager
+from pyramid_sockjs.websocket import HandshakeError
+from pyramid_sockjs.websocket import init_websocket
+
+log = logging.getLogger('pyramid_sockjs')
 
 handler_types = {
-    'websocket'    : ('bi', transports.WebSocketTransport),
+    'websocket'    : (True, transports.WebSocketTransport),
 
-    'xhr'          : ('recv', transports.XHRPollingTransport()),
-    'xhr_send'     : ('send', transports.XHRSendPollingTransport()),
-    'xhr_streaming': ('recv', transports.XHRStreamingTransport),
+    'xhr'          : (True, transports.XHRPollingTransport()),
+    'xhr_send'     : (False, transports.XHRSendPollingTransport()),
+    'xhr_streaming': (True, transports.XHRStreamingTransport),
 
-    'jsonp'        : ('recv', transports.JSONPolling()),
-    'jsonp_send'   : ('send', transports.JSONPolling()),
+    'jsonp'        : (True, transports.JSONPolling),
+    'jsonp_send'   : (False, transports.JSONPolling),
 
-    'htmlfile'     : ('recv', transports.HTMLFileTransport()),
-    'iframe'       : ('recv', transports.IFrameTransport()),
+    'htmlfile'     : (True, transports.HTMLFileTransport()),
+    'iframe'       : (True, transports.IFrameTransport()),
 }
 
 
-@view_config(route_name='sockjs')
-def sockjs(request):
-    matchdict = request.matchdict
-    tid = matchdict['transport']
+def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
+                     session=Session, session_manager=None):
+    # set session manager
+    if session_manager is None:
+        session_manager = SessionManager(name, cfg.registry, session=session)
 
-    # Lookup the direction of the transport and its
-    # associated handler
-    if tid not in handler_types:
-        return HTTPNotFound()
+    if not hasattr(cfg.registry, '__sockjs_managers__'):
+        cfg.registry.__sockjs_managers__ = {}
 
-    direction, transport = handler_types[tid]
+    if name in cfg.registry.__sockjs_managers__:
+        raise ConfigurationError("SockJS '%s' route is already registered"%name)
 
-    # session
-    sessions = request.get_sockjs_sessions()
+    cfg.registry.__sockjs_managers__[name] = session_manager
 
-    session = sessions.get(matchdict['session'], direction in ('bi','recv'))
-    if session is None:
-        return HTTPNotFound()
+    # register routes
+    sockjs = SockJSRoute(name, session_manager)
 
-    request.environ['sockjs'] = session
+    if prefix.endswith('/'):
+        prefix = prefix[:-1]
 
-    # initiate websocket connetion
-    if tid == 'websocket':
-        result = init_websocket_connection(request)
-        if result is not None:
-            return result
+    route_name = 'sockjs-%s'%name
+    cfg.add_route(route_name, '%s/{server}/{session}/{transport}'%prefix)
+    cfg.add_view(route_name=route_name, view=sockjs.handler)
 
-    return transport(session, request)
+    route_name = 'sockjs-info-%s'%name
+    cfg.add_route(route_name, '%s/info'%prefix)
+    cfg.add_view(route_name=route_name, view=sockjs.info)
 
-
-@view_config(route_name='sockjs-info')
-def sockjs_info(request):
-    request.response.body = str(map(str, []))
-    return request.response
+    route_name = 'sockjs-iframe-%s'%name
+    cfg.add_route(route_name, '%s/iframe{version}.html')
 
 
-@view_config(route_name='sockjs-iframe')
-def sockjs_iframe(request):
-    pass
+class SockJSRoute(object):
 
+    def __init__(self, name, session_manager):
+        self.name = name
+        self.session_manager = session_manager
 
-def init_websocket_connection(request):
-    environ = request.environ
+    def handler(self, request):
+        matchdict = request.matchdict
 
-    upgrade = environ.get('HTTP_UPGRADE', '').lower()
-    if upgrade == 'websocket':
-        connection = environ.get('HTTP_CONNECTION', '').lower()
+        # lookup transport
+        tid = matchdict['transport']
 
-        if 'upgrade' in connection:
-            version = environ.get("HTTP_SEC_WEBSOCKET_VERSION")
-            if version:
-                environ['wsgi.websocket_version'] = 'hybi-%s' % version
-                if version not in SUPPORTED_VERSIONS:
-                    return HTTPBadRequest(
-                        headers=(('Sec-WebSocket-Version', '13, 8, 7'),))
+        if tid not in handler_types:
+            return HTTPNotFound()
 
-                result = handle_hybi(request, environ)
+        create, transport = handler_types[tid]
 
-                if result is not None:
-                    return result
-                return None
+        # session
+        manager = self.session_manager
 
-    return HTTPBadRequest()
+        session = manager.acquire(matchdict['session'], create)
+        if session is None:
+            return HTTPNotFound()
 
+        request.environ['sockjs'] = session
 
-GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-SUPPORTED_VERSIONS = ('13', '8', '7')
+        # websocket
+        if tid == 'websocket':
+            try:
+                init_websocket(request)
+            except Exception as exc:
+                return HTTPBadRequest(str(exc))
 
-def handle_hybi(request, environ):
-    protocol = environ.get('SERVER_PROTOCOL','')
+        try:
+            return transport(session, request)
+        except Exception as exc:
+            log.exception('Exception in transport: %s'%tid)
+            return HTTPBadRequest(str(exc))
 
-    # check client handshake for validity
-    if not request.method == "GET":
-        # 5.2.1 (1)
-        return HTTPBadRequest()
-    elif not protocol.startswith("HTTP/"):
-        # 5.2.1 (1)
-        return HTTPBadRequest()
-    elif not (environ.get('GATEWAY_INTERFACE','').endswith('/1.1') or \
-              protocol.endswith('/1.1')):
-        # 5.2.1 (1)
-        return HTTPBadRequest()
-    
-    key = environ.get("HTTP_SEC_WEBSOCKET_KEY")
-    if not key:
-        # 5.2.1 (3)
-        return HTTPBadRequest('HTTP_SEC_WEBSOCKET_KEY is missing from request')
-    elif len(base64.b64decode(key)) != 16:
-        # 5.2.1 (3)
-        return HTTPBadRequest('Invalid key: %r', key)
+    def info(self, request):
+        request.response.body = str(map(str, []))
+        return request.response
 
-    # !!!!!!! HACK !!!!!!!
-    wsgi_input = environ['wsgi.input']
-    if not isinstance(wsgi_input, Input):
-        return HTTPBadRequest("Can't get handler.rfile from %s", wsgi_input)
-    else:
-        rfile = wsgi_input.rfile
-    # !!!!!!! HACK !!!!!!!
-
-    environ['wsgi.websocket'] = WebSocketHybi(rfile, environ)
-
-    headers = [
-        ("Upgrade", "websocket"),
-        ("Connection", "Upgrade"),
-        ("Content-Length", "0"),
-        ("Sec-WebSocket-Accept", base64.b64encode(sha1(key + GUID).digest()))]
-    request.response.headers = headers
-    request.response.status = '101 Switching Protocols'
+    def iframe(self, request):
+        return request.response

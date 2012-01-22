@@ -1,24 +1,11 @@
 # pyramid_sockjs
 
-from pyramid_sockjs import session
-
-
 def includeme(cfg):
-    cfg.add_route(
-        'sockjs',
-        '/__sockjs__/{server}/{session}/{transport}')
+    from pyramid_sockjs.route import add_sockjs_route
+    from pyramid_sockjs.session import GetSessionManager
 
-    cfg.add_route(
-        'sockjs-info',
-        '/__sockjs__/info')
+    def get_manager(request, name=''):
+        return GetSessionManager(request.registry)
 
-    cfg.add_route(
-        'sockjs-iframe',
-        '/__sockjs__/iframe{version}.html')
-
-    cfg.scan('pyramid_sockjs.route')
-
-    def get_sessions(request):
-        return session.GetSessions(request.registry)
-
-    cfg.set_request_property(get_sessions, 'get_sockjs_sessions', True)
+    cfg.add_directive('add_sockjs_route', add_sockjs_route)
+    cfg.set_request_property(get_manager, 'get_sockjs_manager', True)

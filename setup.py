@@ -8,8 +8,8 @@ version='0.1dev'
 
 install_requires = ['setuptools',
                     'pyramid >= 1.3a6',
-                    'gevent',
-                    'gevent-websocket',
+                    'gevent >= 1.0dev',
+                    'gevent-websocket >= 0.3.0-dev',
                     ]
 
 tests_require = install_requires + ['nose']
