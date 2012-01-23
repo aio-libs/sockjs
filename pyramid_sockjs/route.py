@@ -29,11 +29,15 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
     if session_manager is None:
         session_manager = SessionManager(name, cfg.registry, session=session)
 
+    if session_manager.name != name:
+        raise ConfigurationError(
+            "Session manage has to have same name as sockjs route")
+
     if not hasattr(cfg.registry, '__sockjs_managers__'):
         cfg.registry.__sockjs_managers__ = {}
 
     if name in cfg.registry.__sockjs_managers__:
-        raise ConfigurationError("SockJS '%s' route is already registered"%name)
+        raise ConfigurationError("SockJS '%s' route already registered"%name)
 
     cfg.registry.__sockjs_managers__[name] = session_manager
 
@@ -45,6 +49,9 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
 
     if prefix.endswith('/'):
         prefix = prefix[:-1]
+
+    route_name = 'sockjs-url-%s'%name
+    cfg.add_route(route_name, '%s/'%prefix)
 
     route_name = 'sockjs-%s'%name
     cfg.add_route(route_name, '%s/{server}/{session}/{transport}'%prefix)
@@ -84,11 +91,12 @@ class SockJSRoute(object):
         # session
         manager = self.session_manager
 
-        session = manager.acquire(matchdict['session'], create)
-        if session is None:
+        try:
+            session = manager.acquire(matchdict['session'], create)
+        except KeyError:
             return HTTPNotFound()
 
-        request.environ['sockjs'] = session
+        request.environ['wsgi.sockjs_session'] = session
 
         # websocket
         if tid == 'websocket':

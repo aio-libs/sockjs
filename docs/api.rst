@@ -2,7 +2,7 @@ API
 ===
 
 
-.. automodule:: pyramid_sockjs.session
+.. automodule:: pyramid_sockjs
 
   .. autoclass:: Session
 

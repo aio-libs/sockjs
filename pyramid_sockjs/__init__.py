@@ -1,6 +1,7 @@
 # pyramid_sockjs
 
-from pyramid_sockjs.session import Session, SessionManager
+from pyramid_sockjs.session import Session
+from pyramid_sockjs.session import SessionManager
 
 
 def includeme(cfg):

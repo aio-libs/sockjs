@@ -4,6 +4,7 @@ from gevent.queue import Queue
 from heapq import heappush, heappop
 from datetime import datetime, timedelta
 from pyramid.compat import string_types
+from pyramid_sockjs.protocol import encode, decode
 
 log = logging.getLogger('pyramid_sockjs')
 
@@ -26,7 +27,7 @@ class Session(object):
         self.connected = False
 
     def __str__(self):
-        result = ['session_id=%r' % self.id]
+        result = ['id=%r' % self.id]
 
         if self.connected:
             result.append('connected')
@@ -63,19 +64,18 @@ class Session(object):
         if isinstance(msg, string_types):
             msg = [msg]
         self.tick()
-        self.queue.put_nowait(msg)
+        self.queue.put_nowait(encode(msg))
 
     def send_raw(self, msg):
         self.tick()
         self.queue.put_nowait(msg)
 
-    def _messages(self, timeout=None):
+    def get_transport_message(self, timeout=None):
         self.tick()
         return self.queue.get(timeout=timeout)
 
     def open(self):
         log.info('open session: %s', self.id)
-        self.tick()
         self.connected = True
         try:
             self.on_open()
@@ -112,10 +112,12 @@ class SessionManager(object):
     """ A basic session manager """
 
     _gc_thread = None
+    _gc_thread_stop = False
 
     def __init__(self, name, registry, session=Session,
-                 gc_cycle=5.0, timeout = timedelta(seconds=10)):
-        self.name = 'sockjs-%s'%name
+                 gc_cycle=3.0, timeout=timedelta(seconds=10)):
+        self.name = name
+        self.route_name = 'sockjs-url-%s'%name
         self.registry = registry
         self.factory = session
         self.sessions = {}
@@ -125,19 +127,24 @@ class SessionManager(object):
         self._gc_cycle = gc_cycle
 
     def route_url(self, request):
-        return request.route_url(self.name)
+        return request.route_url(self.route_name)
 
     def start(self):
         if self._gc_thread is None:
             def _gc_sessions():
-                while True:
+                while not self._gc_thread_stop:
                     gevent.sleep(self._gc_cycle)
-                    self._gc()
+                    self._gc() # pragma: no cover
 
             self._gc_thread = gevent.Greenlet(_gc_sessions)
 
-        if not self._gc_thread.started:
+        if not self._gc_thread:
             self._gc_thread.start()
+
+    def stop(self):
+        if self._gc_thread:
+            self._gc_thread_stop = True
+            self._gc_thread.join()
 
     def _gc(self):
         current_time = datetime.now()
@@ -145,24 +152,27 @@ class SessionManager(object):
         while self.pool:
             expires, session = self.pool[0]
 
-            # Every session is fresh
-            if expires > current_time:
-                break
-
-            expires, session = heappop(self.pool)
-            if session.id not in self.sessions:
+            # check if session is removed
+            if session.id in self.sessions:
+                if expires > current_time:
+                    break
+            else:
+                self.pool.pop(0)
                 continue
+
+            expires, session = self.pool.pop(0)
 
             # Session is to be GC'd immedietely
             if session.expires < current_time:
                 del self.sessions[session.id]
+                if session.id in self.acquired:
+                    del self.acquired[session.id]
                 if session.connected:
                     session.close()
-                continue
             else:
                 heappush(self.pool, (session.expires, session))
 
-    def add(self, session):
+    def _add(self, session):
         if session.expired:
             raise ValueError("Can't add expired session")
 
@@ -177,9 +187,12 @@ class SessionManager(object):
 
     def acquire(self, id, create=False):
         session = self.sessions.get(id, None)
-        if session is None and create:
-            session = self.factory(id, self.timeout)
-            self.add(session)
+        if session is None:
+            if create:
+                session = self.factory(id, self.timeout)
+                self._add(session)
+            else:
+                raise KeyError(id)
 
         session.tick()
         session.hits += 1
@@ -209,6 +222,7 @@ class SessionManager(object):
 
     def __del__(self):
         self.clear()
+        self.stop()
 
 
 class GetSessionManager(object):

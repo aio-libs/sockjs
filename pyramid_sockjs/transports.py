@@ -3,11 +3,7 @@ from gevent.queue import Empty
 from pyramid.compat import url_unquote
 from pyramid.httpexceptions import HTTPBadRequest
 from pyramid_sockjs.protocol import OPEN, MESSAGE, HEARTBEAT
-from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
-
-def enum(*sequential, **named):
-    enums = dict(zip(sequential, range(len(sequential))), **named)
-    return type('Enum', (), enums)
+from pyramid_sockjs.protocol import decode, close_frame, message_frame
 
 
 class PollingTransport(object):
@@ -37,11 +33,11 @@ class XHRPollingTransport(PollingTransport):
 
     def process(self, session, request):
         try:
-            messages = session._messages(timeout=self.TIMING)
+            message = session.get_transport_message(timeout=self.TIMING)
         except Empty:
-            messages = '[]'
+            message = '[]'
 
-        request.response.body = message_frame(messages)
+        request.response.body = message_frame(message)
 
 
 class XHRSendPollingTransport(PollingTransport):
@@ -125,7 +121,7 @@ class XHRStreamingIterator(object):
 
         while True:
             try:
-                message = session._messages(timeout=timing)
+                message = session.get_transport_message(timeout=timing)
                 if message is None:
                     session.close()
                     raise StopIteration()
@@ -166,10 +162,10 @@ def JSONPolling(session, request):
             raise Exception('"callback" parameter is required')
 
         try:
-            messages = session._messages(timeout=5.0)
+            message = session.get_transport_message(timeout=5.0)
         except Empty:
-            messages = '[]'
-        response.text = "%s('%s%s');\r\n"%(callback, MESSAGE, encode(messages))
+            message = '[]'
+        response.text = "%s('%s%s');\r\n"%(callback, MESSAGE, message)
 
     elif meth == "POST":
         data = request.body_file.read()
@@ -202,7 +198,7 @@ def WebSocketTransport(session, request):
 
         while True:
             try:
-                message = session._messages(5.0)
+                message = session.get_transport_message(5.0)
             except Empty:
                 message = HEARTBEAT
                 session.heartbeat()

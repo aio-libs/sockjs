@@ -1,4 +1,5 @@
 import hashlib
+from pyramid.compat import string_types
 
 # json
 # -----------
@@ -6,7 +7,7 @@ import hashlib
 # Fastest
 try:
     import ujson as json
-except ImportError:
+except ImportError: # pragma: no cover
     # Faster
     try:
         import simplejson as json
@@ -46,31 +47,11 @@ IFRAME_HTML = """<!DOCTYPE html>
 
 IFRAME_MD5 = hashlib.md5(IFRAME_HTML).hexdigest()
 
-def encode(message):
-    """ Python to JSON """
-    if isinstance(message, basestring):
-        msg = message
-    elif isinstance(message, (object, dict, list)):
-        msg = json.dumps(message)
-    else:
-        raise ValueError("Unable to serialize: %s", str(message))
-    return msg
-
-def decode(data):
-    """ JSON to Python """
-    messages = []
-    data.encode('utf-8', 'replace')
-
-    # "a['123', 'abc']" -> [123, 'abc']
-    try:
-        messages = json.loads(data)
-    except:
-        raise ValueError("Unable to deserialize: %s", str(data))
-
-    return messages
+encode = json.dumps
+decode = json.loads
 
 def close_frame(code, reason):
-    return '%s[%d,"%s"]' % (CLOSE, code, reason)
+    return '%s[%d, %s]' % (CLOSE, code, encode(reason))
 
 def message_frame(data):
-    return ''.join([MESSAGE, encode(data), '\n'])
+    return '%s%s\n'%(MESSAGE, data)
