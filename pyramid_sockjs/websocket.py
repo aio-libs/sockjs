@@ -28,25 +28,26 @@ def init_websocket(request):
 
     environ['wsgi.websocket_version'] = 'hybi-%s' % version
 
-    protocol = environ.get('SERVER_PROTOCOL','')
-
     # check client handshake for validity
     if request.method != "GET":
         raise HandshakeError('Method is not GET')
-    elif not protocol.startswith("HTTP/"):
+
+    protocol = environ.get('SERVER_PROTOCOL','')
+    if not protocol.startswith("HTTP/"):
         raise HandshakeError('Protocol is not HTTP')
-    elif not (environ.get('GATEWAY_INTERFACE','').endswith('/1.1') or \
+
+    if not (environ.get('GATEWAY_INTERFACE','').endswith('/1.1') or \
               protocol.endswith('/1.1')):
         raise HandshakeError('HTTP/1.1 is required')
 
     key = environ.get("HTTP_SEC_WEBSOCKET_KEY")
     if not key or len(base64.b64decode(key)) != 16:
-        raise HandshakeError('HTTP_SEC_WEBSOCKET_KEY is invalid key: %r'%key)
+        raise HandshakeError('HTTP_SEC_WEBSOCKET_KEY is invalid key')
 
     # !!!!!!! HACK !!!!!!!
     rfile = getattr(environ['wsgi.input'], 'rfile', None)
     if rfile is None:
-        raise HandshakeError("Can't find rfile from %s", wsgi_input)
+        raise HandshakeError("Can't find rfile from %s"%environ['wsgi.input'])
     # !!!!!!! HACK !!!!!!!
 
     headers = [
