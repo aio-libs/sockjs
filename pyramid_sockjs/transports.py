@@ -2,6 +2,7 @@ import gevent
 from gevent.queue import Empty
 from pyramid.compat import url_unquote
 from pyramid.httpexceptions import HTTPBadRequest
+from pyramid_sockjs import StreamingStop
 from pyramid_sockjs.protocol import OPEN, MESSAGE, HEARTBEAT
 from pyramid_sockjs.protocol import decode, close_frame, message_frame
 
@@ -55,27 +56,10 @@ class XHRSendPollingTransport(PollingTransport):
         response.status = 204
 
 
-from gevent.pywsgi import WSGIHandler
-
-class XHRStreamingStop(Exception):
-    """ """
-
-orig_handle_error = WSGIHandler.handle_error
-
-def handle_error(self, type, value, tb):
-    if issubclass(type, XHRStreamingStop):
-        del tb
-        return
-
-    return orig_handle_error(self, type, value, tb)
-
-WSGIHandler.handle_error = handle_error
-
-
 def XHRStreamingTransport(session, request,
                           INIT_STREAM = 'h' *  2048 + '\n' + OPEN):
     meth = request.method
-    input = request.environ['wsgi.input']
+    socket = request.environ.get('gevent.socket')
     request.response.headers = (
         ('Content-Type', 'text/html; charset=UTF-8'),
         ("Access-Control-Allow-Origin", "*"),
@@ -86,11 +70,11 @@ def XHRStreamingTransport(session, request,
 
     if not session.connected and not session.expired:
         request.response.app_iter = XHRStreamingIterator(
-            session, INIT_STREAM, input)
+            session, INIT_STREAM, socket)
         session.open()
 
     elif meth in ('GET', 'POST'):
-        request.response.app_iter = XHRStreamingIterator(session, input=input)
+        request.response.app_iter = XHRStreamingIterator(session, socket=socket)
 
     else:
         raise Exception("No support for such method: %s"%meth)
@@ -104,10 +88,10 @@ class XHRStreamingIterator(object):
 
     TIMING = 5.0
 
-    def __init__(self, session, init_stream=None, input=None):
+    def __init__(self, session, init_stream=None, socket=None):
         self.session = session
         self.init_stream = init_stream
-        self.write = _get_write(input.rfile)
+        self.write = socket.sendall
 
     def __iter__(self):
         return self
@@ -138,7 +122,7 @@ class XHRStreamingIterator(object):
                 self.write(message)
             except:
                 session.close()
-                raise XHRStreamingStop()
+                raise StreamingStop()
 
     __next__ = next
 
@@ -242,8 +226,11 @@ def WebSocketTransport(session, request):
 class WebSocketIterator(list):
 
     def __init__(self, app_iter, jobs):
+        print app_iter
         self.extend(app_iter)
         self.jobs = jobs
+        self.pos = 0
+        self.len = len(self)
 
     def close(self):
         gevent.joinall(self.jobs)

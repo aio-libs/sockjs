@@ -44,19 +44,20 @@ def init_websocket(request):
     if not key or len(base64.b64decode(key)) != 16:
         raise HandshakeError('HTTP_SEC_WEBSOCKET_KEY is invalid key')
 
-    # !!!!!!! HACK !!!!!!!
-    rfile = getattr(environ['wsgi.input'], 'rfile', None)
-    if rfile is None:
-        raise HandshakeError("Can't find rfile from %s"%environ['wsgi.input'])
-    # !!!!!!! HACK !!!!!!!
+    # get gevent.socket see pyramid_sockjs.monkey
+    socket = environ.get('gevent.socket', None)
+    if socket is None:
+        raise HandshakeError("socket object is not available")
 
     headers = [
         ("Upgrade", "websocket"),
         ("Connection", "Upgrade"),
-        ("Content-Length", "0"),
+        ("Content-Length", "9"),
         ('Sec-WebSocket-Version', environ['wsgi.websocket_version']),
         ("Sec-WebSocket-Accept", base64.b64encode(sha1(key + KEY).digest()))]
     request.response.headers = headers
     request.response.status = '101 Switching Protocols'
+    request.response.body = 'connected'
 
-    environ['wsgi.websocket'] = WebSocketHybi(rfile, environ)
+    environ['wsgi.websocket'] = WebSocketHybi(
+        socket.makefile('rwb', -1), environ)

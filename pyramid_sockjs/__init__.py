@@ -3,6 +3,8 @@
 from pyramid_sockjs.session import Session
 from pyramid_sockjs.session import SessionManager
 
+class StreamingStop(Exception):
+    """ """
 
 def includeme(cfg):
     from pyramid_sockjs.route import add_sockjs_route
@@ -13,3 +15,7 @@ def includeme(cfg):
 
     cfg.add_directive('add_sockjs_route', add_sockjs_route)
     cfg.set_request_property(get_manager, 'get_sockjs_manager', True)
+
+    # patch gevent
+    import pyramid_sockjs.monkey
+    pyramid_sockjs.monkey.patch_gevent()

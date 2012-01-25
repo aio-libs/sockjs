@@ -1,7 +1,7 @@
 from pyramid.testing import DummyRequest
 from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
 
-from .base import BaseTestCase
+from .base import BaseTestCase, SocketMock
 
 
 class WebSoscketHandshake(BaseTestCase):
@@ -155,13 +155,10 @@ class WebSoscketHandshake(BaseTestCase):
             pass
 
         self.assertIsInstance(err, HandshakeError)
-        self.assertTrue(err.msg.startswith("Can't find rfile from"))
+        self.assertEqual(err.msg, "socket object is not available")
 
     def test_success(self):
         from pyramid_sockjs.websocket import init_websocket, HandshakeError
-
-        class Input(object):
-            rfile = object()
 
         class WS(object):
             def __init__(self, rfile, environ):
@@ -174,7 +171,7 @@ class WebSoscketHandshake(BaseTestCase):
                      'HTTP_SEC_WEBSOCKET_VERSION': '8',
                      'SERVER_PROTOCOL': 'HTTP/1.1',
                      'HTTP_SEC_WEBSOCKET_KEY': '5Jfbk3Hf5oLcReU416OxpA==',
-                     'wsgi.input': Input()})
+                     'gevent.socket': SocketMock()})
         request.method = 'GET'
 
         from pyramid_sockjs import websocket

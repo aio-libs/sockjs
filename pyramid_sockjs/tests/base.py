@@ -10,6 +10,12 @@ else:
     from unittest import TestCase
 
 
+class SocketMock(object):
+    rfile = object()
+    def makefile(self, *args):
+        return self.rfile
+
+
 class BaseTestCase(TestCase):
 
     _include = True
@@ -20,7 +26,8 @@ class BaseTestCase(TestCase):
         'wsgi.version':(1,0),
         'HTTP_HOST': 'example.com',
         'SCRIPT_NAME': '',
-        'PATH_INFO': '/',}
+        'PATH_INFO': '/',
+        'gevent.socket': SocketMock()}
 
     def setUp(self):
         self.init_pyramid()
