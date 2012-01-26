@@ -1,7 +1,9 @@
 """ jsonp transport """
+import uuid
 from gevent.queue import Empty
+from pyramid.compat import url_unquote
 from pyramid_sockjs.protocol import OPEN, HEARTBEAT
-from pyramid_sockjs.protocol import decode, close_frame, message_frame
+from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
 
 
 def JSONPolling(session, request):
@@ -26,10 +28,11 @@ def JSONPolling(session, request):
         try:
             message = session.get_transport_message(timeout=5.0)
         except Empty:
-            message = 'h'
+            message = HEARTBEAT
+            session.heartbeat()
         else:
-            message = '%s%s'%(MESSAGE, message)
-        response.text = "%s('%s');\r\n"%(callback, message)
+            message = message_frame(message)
+        response.text = "%s(%s);"%(callback, encode(message))
         session.manager.release(session)
 
     elif meth == "POST":
@@ -46,9 +49,10 @@ def JSONPolling(session, request):
         for msg in messages:
             session.message(msg)
 
-        response.status = 204
+        response.status = 200
+        response.headers['Content-Type'] = 'text/plain; charset=UTF-8'
+        response.body = 'ok'
     else:
         raise Exception("No support for such method: %s"%meth)
 
-    session.manager.release(session)
-    return request.response
+    return response
