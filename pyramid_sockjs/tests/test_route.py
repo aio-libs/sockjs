@@ -76,11 +76,11 @@ class TestSockJSRoute(BaseSockjs):
             self.request.environ['wsgi.sockjs_session'], Session)
 
     def test_fail_transport(self):
-        from pyramid_sockjs.route import handler_types
+        from pyramid_sockjs.transports import handlers
         def fail(session, request):
             raise Exception('Error')
 
-        handler_types['test'] = (True, fail)
+        handlers['test'] = (True, fail)
 
         route = self.make_one()
 
@@ -89,7 +89,7 @@ class TestSockJSRoute(BaseSockjs):
         res = route.handler(self.request)
         self.assertIsInstance(res, HTTPBadRequest)
 
-        del handler_types['test']
+        del handlers['test']
 
 
 class TestWebSocketRoute(BaseSockjs):
@@ -99,13 +99,14 @@ class TestWebSocketRoute(BaseSockjs):
 
         # handler
         from pyramid_sockjs import route
-        self.orig = route.handler_types['websocket']
+        from pyramid_sockjs.transports import handlers
+        self.orig = handlers['websocket']
 
         self.init = []
         def websocket(session, request):
             self.init.append(True)
 
-        route.handler_types['websocket'] = (True, websocket)
+        handlers['websocket'] = (True, websocket)
 
         # init
         self.raise_init = False
@@ -120,7 +121,9 @@ class TestWebSocketRoute(BaseSockjs):
         super(TestWebSocketRoute, self).tearDown()
 
         from pyramid_sockjs import route
-        route.handler_types['websocket'] = self.orig
+        from pyramid_sockjs.transports import handlers
+
+        handlers['websocket'] = self.orig
         route.init_websocket = self.init_orig
 
     def test_websocket_init(self):
