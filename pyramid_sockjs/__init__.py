@@ -3,8 +3,6 @@
 from pyramid_sockjs.session import Session
 from pyramid_sockjs.session import SessionManager
 
-class StreamingStop(Exception):
-    """ """
 
 def includeme(cfg):
     from pyramid_sockjs.route import add_sockjs_route

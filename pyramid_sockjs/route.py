@@ -2,24 +2,15 @@ import logging
 from pyramid.exceptions import ConfigurationError
 from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
 
-from pyramid_sockjs import transports
+from pyramid_sockjs.session import Session
+from pyramid_sockjs.session import SessionManager
 from pyramid_sockjs.protocol import IFRAME_HTML
-from pyramid_sockjs.session import Session, SessionManager
+from pyramid_sockjs.transports import handlers
 from pyramid_sockjs.websocket import HandshakeError
 from pyramid_sockjs.websocket import init_websocket
 
 log = logging.getLogger('pyramid_sockjs')
 
-handler_types = {
-    'websocket'    : (True, transports.WebSocketTransport),
-
-    'xhr'          : (True, transports.XHRPollingTransport()),
-    'xhr_send'     : (False, transports.XHRSendPollingTransport()),
-    'xhr_streaming': (True, transports.XHRStreamingTransport),
-
-    'jsonp'        : (True, transports.JSONPolling),
-    'jsonp_send'   : (False, transports.JSONPolling),
-}
 
 
 def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
@@ -83,10 +74,10 @@ class SockJSRoute(object):
         # lookup transport
         tid = matchdict['transport']
 
-        if tid not in handler_types:
+        if tid not in handlers:
             return HTTPNotFound()
 
-        create, transport = handler_types[tid]
+        create, transport = handlers[tid]
 
         # session
         manager = self.session_manager

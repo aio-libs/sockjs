@@ -3,7 +3,7 @@ from gevent.queue import Empty
 from pyramid.compat import url_unquote
 from pyramid.response import Response
 from pyramid.httpexceptions import HTTPBadRequest
-from pyramid_sockjs import StreamingStop
+from pyramid_sockjs.transports import StreamingStop
 from pyramid_sockjs.protocol import OPEN, MESSAGE, HEARTBEAT
 from pyramid_sockjs.protocol import decode, close_frame, message_frame
 
@@ -117,119 +117,4 @@ class StreamingResponse(Response):
                 session.close()
                 raise StreamingStop()
 
-        return []
-
-
-def JSONPolling(session, request):
-    meth = request.method
-    response = request.response
-    response.headers['Content-Type'] = 'application/javascript; charset=UTF-8'
-
-    if not session.connected and not session.expired:
-        callback = request.GET.get('c', None)
-        if callback is None:
-            raise Exception('"callback" parameter is required')
-
-        response.text = '%s("o");' % callback
-        session.open()
-        session.manager.release(session)
-
-    elif meth == "GET":
-        callback = request.GET.get('c', None)
-        if callback is None:
-            raise Exception('"callback" parameter is required')
-
-        try:
-            message = session.get_transport_message(timeout=5.0)
-        except Empty:
-            message = 'h'
-        else:
-            message = '%s%s'%(MESSAGE, message)
-        response.text = "%s('%s');\r\n"%(callback, message)
-        session.manager.release(session)
-
-    elif meth == "POST":
-        data = request.body_file.read()
-
-        ctype = request.headers.get('Content-Type', '').lower()
-        if ctype == 'application/x-www-form-urlencoded':
-            if not data.startswith('d='):
-                raise Exception("Payload expected.")
-
-        data = url_unquote(data[2:])
-
-        messages = decode(data)
-        for msg in messages:
-            session.message(msg)
-
-        response.status = 204
-    else:
-        raise Exception("No support for such method: %s"%meth)
-
-    session.manager.release(session)
-    return request.response
-
-
-def WebSocketTransport(session, request):
-    websocket = request.environ['wsgi.websocket']
-
-    def send():
-        websocket.send(OPEN)
-        session.open()
-
-        while True:
-            try:
-                message = session.get_transport_message(5.0)
-            except Empty:
-                message = HEARTBEAT
-                session.heartbeat()
-            else:
-                message = message_frame(message)
-
-            if message is None:
-                websocket.send(close_frame('Go away'))
-                websocket.close()
-                session.close()
-                break
-
-            if not session.connected:
-                break
-
-            try:
-                websocket.send(message)
-            except:
-                session.close()
-                import traceback
-                traceback.print_exc()
-                break
-
-    def receive():
-        while True:
-            message = websocket.receive()
-
-            if not message:
-                session.close()
-                break
-            else:
-                decoded_message = decode(message)
-                if decoded_message is not None:
-                    session.message(decoded_message)
-
-    jobs = [gevent.spawn(send), gevent.spawn(receive)]
-
-    return WebSocketResponse(request.response, jobs)
-
-
-class WebSocketResponse(Response):
-
-    def __init__(self, response, jobs):
-        self.__dict__.update(response.__dict__)
-        self.jobs = jobs
-
-    def __call__(self, environ, start_response):
-        write = start_response(
-            self.status, self._abs_headerlist(environ))
-        write('')
-
-        gevent.joinall(self.jobs)
         return []

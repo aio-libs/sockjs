@@ -1,6 +1,7 @@
 import logging
 import pyramid_sockjs
 from gevent.pywsgi import WSGIHandler
+from pyramid_sockjs.transports import StreamingStop
 
 
 orig_get_environ = WSGIHandler.get_environ
@@ -8,11 +9,12 @@ orig_handle_error = WSGIHandler.handle_error
 
 
 def handle_error(self, type, value, tb):
-    if issubclass(type, pyramid_sockjs.StreamingStop):
+    if issubclass(type, StreamingStop):
         del tb
         return
 
     return orig_handle_error(self, type, value, tb)
+
 
 def get_environ(self):
     env = orig_get_environ(self)

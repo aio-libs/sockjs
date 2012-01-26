@@ -120,8 +120,8 @@ request function.
 
 To use custom ``SessionManager`` pass it as `session_manager=` argument
 to :py:func:`add_sockjs_route` configurator directive. 
-Check :py:class:`pyramid_sockjs.session.Session` 
-and :py:class:`pyramid_sockjs.session.SessionManager` api for 
+Check :py:class:`pyramid_sockjs.Session` 
+and :py:class:`pyramid_sockjs.SessionManager` api for 
 detailed description.
 
 
@@ -131,11 +131,12 @@ Supported transports
 * websocket
 * xhr-streaming
 * xhr-polling
+* iframe-htmlfile
 * iframe-xhr-polling
 * jsonp-polling
 
 Only websocket protocol version 8 and 13 are supported.
-``iframe-htmlfile`` and ``iframe-eventsource`` transports are not supported.
+``iframe-eventsource`` transport is not supported.
 
 
 Requirements
