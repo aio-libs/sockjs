@@ -462,9 +462,12 @@ class SessionManagerTestCase(BaseTestCase):
 
         self.now = self.now + timedelta(hours=1)
 
-        s = sm.acquire('id')
+        request = object()
+
+        s = sm.acquire('id', request=request)
 
         self.assertIs(s, session)
+        self.assertIs(s.request, request)
         self.assertIn('id', sm.acquired)
         self.assertTrue(sm.acquired['id'])
         self.assertEqual(session.expires, self.now + timedelta(seconds=10))
@@ -480,10 +483,13 @@ class SessionManagerTestCase(BaseTestCase):
     def test_release(self):
         Session, sm = self.make_one()
 
-        s = sm.acquire('id', True)
+        request = object()
+
+        s = sm.acquire('id', True, request)
         sm.release(s)
 
         self.assertNotIn('id', sm.acquired)
+        self.assertIsNone(s.request)
 
     def test_active_sessions(self):
         Session, sm = self.make_one()

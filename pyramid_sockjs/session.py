@@ -11,6 +11,7 @@ log = logging.getLogger('pyramid_sockjs')
 
 class Session(object):
 
+    request = None
     acquired = False
     timeout = timedelta(seconds=10)
 
@@ -185,7 +186,7 @@ class SessionManager(object):
     def get(self, id):
         return self.sessions.get(id, None)
 
-    def acquire(self, id, create=False):
+    def acquire(self, id, create=False, request=None):
         session = self.sessions.get(id, None)
         if session is None:
             if create:
@@ -196,10 +197,12 @@ class SessionManager(object):
 
         session.tick()
         session.hits += 1
+        session.request = request
         self.acquired[session.id] = True
         return session
 
     def release(self, session):
+        session.request = None
         if session.id in self.acquired:
             del self.acquired[session.id]
 

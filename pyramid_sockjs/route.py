@@ -92,7 +92,7 @@ class SockJSRoute(object):
         manager = self.session_manager
 
         try:
-            session = manager.acquire(matchdict['session'], create)
+            session = manager.acquire(matchdict['session'], create, request)
         except KeyError:
             return HTTPNotFound()
 
