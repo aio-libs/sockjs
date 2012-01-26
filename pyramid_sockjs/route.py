@@ -119,3 +119,16 @@ class SockJSRoute(object):
     def iframe(self, request):
         request.response.body = self.iframe_html
         return request.response
+
+
+class GetSessionManager(object):
+    """ Pyramid's request.get_sockjs_manager implementation """
+
+    def __init__(self, registry):
+        self.registry = registry
+
+    def __call__(self, name=''):
+        try:
+            return self.registry.__sockjs_managers__[name]
+        except AttributeError:
+            raise KeyError(name)

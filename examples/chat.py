@@ -28,7 +28,4 @@ if __name__ == '__main__':
     config.add_view(route_name='root', renderer='__main__:chat.pt')
 
     app = config.make_wsgi_app()
-    #gevent_server_runner(app, {})
-    from gunicorn.app.pasterapp import paste_server
-    paste_server(app, host='0.0.0.0:8080',
-                 working_class='gevent', workers=1, keepalive=10, debug=True)
+    gevent_server_runner(app, {})
