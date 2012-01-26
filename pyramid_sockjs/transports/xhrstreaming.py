@@ -12,7 +12,7 @@ def XHRStreamingTransport(session, request,
                           INIT_STREAM = 'h' *  2048 + '\n' + OPEN):
     meth = request.method
     request.response.headers = (
-        ('Content-Type', 'text/html; charset=UTF-8'),
+        ('Content-Type', 'application/javascript; charset=UTF-8'),
         ("Access-Control-Allow-Origin", "*"),
         ("Access-Control-Allow-Credentials", "true"),
         ("Access-Control-Allow-Methods", "POST, GET, OPTIONS"),
