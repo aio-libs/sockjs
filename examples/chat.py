@@ -14,10 +14,6 @@ class ChatSession(Session):
         self.manager.broadcast("Someone left.")
 
 
-def test_view(request):
-    return
-
-
 if __name__ == '__main__':
     """ Simple sockjs chat """
     from pyramid.config import Configurator
@@ -28,11 +24,11 @@ if __name__ == '__main__':
 
     config.add_sockjs_route(session=ChatSession)
 
-    config.add_route('test', '/test')
-    config.add_view(route_name='test', view=test_view)
-
     config.add_route('root', '/')
     config.add_view(route_name='root', renderer='__main__:chat.pt')
 
     app = config.make_wsgi_app()
-    gevent_server_runner(app, {})
+    #gevent_server_runner(app, {})
+    from gunicorn.app.pasterapp import paste_server
+    paste_server(app, host='0.0.0.0:8080',
+                 working_class='gevent', workers=1, keepalive=10, debug=True)

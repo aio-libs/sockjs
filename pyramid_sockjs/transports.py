@@ -1,6 +1,7 @@
 import gevent
 from gevent.queue import Empty
 from pyramid.compat import url_unquote
+from pyramid.response import Response
 from pyramid.httpexceptions import HTTPBadRequest
 from pyramid_sockjs import StreamingStop
 from pyramid_sockjs.protocol import OPEN, MESSAGE, HEARTBEAT
@@ -59,7 +60,6 @@ class XHRSendPollingTransport(PollingTransport):
 def XHRStreamingTransport(session, request,
                           INIT_STREAM = 'h' *  2048 + '\n' + OPEN):
     meth = request.method
-    socket = request.environ.get('gevent.socket')
     request.response.headers = (
         ('Content-Type', 'text/html; charset=UTF-8'),
         ("Access-Control-Allow-Origin", "*"),
@@ -69,36 +69,29 @@ def XHRStreamingTransport(session, request,
         ("Connection", "close"))
 
     if not session.connected and not session.expired:
-        request.response.app_iter = XHRStreamingIterator(
-            session, INIT_STREAM, socket)
         session.open()
+        return StreamingResponse(request.response, session, INIT_STREAM)
 
     elif meth in ('GET', 'POST'):
-        request.response.app_iter = XHRStreamingIterator(session, socket=socket)
+        return StreamingResponse(request.response, session)
 
     else:
         raise Exception("No support for such method: %s"%meth)
 
-    return request.response
 
-
-from geventwebsocket.websocket import _get_write
-
-class XHRStreamingIterator(object):
+class StreamingResponse(Response):
 
     TIMING = 5.0
 
-    def __init__(self, session, init_stream=None, socket=None):
+    def __init__(self, response, session, start=''):
+        self.__dict__.update(response.__dict__)
         self.session = session
-        self.init_stream = init_stream
-        self.write = socket.sendall
+        self.start = start
 
-    def __iter__(self):
-        return self
-
-    def next(self):
-        if self.init_stream:
-            self.write(self.init_stream)
+    def __call__(self, environ, start_response):
+        write = start_response(
+            self.status, self._abs_headerlist(environ))
+        write(self.start)
 
         timing = self.TIMING
         session = self.session
@@ -116,15 +109,15 @@ class XHRStreamingIterator(object):
                 message = message_frame(message)
 
             if not session.connected:
-                raise StopIteration()
+                break
 
             try:
-                self.write(message)
+                write(message)
             except:
                 session.close()
                 raise StreamingStop()
 
-    __next__ = next
+        return []
 
 
 def JSONPolling(session, request):
@@ -139,6 +132,7 @@ def JSONPolling(session, request):
 
         response.text = '%s("o");' % callback
         session.open()
+        session.manager.release(session)
 
     elif meth == "GET":
         callback = request.GET.get('c', None)
@@ -148,8 +142,11 @@ def JSONPolling(session, request):
         try:
             message = session.get_transport_message(timeout=5.0)
         except Empty:
-            message = '[]'
-        response.text = "%s('%s%s');\r\n"%(callback, MESSAGE, message)
+            message = 'h'
+        else:
+            message = '%s%s'%(MESSAGE, message)
+        response.text = "%s('%s');\r\n"%(callback, message)
+        session.manager.release(session)
 
     elif meth == "POST":
         data = request.body_file.read()
@@ -202,6 +199,8 @@ def WebSocketTransport(session, request):
                 websocket.send(message)
             except:
                 session.close()
+                import traceback
+                traceback.print_exc()
                 break
 
     def receive():
@@ -218,19 +217,19 @@ def WebSocketTransport(session, request):
 
     jobs = [gevent.spawn(send), gevent.spawn(receive)]
 
-    response = request.response
-    response.app_iter = WebSocketIterator(response.app_iter, jobs)
-    return response
+    return WebSocketResponse(request.response, jobs)
 
 
-class WebSocketIterator(list):
+class WebSocketResponse(Response):
 
-    def __init__(self, app_iter, jobs):
-        print app_iter
-        self.extend(app_iter)
+    def __init__(self, response, jobs):
+        self.__dict__.update(response.__dict__)
         self.jobs = jobs
-        self.pos = 0
-        self.len = len(self)
 
-    def close(self):
+    def __call__(self, environ, start_response):
+        write = start_response(
+            self.status, self._abs_headerlist(environ))
+        write('')
+
         gevent.joinall(self.jobs)
+        return []

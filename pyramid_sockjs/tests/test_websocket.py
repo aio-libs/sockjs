@@ -171,7 +171,7 @@ class WebSoscketHandshake(BaseTestCase):
                      'HTTP_SEC_WEBSOCKET_VERSION': '8',
                      'SERVER_PROTOCOL': 'HTTP/1.1',
                      'HTTP_SEC_WEBSOCKET_KEY': '5Jfbk3Hf5oLcReU416OxpA==',
-                     'gevent.socket': SocketMock()})
+                     'gunicorn.socket': SocketMock()})
         request.method = 'GET'
 
         from pyramid_sockjs import websocket

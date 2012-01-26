@@ -78,11 +78,6 @@ class SockJSRoute(object):
         self.iframe_html = IFRAME_HTML%sockjs_cdn
 
     def handler(self, request):
-        # check gevent socket
-        socket = request.environ.get('gevent.socket')
-        if socket is None:
-            return HTTPNotFound()
-
         matchdict = request.matchdict
 
         # lookup transport
