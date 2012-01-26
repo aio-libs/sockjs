@@ -8,8 +8,11 @@ class StreamingStop(Exception):
 from .jsonp import JSONPolling
 from .websocket import WebSocketTransport
 from .htmlfile import HTMLFileTransport
-from .transports import XHRPollingTransport, \
-    XHRSendPollingTransport, XHRStreamingTransport
+from .eventsource import EventsourceTransport
+from .xhrpolling import XHRPollingTransport
+from .xhrpolling import XHRSendPollingTransport
+from .xhrstreaming import XHRStreamingTransport
+
 
 handlers = {
     'websocket'    : (True, WebSocketTransport),
@@ -22,4 +25,5 @@ handlers = {
     'jsonp_send'   : (False, JSONPolling),
 
     'htmlfile'     : (True, HTMLFileTransport),
+    'eventsource'  : (True, EventsourceTransport),
 }

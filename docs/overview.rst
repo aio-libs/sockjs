@@ -131,12 +131,12 @@ Supported transports
 * websocket
 * xhr-streaming
 * xhr-polling
-* iframe-htmlfile
 * iframe-xhr-polling
+* iframe-eventsource
+* iframe-htmlfile
 * jsonp-polling
 
-Only websocket protocol version 8 and 13 are supported.
-``iframe-eventsource`` transport is not supported.
+Websocket protocol version hixie-75 and hixie-76 are not supported.
 
 
 Requirements
