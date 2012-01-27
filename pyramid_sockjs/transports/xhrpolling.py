@@ -17,7 +17,7 @@ class PollingTransport(object):
     def __call__(self, session, request):
         meth = request.method
 
-        if not session.connected and not session.expired:
+        if session.is_new():
             request.response.body = OPEN
             session.open()
 
@@ -39,7 +39,10 @@ class XHRPollingTransport(PollingTransport):
         except Empty:
             message = '[]'
 
-        request.response.body = message_frame(message)
+        if not session.connected:
+            request.response.body = close_frame(3000, 'Go away!')
+        else:
+            request.response.body = message_frame(message)
 
 
 class XHRSendPollingTransport(PollingTransport):

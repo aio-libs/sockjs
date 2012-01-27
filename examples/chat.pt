@@ -98,12 +98,12 @@
     </li>
     <li>
       <input id="iframe-eventsource" type="checkbox" value="iframe-eventsource"
-             disabled="disabled"></input>
+             checked="checked"></input>
       <label for="iframe-eventsource">iframe-eventsource</label>
     </li>
     <li>
       <input id="iframe-htmlfile" type="checkbox" value="iframe-htmlfile" 
-             disabled="disabled"></input>
+             checked="checked"></input>
       <label for="iframe-htmlfile">iframe-htmlfile</label>
     </li>
     <li>

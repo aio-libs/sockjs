@@ -1,5 +1,6 @@
 import base64
 from hashlib import sha1
+from pyramid.httpexceptions import HTTPMethodNotAllowed
 from geventwebsocket.websocket import WebSocketHybi
 
 KEY = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -16,11 +17,16 @@ class HandshakeError(Exception):
 def init_websocket(request):
     environ = request.environ
 
-    if 'websocket' not in environ.get('HTTP_UPGRADE', '').lower():
-        raise HandshakeError("Upgrade protocol is not websocket.")
+    if request.method != "GET":
+        request.response.status = 405
+        request.response.headers = (('Allow','GET'),)
+        return request.response
 
-    if 'upgrade' not in environ.get('HTTP_CONNECTION', '').lower():
-        raise HandshakeError("Connection does not support upgrade.")
+    if 'websocket' not in environ.get('HTTP_UPGRADE', '').lower():
+        raise HandshakeError('Can "Upgrade" only to "WebSocket".')
+
+    if 'upgrade' not in environ.get('connection', '').lower():
+        raise HandshakeError('"Connection" must be "Upgrade".')
 
     version = environ.get("HTTP_SEC_WEBSOCKET_VERSION")
     if not version or version not in SUPPORTED_VERSIONS:
@@ -29,9 +35,6 @@ def init_websocket(request):
     environ['wsgi.websocket_version'] = 'hybi-%s' % version
 
     # check client handshake for validity
-    if request.method != "GET":
-        raise HandshakeError('Method is not GET')
-
     protocol = environ.get('SERVER_PROTOCOL','')
     if not protocol.startswith("HTTP/"):
         raise HandshakeError('Protocol is not HTTP')
@@ -52,7 +55,7 @@ def init_websocket(request):
     headers = [
         ("Upgrade", "websocket"),
         ("Connection", "Upgrade"),
-        ("Content-Length", "0"),
+        #("Content-Length", "0"),
         ('Sec-WebSocket-Version', environ['wsgi.websocket_version']),
         ("Sec-WebSocket-Accept", base64.b64encode(sha1(key + KEY).digest()))]
     request.response.headers = headers

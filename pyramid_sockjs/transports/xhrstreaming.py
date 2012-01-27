@@ -19,7 +19,7 @@ def XHRStreamingTransport(session, request,
         ("Access-Control-Max-Age", 3600),
         ("Connection", "close"))
 
-    if not session.connected and not session.expired:
+    if session.is_new():
         session.open()
         return StreamingResponse(request.response, session, INIT_STREAM)
 

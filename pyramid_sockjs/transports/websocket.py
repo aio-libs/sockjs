@@ -1,30 +1,38 @@
 """ websocket transport """
 import gevent
 from gevent.queue import Empty
+from socket import SHUT_RDWR
 from pyramid.response import Response
 from pyramid_sockjs.protocol import OPEN, HEARTBEAT
 from pyramid_sockjs.protocol import decode, close_frame, message_frame
 
 
+TIMING = 5.0
+
 def WebSocketTransport(session, request):
+    socket = request.environ['gunicorn.socket']
     websocket = request.environ['wsgi.websocket']
 
     def send():
-        websocket.send(OPEN)
+        websocket.send('o')
         session.open()
 
         while True:
             try:
-                message = session.get_transport_message(5.0)
+                message = session.get_transport_message(TIMING)
             except Empty:
-                message = HEARTBEAT
+                message = 'h'
                 session.heartbeat()
             else:
                 message = message_frame(message)
 
-            if message is None:
-                websocket.send(close_frame('Go away'))
-                websocket.close()
+            if message is None or not session.connected:
+                try:
+                    websocket.send(close_frame(3000, 'Go away!'))
+                    websocket.close()
+                    socket.shutdown(SHUT_RDWR)
+                except:
+                    pass
                 session.close()
                 break
 
@@ -35,21 +43,34 @@ def WebSocketTransport(session, request):
                 websocket.send(message)
             except:
                 session.close()
-                import traceback
-                traceback.print_exc()
                 break
 
     def receive():
         while True:
-            message = websocket.receive()
-
-            if not message:
+            try:
+                message = websocket.receive()
+            except:
                 session.close()
                 break
-            else:
+            if message is None:
+                session.close()
+                break
+            
+            if not message:
+                continue
+
+            try:
                 decoded_message = decode(message)
-                if decoded_message is not None:
-                    session.message(decoded_message)
+            except:
+                session.close()
+                websocket.close()
+                socket.shutdown(SHUT_RDWR)
+                break
+                
+            if decoded_message:
+                session.message(decoded_message)
+
+        session.manager.release(session)
 
     jobs = [gevent.spawn(send), gevent.spawn(receive)]
 

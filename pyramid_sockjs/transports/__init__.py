@@ -13,6 +13,8 @@ from .xhrpolling import XHRPollingTransport
 from .xhrpolling import XHRSendPollingTransport
 from .xhrstreaming import XHRStreamingTransport
 
+from .utils import session_cookie
+
 
 handlers = {
     'websocket'    : (True, WebSocketTransport),

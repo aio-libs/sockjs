@@ -11,7 +11,7 @@ def JSONPolling(session, request):
     response = request.response
     response.headers['Content-Type'] = 'application/javascript; charset=UTF-8'
 
-    if not session.connected and not session.expired:
+    if session.is_new():
         callback = request.GET.get('c', None)
         if callback is None:
             raise Exception('"callback" parameter is required')

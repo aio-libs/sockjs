@@ -341,6 +341,7 @@ class SessionURLs(Test):
     # To test session URLs we're going to use `xhr-polling` transport
     # facilitites.
     def verify(self, session_part):
+        #print base_url + session_part + '/xhr'
         r = POST(base_url + session_part + '/xhr')
         self.assertEqual(r.status, 200)
         self.assertEqual(r.body, 'o\n')

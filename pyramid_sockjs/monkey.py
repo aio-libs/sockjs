@@ -19,6 +19,7 @@ def handle_error(self, type, value, tb):
 def get_environ(self):
     env = orig_get_environ(self)
     env['gunicorn.socket'] = self.socket
+    env['connection'] = self.headers.get('Connection','')
     return env
 
 

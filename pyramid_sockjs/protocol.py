@@ -51,7 +51,7 @@ encode = json.dumps
 decode = json.loads
 
 def close_frame(code, reason):
-    return '%s[%d, %s]' % (CLOSE, code, encode(reason))
+    return '%s[%d,%s]' % (CLOSE, code, encode(reason))
 
 def message_frame(data):
     return '%s%s\n'%(MESSAGE, data)

@@ -25,6 +25,12 @@ class TestSockJSRoute(BaseSockjs):
         response = route.info(self.request)
         self.assertEqual(response.body, '["id=\'id\' disconnected hits=1"]')
 
+    def test_greeting(self):
+        route = self.make_one()
+
+        response = route.greeting(self.request)
+        self.assertEqual(response.body, 'Welcome to SockJS!\n')
+
     def test_iframe(self):
         route = self.make_one()
 

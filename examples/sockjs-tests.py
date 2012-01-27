@@ -11,11 +11,9 @@ class EchoSession(Session):
 
 
 class CloseSession(Session):
+
     def on_open(self):
         self.close()
-
-    def on_message(self, msg):
-        pass
 
 
 class TickerSession(Session):
@@ -50,6 +48,11 @@ if __name__ == '__main__':
     """ Simple sockjs tests server """
     from pyramid.config import Configurator
     from pyramid_sockjs.paster import gevent_server_runner
+    from pyramid_sockjs.transports import websocket
+    from pyramid_sockjs.transports.xhrpolling import PollingTransport
+
+    websocket.TIMING = 0.1
+    PollingTransport.TIMING = 0.1
 
     config = Configurator()
     config.include('pyramid_sockjs')

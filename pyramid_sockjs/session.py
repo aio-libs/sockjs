@@ -11,6 +11,7 @@ log = logging.getLogger('pyramid_sockjs')
 
 class Session(object):
 
+    new = True
     request = None
     acquired = False
     timeout = timedelta(seconds=10)
@@ -26,6 +27,9 @@ class Session(object):
         self.hits = 0
         self.heartbeats = 0
         self.connected = False
+
+    def is_new(self):
+        return self.new
 
     def __str__(self):
         result = ['id=%r' % self.id]
@@ -77,6 +81,7 @@ class Session(object):
 
     def open(self):
         log.info('open session: %s', self.id)
+        self.new = False
         self.connected = True
         try:
             self.on_open()
@@ -200,6 +205,9 @@ class SessionManager(object):
         session.request = request
         self.acquired[session.id] = True
         return session
+
+    def is_acquired(self, id):
+        return id in self.acquired
 
     def release(self, session):
         session.request = None
