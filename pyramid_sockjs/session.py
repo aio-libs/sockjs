@@ -64,6 +64,12 @@ class Session(object):
         self.expired = True
         self.connected = False
 
+    def acquire(self, request=None):
+        self.manager.acquire(self, request)
+
+    def release(self):
+        self.manager.release(self)
+
     def send(self, msg):
         log.info('outgoing message: %s, %s', self.id, msg)
         if isinstance(msg, string_types):
@@ -188,10 +194,7 @@ class SessionManager(object):
         self.sessions[session.id] = session
         heappush(self.pool, (session.expires, session))
 
-    def get(self, id):
-        return self.sessions.get(id, None)
-
-    def acquire(self, id, create=False, request=None):
+    def get(self, id, create=False):
         session = self.sessions.get(id, None)
         if session is None:
             if create:
@@ -199,6 +202,12 @@ class SessionManager(object):
                 self._add(session)
             else:
                 raise KeyError(id)
+
+        return session
+
+    def acquire(self, session, request=None):
+        if session.id in self.acquired:
+            raise KeyError("Another connection still open")
 
         session.tick()
         session.hits += 1
@@ -213,6 +222,8 @@ class SessionManager(object):
         session.request = None
         if session.id in self.acquired:
             del self.acquired[session.id]
+
+        session.request = None
 
     def active_sessions(self):
         for session in self.sessions.values():

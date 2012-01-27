@@ -50,9 +50,14 @@ if __name__ == '__main__':
     from pyramid_sockjs.paster import gevent_server_runner
     from pyramid_sockjs.transports import websocket
     from pyramid_sockjs.transports.xhrpolling import PollingTransport
+    from pyramid_sockjs.transports.eventsource import EventsourceTransport
+    #from pyramid_sockjs.transports.xhrpolling import XHRPollingTransport
+    from pyramid_sockjs.transports.xhrstreaming import XHRStreamingTransport
 
+    EventsourceTransport.maxsize = 4096
+    XHRStreamingTransport.maxsize = 4096
     websocket.TIMING = 0.1
-    PollingTransport.TIMING = 0.1
+    PollingTransport.timing = 0.1
 
     config = Configurator()
     config.include('pyramid_sockjs')

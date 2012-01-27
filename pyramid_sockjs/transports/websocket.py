@@ -1,7 +1,8 @@
 """ websocket transport """
+import errno
 import gevent
 from gevent.queue import Empty
-from socket import SHUT_RDWR
+from socket import SHUT_RDWR, error
 from pyramid.response import Response
 from pyramid_sockjs.protocol import OPEN, HEARTBEAT
 from pyramid_sockjs.protocol import decode, close_frame, message_frame
@@ -57,12 +58,15 @@ def WebSocketTransport(session, request):
             except:
                 session.close()
                 break
+
+            if message == '':
+                continue
+
             if message is None:
                 session.close()
+                websocket.close()
+                socket.shutdown(SHUT_RDWR)
                 break
-
-            if not message:
-                continue
 
             try:
                 decoded_message = decode(message)
@@ -75,7 +79,7 @@ def WebSocketTransport(session, request):
             if decoded_message:
                 session.message(decoded_message)
 
-        session.manager.release(session)
+        session.release()
 
     jobs = [gevent.spawn(send), gevent.spawn(receive)]
 

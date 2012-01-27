@@ -10,7 +10,8 @@ from pyramid_sockjs.session import Session
 from pyramid_sockjs.session import SessionManager
 from pyramid_sockjs.protocol import IFRAME_HTML
 from pyramid_sockjs.transports import handlers
-from pyramid_sockjs.transports import session_cookie
+from pyramid_sockjs.transports.utils import session_cookie
+from pyramid_sockjs.transports.utils import cache_headers
 from pyramid_sockjs.websocket import HandshakeError
 from pyramid_sockjs.websocket import init_websocket
 
@@ -94,18 +95,22 @@ class SockJSRoute(object):
         manager = self.session_manager
 
         sid = matchdict['session']
-        if '.' in sid:
+        if '.' in sid or '.' in matchdict['server'] or not sid:
             return HTTPNotFound()
 
-        if create and manager.is_acquired(sid):
-            request.response.body = close_frame(
-                2010, "Another connection still open")
-            return request.response
-
         try:
-            session = manager.acquire(sid, create, request)
+            session = manager.get(sid, create)
         except KeyError:
             return HTTPNotFound(headers=(session_cookie(request),))
+
+        #if create and manager.is_acquired(sid):
+        #    request.response.body = close_frame(
+        #        2010, "Another connection still open")
+        #    return request.response
+        #try:
+        #    session = manager.acquire(sid, create, request)
+        #except KeyError:
+        #    return HTTPNotFound(headers=(session_cookie(request),))
 
         request.environ['wsgi.sockjs_session'] = session
 
@@ -134,19 +139,9 @@ class SockJSRoute(object):
             str(map(str, self.session_manager.sessions.values()))
         return request.response
 
-    td365 = timedelta(days=365)
-    td365seconds = int(td365.total_seconds())
-
     def iframe(self, request):
         response = request.response
-
-        d = datetime.now() + self.td365
-
-        response.headers = [
-            ('Access-Control-Max-Age', self.td365seconds),
-            ('Cache-Control', 'max-age=%d, public' % self.td365seconds),
-            ('Expires', d.strftime('%a, %d %b %Y %H:%M:%S')),
-            ]
+        response.headerlist.extend(cache_headers(request))
 
         cached = request.environ.get('HTTP_IF_NONE_MATCH')
         if cached:
