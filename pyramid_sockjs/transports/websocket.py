@@ -9,7 +9,12 @@ from pyramid_sockjs.protocol import decode, close_frame, message_frame
 
 TIMING = 5.0
 
+#class WebSocketTransport(object):
+
+#    def __init__(self, session, request):
+
 def WebSocketTransport(session, request):
+
     socket = request.environ['gunicorn.socket']
     websocket = request.environ['wsgi.websocket']
 
@@ -55,7 +60,7 @@ def WebSocketTransport(session, request):
             if message is None:
                 session.close()
                 break
-            
+
             if not message:
                 continue
 
@@ -66,7 +71,7 @@ def WebSocketTransport(session, request):
                 websocket.close()
                 socket.shutdown(SHUT_RDWR)
                 break
-                
+
             if decoded_message:
                 session.message(decoded_message)
 

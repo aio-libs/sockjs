@@ -97,7 +97,7 @@ class SockJSRoute(object):
         if '.' in sid:
             return HTTPNotFound()
 
-        if manager.is_acquired(sid):
+        if create and manager.is_acquired(sid):
             request.response.body = close_frame(
                 2010, "Another connection still open")
             return request.response
@@ -141,7 +141,7 @@ class SockJSRoute(object):
         response = request.response
 
         d = datetime.now() + self.td365
-        
+
         response.headers = [
             ('Access-Control-Max-Age', self.td365seconds),
             ('Cache-Control', 'max-age=%d, public' % self.td365seconds),

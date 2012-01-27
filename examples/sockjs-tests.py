@@ -62,6 +62,6 @@ if __name__ == '__main__':
     config.add_sockjs_route('ticker', '/ticker', session=TickerSession)
     config.add_sockjs_route('amplify', '/Amplify', session=AmplifySession)
     config.add_sockjs_route('broadcast', '/broadcast', session=BroadcastSession)
-    
+
     app = config.make_wsgi_app()
     gevent_server_runner(app, {}, **{'host': '127.0.0.1', 'port': '8081'})

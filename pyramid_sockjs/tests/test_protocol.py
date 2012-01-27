@@ -22,7 +22,7 @@ class TestProtocol(TestCase):
         from pyramid_sockjs import protocol
 
         msg = protocol.close_frame(1000, 'Internal error')
-        self.assertEqual(msg, 'c[1000, "Internal error"]')
+        self.assertEqual(msg, 'c[1000,"Internal error"]')
 
     def test_message_frame(self):
         from pyramid_sockjs import protocol

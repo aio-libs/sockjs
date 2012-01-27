@@ -1,5 +1,6 @@
 from pyramid.testing import DummyRequest
-from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
+from pyramid.response import Response
+from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest, HTTPMethodNotAllowed
 
 from .base import BaseTestCase, SocketMock
 
@@ -19,7 +20,7 @@ class WebSoscketHandshake(BaseTestCase):
         from pyramid_sockjs.websocket import init_websocket, HandshakeError
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'HTTP_CONNECTION': 'close'})
+                     'connection': 'close'})
 
         err = None
         try:
@@ -28,14 +29,14 @@ class WebSoscketHandshake(BaseTestCase):
             pass
 
         self.assertIsInstance(err, HandshakeError)
-        self.assertEqual(str(err), 'Connection does not support upgrade.')
+        self.assertEqual(str(err), '"Connection" must be "Upgrade".')
 
     def test_websocket_version(self):
         from pyramid_sockjs.websocket import init_websocket, HandshakeError
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'HTTP_CONNECTION': 'keep-alive, upgrade'})
+                     'connection': 'keep-alive, upgrade'})
 
         err = None
         try:
@@ -48,7 +49,7 @@ class WebSoscketHandshake(BaseTestCase):
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'HTTP_CONNECTION': 'keep-alive, upgrade',
+                     'connection': 'keep-alive, upgrade',
                      'HTTP_SEC_WEBSOCKET_VERSION': '5'})
 
         err = None
@@ -65,25 +66,20 @@ class WebSoscketHandshake(BaseTestCase):
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'HTTP_CONNECTION': 'keep-alive, upgrade',
+                     'connection': 'keep-alive, upgrade',
                      'HTTP_SEC_WEBSOCKET_VERSION': '8'})
         request.method = 'POST'
 
-        err = None
-        try:
-            init_websocket(request)
-        except Exception as err:
-            pass
-
-        self.assertIsInstance(err, HandshakeError)
-        self.assertEqual(err.msg, 'Method is not GET')
+        res = init_websocket(request)
+        self.assertIsInstance(res, Response)
+        self.assertEqual(res.status, '405 Method Not Allowed')
 
     def test_protocol_type(self):
         from pyramid_sockjs.websocket import init_websocket, HandshakeError
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'HTTP_CONNECTION': 'keep-alive, upgrade',
+                     'connection': 'keep-alive, upgrade',
                      'HTTP_SEC_WEBSOCKET_VERSION': '8',
                      'SERVER_PROTOCOL': 'HTTPS/1.1'})
         request.method = 'GET'
@@ -102,7 +98,7 @@ class WebSoscketHandshake(BaseTestCase):
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'HTTP_CONNECTION': 'keep-alive, upgrade',
+                     'connection': 'keep-alive, upgrade',
                      'HTTP_SEC_WEBSOCKET_VERSION': '8',
                      'SERVER_PROTOCOL': 'HTTP/1.0'})
         request.method = 'GET'
@@ -121,7 +117,7 @@ class WebSoscketHandshake(BaseTestCase):
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'HTTP_CONNECTION': 'keep-alive, upgrade',
+                     'connection': 'keep-alive, upgrade',
                      'HTTP_SEC_WEBSOCKET_VERSION': '8',
                      'SERVER_PROTOCOL': 'HTTP/1.1',
                      'HTTP_SEC_WEBSOCKET_KEY': None,})
@@ -141,10 +137,10 @@ class WebSoscketHandshake(BaseTestCase):
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'HTTP_CONNECTION': 'keep-alive, upgrade',
                      'HTTP_SEC_WEBSOCKET_VERSION': '8',
                      'SERVER_PROTOCOL': 'HTTP/1.1',
                      'HTTP_SEC_WEBSOCKET_KEY': '5Jfbk3Hf5oLcReU416OxpA==',
+                     'connection': 'keep-alive, upgrade',
                      'wsgi.input': object()})
         request.method = 'GET'
 
@@ -167,10 +163,10 @@ class WebSoscketHandshake(BaseTestCase):
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'HTTP_CONNECTION': 'keep-alive, upgrade',
                      'HTTP_SEC_WEBSOCKET_VERSION': '8',
                      'SERVER_PROTOCOL': 'HTTP/1.1',
                      'HTTP_SEC_WEBSOCKET_KEY': '5Jfbk3Hf5oLcReU416OxpA==',
+                     'connection': 'keep-alive, upgrade',
                      'gunicorn.socket': SocketMock()})
         request.method = 'GET'
 

@@ -5,6 +5,6 @@ def session_cookie(request):
 
     if not cookie:
         cookie = 'dummy'
-        
+
     request.response.set_cookie('JSESSIONID', cookie)
     return ('Set-Cookie', request.response.headers['Set-Cookie'])
