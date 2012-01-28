@@ -200,7 +200,7 @@ class SessionManager(dict):
 
     def acquire(self, session, request=None):
         sid = session.id
-        
+
         if sid in self.acquired:
             raise KeyError("Another connection still open")
         if sid not in self:

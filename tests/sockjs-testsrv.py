@@ -44,13 +44,13 @@ if __name__ == '__main__':
 
     config.add_sockjs_route('echo', '/echo', session=EchoSession)
     config.add_sockjs_route('wsoff', '/disabled_websocket_echo', session=EchoSession,
-			    disable_transports=('websocket',))
+                            disable_transports=('websocket',))
 
     config.add_sockjs_route('close', '/close', session=CloseSession)
     config.add_sockjs_route('broadcast', '/broadcast', session=BroadcastSession)
 
     app = config.make_wsgi_app()
-    
+
     if len(sys.argv) > 1 and (sys.argv[1] == '-g'):
         from gunicorn.app.pasterapp import paste_server
         paste_server(app, port=8081, worker_class='gevent', workers=1)

@@ -22,7 +22,7 @@ class TestSockJSRoute(BaseSockjs):
 
         response = route.info(self.request)
         info = protocol.decode(response.body)
-        
+
         self.assertTrue(info['websocket'])
         self.assertTrue(info['cookie_needed'])
 
@@ -36,7 +36,7 @@ class TestSockJSRoute(BaseSockjs):
         entropy2 = protocol.decode(response.body)['entropy']
 
         self.assertFalse(entropy1 == entropy2)
-        
+
     def test_greeting(self):
         route = self.make_one()
 

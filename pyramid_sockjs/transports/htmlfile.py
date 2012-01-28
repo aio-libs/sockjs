@@ -67,7 +67,7 @@ class HTMLFileTransport(Response):
             write('<script>\np("o");\n</script>\r\n')
 
         size = 0
-        
+
         try:
             while True:
                 try:

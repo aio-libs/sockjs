@@ -26,7 +26,7 @@ class WebSoscketHandshake(BaseTestCase):
         from pyramid_sockjs.websocket import init_websocket
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'connection': 'close'})
+                     'HTTP_CONNECTION': 'close'})
 
         res = init_websocket(request)
         self.assertIsInstance(res, HTTPBadRequest)
@@ -37,7 +37,7 @@ class WebSoscketHandshake(BaseTestCase):
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'connection': 'keep-alive, upgrade'})
+                     'HTTP_CONNECTION': 'keep-alive, upgrade'})
 
         res = init_websocket(request)
         self.assertIsInstance(res, HTTPBadRequest)
@@ -45,7 +45,7 @@ class WebSoscketHandshake(BaseTestCase):
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'connection': 'keep-alive, upgrade',
+                     'HTTP_CONNECTION': 'keep-alive, upgrade',
                      'HTTP_SEC_WEBSOCKET_VERSION': '5'})
 
         res = init_websocket(request)
@@ -57,7 +57,7 @@ class WebSoscketHandshake(BaseTestCase):
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'connection': 'keep-alive, upgrade',
+                     'HTTP_CONNECTION': 'keep-alive, upgrade',
                      'HTTP_SEC_WEBSOCKET_VERSION': '8'})
         request.method = 'POST'
 
@@ -70,7 +70,7 @@ class WebSoscketHandshake(BaseTestCase):
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'connection': 'keep-alive, upgrade',
+                     'HTTP_CONNECTION': 'keep-alive, upgrade',
                      'HTTP_SEC_WEBSOCKET_VERSION': '8',
                      'SERVER_PROTOCOL': 'HTTPS/1.1'})
         request.method = 'GET'
@@ -84,7 +84,7 @@ class WebSoscketHandshake(BaseTestCase):
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'connection': 'keep-alive, upgrade',
+                     'HTTP_CONNECTION': 'keep-alive, upgrade',
                      'HTTP_SEC_WEBSOCKET_VERSION': '8',
                      'SERVER_PROTOCOL': 'HTTP/1.0'})
         request.method = 'GET'
@@ -98,7 +98,7 @@ class WebSoscketHandshake(BaseTestCase):
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
-                     'connection': 'keep-alive, upgrade',
+                     'HTTP_CONNECTION': 'keep-alive, upgrade',
                      'HTTP_SEC_WEBSOCKET_VERSION': '8',
                      'SERVER_PROTOCOL': 'HTTP/1.1',
                      'HTTP_SEC_WEBSOCKET_KEY': None,})
@@ -116,7 +116,7 @@ class WebSoscketHandshake(BaseTestCase):
                      'HTTP_SEC_WEBSOCKET_VERSION': '8',
                      'SERVER_PROTOCOL': 'HTTP/1.1',
                      'HTTP_SEC_WEBSOCKET_KEY': '5Jfbk3Hf5oLcReU416OxpA==',
-                     'connection': 'keep-alive, upgrade'})
+                     'HTTP_CONNECTION': 'keep-alive, upgrade'})
         request.method = 'GET'
 
         res = init_websocket(request)
@@ -136,7 +136,7 @@ class WebSoscketHandshake(BaseTestCase):
                      'HTTP_SEC_WEBSOCKET_VERSION': '8',
                      'SERVER_PROTOCOL': 'HTTP/1.1',
                      'HTTP_SEC_WEBSOCKET_KEY': '5Jfbk3Hf5oLcReU416OxpA==',
-                     'connection': 'keep-alive, upgrade',
+                     'HTTP_CONNECTION': 'keep-alive, upgrade',
                      'gunicorn.socket': SocketMock()})
         request.method = 'GET'
 

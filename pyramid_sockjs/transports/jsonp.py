@@ -41,7 +41,7 @@ def JSONPolling(session, request):
                     messages.append(session.get_transport_message(block=False))
                 except Empty:
                     break
-            
+
         except Empty:
             messages = HEARTBEAT
             session.heartbeat()
