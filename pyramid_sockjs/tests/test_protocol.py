@@ -24,8 +24,20 @@ class TestProtocol(TestCase):
         msg = protocol.close_frame(1000, 'Internal error')
         self.assertEqual(msg, 'c[1000,"Internal error"]')
 
+    def test_close_frame_endline(self):
+        from pyramid_sockjs import protocol
+
+        msg = protocol.close_frame(1000, 'Internal error', '\n')
+        self.assertEqual(msg, 'c[1000,"Internal error"]\n')
+
     def test_message_frame(self):
         from pyramid_sockjs import protocol
 
-        msg = protocol.message_frame(protocol.encode(['msg1', 'msg2']))
+        msg = protocol.message_frame(['msg1', 'msg2'])
+        self.assertEqual(msg, 'a%s'%protocol.encode(['msg1', 'msg2']))
+
+    def test_message_frame_endline(self):
+        from pyramid_sockjs import protocol
+
+        msg = protocol.message_frame(['msg1', 'msg2'], '\n')
         self.assertEqual(msg, 'a%s\n'%protocol.encode(['msg1', 'msg2']))

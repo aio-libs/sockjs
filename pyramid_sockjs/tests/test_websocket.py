@@ -1,6 +1,7 @@
 from pyramid.testing import DummyRequest
 from pyramid.response import Response
-from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest, HTTPMethodNotAllowed
+from pyramid.httpexceptions import \
+     HTTPNotFound, HTTPBadRequest, HTTPMethodNotAllowed
 
 from .base import BaseTestCase, SocketMock
 
@@ -8,61 +9,51 @@ from .base import BaseTestCase, SocketMock
 class WebSoscketHandshake(BaseTestCase):
 
     def test_websocket_upgrade(self):
-        from pyramid_sockjs.websocket import init_websocket, HandshakeError
+        from pyramid_sockjs.websocket import init_websocket
         request = DummyRequest()
 
-        self.assertRaises(HandshakeError, init_websocket, request)
+        res = init_websocket(request)
+        self.assertIsInstance(res, HTTPBadRequest)
+        self.assertEqual(res.detail, 'Can "Upgrade" only to "WebSocket".')
 
         request.environ['HTTP_UPGRADE'] = 'ssl'
-        self.assertRaises(HandshakeError, init_websocket, request)
+
+        res = init_websocket(request)
+        self.assertIsInstance(res, HTTPBadRequest)
+        self.assertEqual(res.detail, 'Can "Upgrade" only to "WebSocket".')
 
     def test_connection_upgrade(self):
-        from pyramid_sockjs.websocket import init_websocket, HandshakeError
+        from pyramid_sockjs.websocket import init_websocket
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
                      'connection': 'close'})
 
-        err = None
-        try:
-            init_websocket(request)
-        except Exception as err:
-            pass
-
-        self.assertIsInstance(err, HandshakeError)
-        self.assertEqual(str(err), '"Connection" must be "Upgrade".')
+        res = init_websocket(request)
+        self.assertIsInstance(res, HTTPBadRequest)
+        self.assertEqual(res.detail, '"Connection" must be "Upgrade".')
 
     def test_websocket_version(self):
-        from pyramid_sockjs.websocket import init_websocket, HandshakeError
+        from pyramid_sockjs.websocket import init_websocket
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
                      'connection': 'keep-alive, upgrade'})
 
-        err = None
-        try:
-            init_websocket(request)
-        except Exception as err:
-            pass
-
-        self.assertIsInstance(err, HandshakeError)
-        self.assertEqual(err.msg, 'Unsupported WebSocket version.')
+        res = init_websocket(request)
+        self.assertIsInstance(res, HTTPBadRequest)
+        self.assertEqual(res.detail, 'Unsupported WebSocket version.')
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
                      'connection': 'keep-alive, upgrade',
                      'HTTP_SEC_WEBSOCKET_VERSION': '5'})
 
-        err = None
-        try:
-            init_websocket(request)
-        except Exception as err:
-            pass
-
-        self.assertIsInstance(err, HandshakeError)
-        self.assertEqual(err.msg, 'Unsupported WebSocket version.')
+        res = init_websocket(request)
+        self.assertIsInstance(res, HTTPBadRequest)
+        self.assertEqual(res.detail, 'Unsupported WebSocket version.')
 
     def test_method_type(self):
-        from pyramid_sockjs.websocket import init_websocket, HandshakeError
+        from pyramid_sockjs.websocket import init_websocket
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
@@ -75,7 +66,7 @@ class WebSoscketHandshake(BaseTestCase):
         self.assertEqual(res.status, '405 Method Not Allowed')
 
     def test_protocol_type(self):
-        from pyramid_sockjs.websocket import init_websocket, HandshakeError
+        from pyramid_sockjs.websocket import init_websocket
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
@@ -84,17 +75,12 @@ class WebSoscketHandshake(BaseTestCase):
                      'SERVER_PROTOCOL': 'HTTPS/1.1'})
         request.method = 'GET'
 
-        err = None
-        try:
-            init_websocket(request)
-        except Exception as err:
-            pass
-
-        self.assertIsInstance(err, HandshakeError)
-        self.assertEqual(err.msg, 'Protocol is not HTTP')
+        res = init_websocket(request)
+        self.assertIsInstance(res, HTTPBadRequest)
+        self.assertEqual(res.detail, 'Protocol is not HTTP')
 
     def test_protocol_version(self):
-        from pyramid_sockjs.websocket import init_websocket, HandshakeError
+        from pyramid_sockjs.websocket import init_websocket
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
@@ -103,17 +89,12 @@ class WebSoscketHandshake(BaseTestCase):
                      'SERVER_PROTOCOL': 'HTTP/1.0'})
         request.method = 'GET'
 
-        err = None
-        try:
-            init_websocket(request)
-        except Exception as err:
-            pass
-
-        self.assertIsInstance(err, HandshakeError)
-        self.assertEqual(err.msg, 'HTTP/1.1 is required')
+        res = init_websocket(request)
+        self.assertIsInstance(res, HTTPBadRequest)
+        self.assertEqual(res.detail, 'HTTP/1.1 is required')
 
     def test_websocket_key(self):
-        from pyramid_sockjs.websocket import init_websocket, HandshakeError
+        from pyramid_sockjs.websocket import init_websocket
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
@@ -123,38 +104,27 @@ class WebSoscketHandshake(BaseTestCase):
                      'HTTP_SEC_WEBSOCKET_KEY': None,})
         request.method = 'GET'
 
-        err = None
-        try:
-            init_websocket(request)
-        except Exception as err:
-            pass
-
-        self.assertIsInstance(err, HandshakeError)
-        self.assertEqual(err.msg, 'HTTP_SEC_WEBSOCKET_KEY is invalid key')
+        res = init_websocket(request)
+        self.assertIsInstance(res, HTTPBadRequest)
+        self.assertEqual(res.detail, 'HTTP_SEC_WEBSOCKET_KEY is invalid key')
 
     def test_gevent_wsgi_input(self):
-        from pyramid_sockjs.websocket import init_websocket, HandshakeError
+        from pyramid_sockjs.websocket import init_websocket
 
         request = DummyRequest(
             environ={'HTTP_UPGRADE': 'websocket',
                      'HTTP_SEC_WEBSOCKET_VERSION': '8',
                      'SERVER_PROTOCOL': 'HTTP/1.1',
                      'HTTP_SEC_WEBSOCKET_KEY': '5Jfbk3Hf5oLcReU416OxpA==',
-                     'connection': 'keep-alive, upgrade',
-                     'wsgi.input': object()})
+                     'connection': 'keep-alive, upgrade'})
         request.method = 'GET'
 
-        err = None
-        try:
-            init_websocket(request)
-        except Exception as err:
-            pass
-
-        self.assertIsInstance(err, HandshakeError)
-        self.assertEqual(err.msg, "socket object is not available")
+        res = init_websocket(request)
+        self.assertIsInstance(res, HTTPBadRequest)
+        self.assertEqual(res.detail, "socket object is not available")
 
     def test_success(self):
-        from pyramid_sockjs.websocket import init_websocket, HandshakeError
+        from pyramid_sockjs.websocket import init_websocket
 
         class WS(object):
             def __init__(self, rfile, environ):
@@ -187,7 +157,5 @@ class WebSoscketHandshake(BaseTestCase):
 
         response = request.response
         self.assertEqual(response.status, '101 Switching Protocols')
-
         self.assertEqual(response.headers['Upgrade'], 'websocket')
         self.assertEqual(response.headers['Connection'], 'Upgrade')
-        self.assertEqual(response.headers['Sec-WebSocket-Version'], 'hybi-8')

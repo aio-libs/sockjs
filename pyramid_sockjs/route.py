@@ -1,3 +1,4 @@
+import random
 import logging
 import hashlib
 from datetime import datetime, timedelta
@@ -5,22 +6,22 @@ from pyramid.response import Response
 from pyramid.exceptions import ConfigurationError
 from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
 
-from pyramid_sockjs.protocol import close_frame
 from pyramid_sockjs.session import Session
 from pyramid_sockjs.session import SessionManager
+from pyramid_sockjs.protocol import json
 from pyramid_sockjs.protocol import IFRAME_HTML
 from pyramid_sockjs.transports import handlers
 from pyramid_sockjs.transports.utils import session_cookie
+from pyramid_sockjs.transports.utils import cors_headers
 from pyramid_sockjs.transports.utils import cache_headers
-from pyramid_sockjs.websocket import HandshakeError
 from pyramid_sockjs.websocket import init_websocket
 
 log = logging.getLogger('pyramid_sockjs')
 
 
-
 def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
                      session=Session, session_manager=None,
+                     disable_transports=(),
                      sockjs_cdn='http://cdn.sockjs.org/sockjs-0.2.0.min.js'):
     # set session manager
     if session_manager is None:
@@ -42,7 +43,7 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
     session_manager.start()
 
     # register routes
-    sockjs = SockJSRoute(name, session_manager, sockjs_cdn)
+    sockjs = SockJSRoute(name, session_manager, sockjs_cdn, disable_transports)
 
     if prefix.endswith('/'):
         prefix = prefix[:-1]
@@ -74,9 +75,10 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
 
 class SockJSRoute(object):
 
-    def __init__(self, name, session_manager, sockjs_cdn):
+    def __init__(self, name, session_manager, sockjs_cdn, disable_transports):
         self.name = name
         self.session_manager = session_manager
+        self.disable_transports = dict((k,1) for k in disable_transports)
         self.iframe_html = IFRAME_HTML%sockjs_cdn
         self.iframe_html_hxd = hashlib.md5(self.iframe_html).hexdigest()
 
@@ -86,7 +88,7 @@ class SockJSRoute(object):
         # lookup transport
         tid = matchdict['transport']
 
-        if tid not in handlers:
+        if tid not in handlers or tid in self.disable_transports:
             return HTTPNotFound()
 
         create, transport = handlers[tid]
@@ -103,41 +105,45 @@ class SockJSRoute(object):
         except KeyError:
             return HTTPNotFound(headers=(session_cookie(request),))
 
-        #if create and manager.is_acquired(sid):
-        #    request.response.body = close_frame(
-        #        2010, "Another connection still open")
-        #    return request.response
-        #try:
-        #    session = manager.acquire(sid, create, request)
-        #except KeyError:
-        #    return HTTPNotFound(headers=(session_cookie(request),))
-
         request.environ['wsgi.sockjs_session'] = session
 
         # websocket
         if tid == 'websocket':
-            try:
-                res = init_websocket(request)
-                if res is not None:
-                    manager.release(session)
-                    return res
-            except Exception as exc:
-                manager.release(session)
-                if isinstance(exc, Response):
-                    return exc
-                return HTTPBadRequest(str(exc))
+            if 'HTTP_ORIGIN' in request.environ:
+                return HTTPNotFound()
+
+            res = init_websocket(request)
+            if res is not None:
+                return res
 
         try:
             return transport(session, request)
         except Exception as exc:
-            manager.release(session)
+            session.release()
             log.exception('Exception in transport: %s'%tid)
             return HTTPBadRequest(str(exc))
 
     def info(self, request):
-        request.response.body = \
-            str(map(str, self.session_manager.sessions.values()))
-        return request.response
+        response = request.response
+        response.content_type = 'application/json; charset=UTF-8'
+        response.headerlist.append(
+            ('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'))
+        response.headerlist.extend(cors_headers(request))
+
+        if request.method == 'OPTIONS':
+            session_cookie(request)
+            response.status = 204
+            response.headerlist.append(
+                ("Access-Control-Allow-Methods", "OPTIONS, GET"))
+            response.headerlist.extend(cache_headers(request))
+            return response
+
+        info = {'entropy': random.randint(1, 2147483647),
+                'websocket': 'websocket' not in self.disable_transports,
+                'cookie_needed': True,
+                'origins': ['*:*']}
+        response.body = json.dumps(info)
+        return response
 
     def iframe(self, request):
         response = request.response
@@ -146,6 +152,7 @@ class SockJSRoute(object):
         cached = request.environ.get('HTTP_IF_NONE_MATCH')
         if cached:
             response.status = 304
+            del response.headers['Content-Type']
             return response
 
         response.headers['Content-Type'] = 'text/html; charset=UTF-8'

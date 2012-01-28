@@ -39,11 +39,7 @@ class EventsourceTransport(Response):
         try:
             while True:
                 try:
-                    message = session.get_transport_message(timeout=timing)
-                    if message is None:
-                        session.close()
-                        write("data: %s\r\n"%close_frame(1000, 'Go away!'))
-                        raise StopIteration()
+                    message = [session.get_transport_message(timeout=timing)]
                 except Empty:
                     message = HEARTBEAT
                     session.heartbeat()

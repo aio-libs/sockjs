@@ -105,7 +105,7 @@ class WebSocket8Client(object):
     def close(self):
         if self.client:
             self.client.running = False
-            self.client.close()
+            self.client.close_connection()
             self.client._th.join()
             self.client = None
 

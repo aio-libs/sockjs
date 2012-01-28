@@ -47,11 +47,13 @@ IFRAME_HTML = """<!DOCTYPE html>
 
 IFRAME_MD5 = hashlib.md5(IFRAME_HTML).hexdigest()
 
-encode = json.dumps
 decode = json.loads
+
+def encode(data):
+    return json.dumps(data, separators=(',', ':'))
 
 def close_frame(code, reason, endline=''):
     return '%s[%d,%s]%s' % (CLOSE, code, encode(reason), endline)
 
 def message_frame(data, endline=''):
-    return '%s%s%s'%(MESSAGE, data, endline)
+    return '%s%s%s'%(MESSAGE, encode(data), endline)

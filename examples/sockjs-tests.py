@@ -48,21 +48,28 @@ if __name__ == '__main__':
     """ Simple sockjs tests server """
     from pyramid.config import Configurator
     from pyramid_sockjs.paster import gevent_server_runner
-    from pyramid_sockjs.transports import websocket
+    from pyramid_sockjs.transports import websocket, jsonp
     from pyramid_sockjs.transports.xhrpolling import PollingTransport
     from pyramid_sockjs.transports.eventsource import EventsourceTransport
     #from pyramid_sockjs.transports.xhrpolling import XHRPollingTransport
     from pyramid_sockjs.transports.xhrstreaming import XHRStreamingTransport
+    from pyramid_sockjs.transports.htmlfile import HTMLFileTransport
 
+    HTMLFileTransport.maxsize = 4096
     EventsourceTransport.maxsize = 4096
     XHRStreamingTransport.maxsize = 4096
+    XHRStreamingTransport.timing = 0.1
     websocket.TIMING = 0.1
+    jsonp.timing = 0.1
     PollingTransport.timing = 0.1
 
     config = Configurator()
     config.include('pyramid_sockjs')
 
     config.add_sockjs_route('echo', '/echo', session=EchoSession)
+    config.add_sockjs_route('wsoff', '/disabled_websocket_echo', session=EchoSession,
+			    disable_transports=('websocket',))
+
     config.add_sockjs_route('close', '/close', session=CloseSession)
     config.add_sockjs_route('ticker', '/ticker', session=TickerSession)
     config.add_sockjs_route('amplify', '/Amplify', session=AmplifySession)

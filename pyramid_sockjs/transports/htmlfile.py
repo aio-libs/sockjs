@@ -3,12 +3,15 @@ import gevent
 from gevent.queue import Empty
 from pyramid.compat import url_unquote
 from pyramid.response import Response
+from pyramid.httpexceptions import HTTPBadRequest, HTTPServerError
 from pyramid_sockjs.transports import StreamingStop
 from pyramid_sockjs.protocol import HEARTBEAT
 from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
 
+from .utils import get_messages, session_cookie, cors_headers
 
-PRELUDE = r'''
+
+PRELUDE = r"""
 <!doctype html>
 <html><head>
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
@@ -21,51 +24,54 @@ PRELUDE = r'''
     function p(d) {c.message(d);};
     window.onload = function() {c.stop();};
   </script>
-'''.strip()
+""".strip()
 
 
-def HTMLFileTransport(session, request):
-    response = request.response
+class HTMLFileTransport(Response):
 
-    callback = request.GET.get('c', None)
-    if callback is None:
-        raise Exception('"callback" parameter is required')
+    timing = 5.0
+    maxsize = 131072 # 128K bytes
 
-    prelude = PRELUDE % callback
-    prelude += ' ' * (1024 - len(prelude))
-
-    session.open()
-
-    return HTMLFileResponse(request.response, session, prelude)
-
-
-class HTMLFileResponse(Response):
-
-    TIMING = 5.0
-
-    def __init__(self, response, session, prelude=''):
+    def __init__(self, session, request):
+        response = request.response
         self.__dict__.update(response.__dict__)
         self.session = session
-        self.prelude = prelude
+        self.request = request
+
+        self.headers = (
+            ('Content-Type', 'text/html; charset=UTF-8'),
+            ('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'),
+            ("Connection", "close"),
+            session_cookie(request),
+            ) + cors_headers(request)
 
     def __call__(self, environ, start_response):
-        write = start_response(
-            self.status, (('Content-Type', 'text/html; charset=UTF-8'),))
-        write(self.prelude)
-        write("<script>\np('o');\n</script>\r\n")
+        request = self.request
+        callback = request.GET.get('c', None)
+        if callback is None:
+            self.status = 500
+            self.body = '"callback" parameter required'
+            return super(HTMLFileTransport, self).__call__(
+                environ, start_response)
 
-        timing = self.TIMING
+        write = start_response(self.status, self.headerlist)
+        prelude = PRELUDE % callback
+        prelude += ' ' * 1024
+        write(prelude)
+
+        timing = self.timing
         session = self.session
 
+        if session.is_new():
+            session.open()
+            write('<script>\np("o");\n</script>\r\n')
+
+        size = 0
+        
         try:
             while True:
                 try:
-                    message = session.get_transport_message(timeout=timing)
-                    if message is None:
-                        session.close()
-                        write("<script>\np(%s);\n</script>\r\n" %
-                              encode(close_frame('Go away!')))
-                        raise StopIteration()
+                    message = [session.get_transport_message(timeout=timing)]
                 except Empty:
                     message = HEARTBEAT
                     session.heartbeat()
@@ -77,12 +83,17 @@ class HTMLFileResponse(Response):
                           encode(close_frame('Go away!')))
                     break
 
+                message = "<script>\np(%s);\n</script>\r\n" % encode(message)
                 try:
-                    write("<script>\np(%s);\n</script>\r\n" % encode(message))
+                    write(message)
                 except:
                     session.close()
                     raise StreamingStop()
+
+                size += len(message)
+                if size > self.maxsize:
+                    break
         finally:
-            session.manager.release(session)
+            session.release()
 
         return []

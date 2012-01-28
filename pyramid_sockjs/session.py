@@ -64,27 +64,6 @@ class Session(object):
         self.expired = True
         self.connected = False
 
-    def acquire(self, request=None):
-        self.manager.acquire(self, request)
-
-    def release(self):
-        self.manager.release(self)
-
-    def send(self, msg):
-        log.info('outgoing message: %s, %s', self.id, msg)
-        if isinstance(msg, string_types):
-            msg = [msg]
-        self.tick()
-        self.queue.put_nowait(encode(msg))
-
-    def send_raw(self, msg):
-        self.tick()
-        self.queue.put_nowait(msg)
-
-    def get_transport_message(self, timeout=None):
-        self.tick()
-        return self.queue.get(timeout=timeout)
-
     def open(self):
         log.info('open session: %s', self.id)
         self.new = False
@@ -93,6 +72,21 @@ class Session(object):
             self.on_open()
         except:
             log.exception("Exceptin in .on_open method.")
+
+    def acquire(self, request=None):
+        self.manager.acquire(self, request)
+
+    def release(self):
+        self.manager.release(self)
+
+    def get_transport_message(self, block=True, timeout=None):
+        self.tick()
+        return self.queue.get(block=block, timeout=timeout)
+
+    def send(self, msg):
+        log.info('outgoing message: %s, %s', self.id, msg)
+        self.tick()
+        self.queue.put_nowait(msg)
 
     def message(self, msg):
         log.info('incoming message: %s, %s', self.id, msg)
@@ -120,7 +114,7 @@ class Session(object):
         """ override in subsclass """
 
 
-class SessionManager(object):
+class SessionManager(dict):
     """ A basic session manager """
 
     _gc_thread = None
@@ -132,7 +126,6 @@ class SessionManager(object):
         self.route_name = 'sockjs-url-%s'%name
         self.registry = registry
         self.factory = session
-        self.sessions = {}
         self.acquired = {}
         self.pool = []
         self.timeout = timeout
@@ -165,7 +158,7 @@ class SessionManager(object):
             expires, session = self.pool[0]
 
             # check if session is removed
-            if session.id in self.sessions:
+            if session.id in self:
                 if expires > current_time:
                     break
             else:
@@ -176,7 +169,7 @@ class SessionManager(object):
 
             # Session is to be GC'd immedietely
             if session.expires < current_time:
-                del self.sessions[session.id]
+                del self[session.id]
                 if session.id in self.acquired:
                     del self.acquired[session.id]
                 if session.connected:
@@ -191,11 +184,11 @@ class SessionManager(object):
         session.manager = self
         session.registry = self.registry
 
-        self.sessions[session.id] = session
+        self[session.id] = session
         heappush(self.pool, (session.expires, session))
 
     def get(self, id, create=False):
-        session = self.sessions.get(id, None)
+        session = super(SessionManager, self).get(id, None)
         if session is None:
             if create:
                 session = self.factory(id, self.timeout)
@@ -206,17 +199,21 @@ class SessionManager(object):
         return session
 
     def acquire(self, session, request=None):
-        if session.id in self.acquired:
+        sid = session.id
+        
+        if sid in self.acquired:
             raise KeyError("Another connection still open")
+        if sid not in self:
+            raise KeyError("Unknown session")
 
         session.tick()
         session.hits += 1
         session.request = request
-        self.acquired[session.id] = True
+        self.acquired[sid] = True
         return session
 
-    def is_acquired(self, id):
-        return id in self.acquired
+    def is_acquired(self, session):
+        return session.id in self.acquired
 
     def release(self, session):
         session.request = None
@@ -226,7 +223,7 @@ class SessionManager(object):
         session.request = None
 
     def active_sessions(self):
-        for session in self.sessions.values():
+        for session in self.values():
             if not session.expired:
                 yield session
 
@@ -235,10 +232,10 @@ class SessionManager(object):
         while self.pool:
             expr, session = heappop(self.pool)
             session.expire()
-            del self.sessions[session.id]
+            del self[session.id]
 
     def broadcast(self, msg):
-        for session in self.sessions.values():
+        for session in self.values():
             if not session.expired:
                 session.send(msg)
 

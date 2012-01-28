@@ -1,5 +1,7 @@
 from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
 
+from pyramid_sockjs import protocol
+
 from .base import BaseTestCase, SocketMock
 
 
@@ -10,7 +12,7 @@ class BaseSockjs(BaseTestCase):
         from pyramid_sockjs.session import SessionManager
 
         sm = SessionManager('sm', self.registry)
-        return SockJSRoute('sm', sm, 'http:sockjs-cdn')
+        return SockJSRoute('sm', sm, 'http:sockjs-cdn', ())
 
 
 class TestSockJSRoute(BaseSockjs):
@@ -19,12 +21,22 @@ class TestSockJSRoute(BaseSockjs):
         route = self.make_one()
 
         response = route.info(self.request)
-        self.assertEqual(response.body, '[]')
+        info = protocol.decode(response.body)
+        
+        self.assertTrue(info['websocket'])
+        self.assertTrue(info['cookie_needed'])
 
-        s = route.session_manager.acquire('id', True)
+    def test_info_entropy(self):
+        route = self.make_one()
+
         response = route.info(self.request)
-        self.assertEqual(response.body, '["id=\'id\' disconnected hits=1"]')
+        entropy1 = protocol.decode(response.body)['entropy']
 
+        response = route.info(self.request)
+        entropy2 = protocol.decode(response.body)['entropy']
+
+        self.assertFalse(entropy1 == entropy2)
+        
     def test_greeting(self):
         route = self.make_one()
 
@@ -65,7 +77,7 @@ class TestSockJSRoute(BaseSockjs):
         route = self.make_one()
 
         self.request.matchdict = {
-            'transport': 'xhr_send', 'session': 'session'}
+            'transport': 'xhr_send', 'session': 'session', 'server': '000'}
         res = route.handler(self.request)
         self.assertIsInstance(res, HTTPNotFound)
 
@@ -73,7 +85,7 @@ class TestSockJSRoute(BaseSockjs):
         route = self.make_one()
 
         self.request.matchdict = {
-            'transport': 'xhr', 'session': 'session'}
+            'transport': 'xhr', 'session': 'session', 'server': '000'}
         res = route.handler(self.request)
         self.assertIn('wsgi.sockjs_session', self.request.environ)
 
@@ -91,9 +103,28 @@ class TestSockJSRoute(BaseSockjs):
         route = self.make_one()
 
         self.request.matchdict = {
-            'transport': 'test', 'session': 'session'}
+            'transport': 'test', 'session': 'session', 'server': '000'}
         res = route.handler(self.request)
         self.assertIsInstance(res, HTTPBadRequest)
+
+        del handlers['test']
+
+    def test_release_session_for_failed_transport(self):
+        from pyramid_sockjs.transports import handlers
+        def fail(session, request):
+            session.acquire()
+            raise Exception('Error')
+
+        handlers['test'] = (True, fail)
+
+        route = self.make_one()
+
+        self.request.matchdict = {
+            'transport': 'test', 'session': 'session', 'server': '000'}
+        res = route.handler(self.request)
+
+        session = route.session_manager['session']
+        self.assertFalse(route.session_manager.is_acquired(session))
 
         del handlers['test']
 
@@ -118,7 +149,7 @@ class TestWebSocketRoute(BaseSockjs):
         self.raise_init = False
         def init_websocket(request):
             if self.raise_init:
-                raise Exception('error')
+                return Exception('error')
 
         self.init_orig = route.init_websocket
         route.init_websocket = init_websocket
@@ -136,7 +167,7 @@ class TestWebSocketRoute(BaseSockjs):
         route = self.make_one()
 
         self.request.matchdict = {
-            'transport': 'websocket', 'session': 'session'}
+            'transport': 'websocket', 'session': 'session', 'server': '000'}
 
         route.handler(self.request)
         self.assertTrue(self.init[0])
@@ -145,8 +176,8 @@ class TestWebSocketRoute(BaseSockjs):
         route = self.make_one()
 
         self.request.matchdict = {
-            'transport': 'websocket', 'session': 'session'}
+            'transport': 'websocket', 'session': 'session', 'server': '000'}
 
         self.raise_init = True
         res = route.handler(self.request)
-        self.assertIsInstance(res, HTTPBadRequest)
+        self.assertIsInstance(res, Exception)

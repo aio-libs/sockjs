@@ -6,11 +6,18 @@ from pyramid.httpexceptions import HTTPBadRequest, HTTPServerError
 from pyramid_sockjs.protocol import OPEN, HEARTBEAT
 from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
 
+from .utils import session_cookie, cors_headers
+
+
+timing = 5.0
 
 def JSONPolling(session, request):
     meth = request.method
     response = request.response
     response.headers['Content-Type'] = 'application/javascript; charset=UTF-8'
+    response.headerlist.append(
+        ('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'))
+    session_cookie(request)
 
     if session.is_new():
         callback = request.GET.get('c', None)
@@ -19,22 +26,30 @@ def JSONPolling(session, request):
 
         response.text = '%s("o");\r\n' % callback
         session.open()
-        session.manager.release(session)
+        session.release()
 
     elif meth == "GET":
         callback = request.GET.get('c', None)
         if callback is None:
             return HTTPServerError('"callback" parameter required')
 
+        messages = []
         try:
-            message = session.get_transport_message(timeout=5.0)
+            messages.append(session.get_transport_message(timeout=timing))
+            while True:
+                try:
+                    messages.append(session.get_transport_message(block=False))
+                except Empty:
+                    break
+            
         except Empty:
-            message = HEARTBEAT
+            messages = HEARTBEAT
             session.heartbeat()
         else:
-            message = message_frame(message)
-        response.text = "%s(%s);\r\n"%(callback, encode(message))
-        session.manager.release(session)
+            messages = message_frame(messages)
+
+        response.text = "%s(%s);\r\n"%(callback, encode(messages))
+        session.release()
 
     elif meth == "POST":
         data = request.body_file.read()
@@ -44,15 +59,14 @@ def JSONPolling(session, request):
             if not data.startswith('d='):
                 return HTTPServerError("Payload expected.")
 
-        print ('===========', data)
-        data = url_unquote(data[2:])
+            data = url_unquote(data[2:])
+
         if not data:
             return HTTPServerError("Payload expected.")
 
         try:
             messages = decode(data)
         except:
-            print ('error', data)
             return HTTPServerError("Broken JSON encoding.")
 
         for msg in messages:

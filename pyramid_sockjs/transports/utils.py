@@ -1,4 +1,24 @@
+from gevent.queue import Empty
 from datetime import datetime, timedelta
+
+from pyramid_sockjs.protocol import HEARTBEAT
+
+
+def get_messages(session, timeout):
+    messages = []
+    try:
+        messages.append(session.get_transport_message(timeout=timeout))
+        while True:
+            try:
+                messages.append(session.get_transport_message(block=False))
+            except Empty:
+                break
+    except Empty:
+        messages = HEARTBEAT
+        session.heartbeat()
+
+    return messages
+
 
 def cors_headers(request):
     origin = request.environ.get("HTTP_ORIGIN", '*')

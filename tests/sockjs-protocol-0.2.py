@@ -523,6 +523,7 @@ class WebsocketHttpErrors(Test):
 
 
 # Support WebSocket Hixie-76 protocol
+@unittest.skip('old protocol')
 class WebsocketHixie76(Test):
     def test_transport(self):
         ws_url = 'ws:' + base_url.split(':',1)[1] + \
@@ -1019,7 +1020,7 @@ class HtmlFile(Test):
         # delivered.
         self.assertFalse(r.read())
 
-# JsonpPolling: `/*/*/jsonp`, `/*/*/jsonp_send`
+# JsonpPolling: `/*/*/jsonp`, `/*/*/jsonp_send`'
 # ---------------------------------------------
 class JsonPolling(Test):
     def test_transport(self):
@@ -1302,6 +1303,7 @@ class HandlingClose(Test):
         # the session and forget the state related. Alternatively
         # they may return a 1002 close message.
         r3 = POST(url + '/xhr')
+        print r3.body
         self.assertTrue(r3.body in ['o\n', 'c[1002,"Connection interrupted"]\n'])
 
 # Footnote

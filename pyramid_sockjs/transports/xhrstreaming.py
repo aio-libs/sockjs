@@ -50,9 +50,6 @@ class XHRStreamingTransport(Response):
         session = self.session
         is_new = session.is_new()
 
-        print '=========================================='
-        print (session.id, is_new, session.connected)
-
         #if not is_new and not session.connected:
         #    write('%s\n'%close_frame(1002, "Connection interrupted"))
         #    return ()
@@ -69,21 +66,17 @@ class XHRStreamingTransport(Response):
 
         timing = self.timing
 
-        print (session, session.connected, session.is_new())
         if not session.connected:
             write(close_frame(3000, 'Go away!', '\n'))
             session.release()
             return ()
 
-        size = 0
+        stream_size = 0
 
         try:
             while True:
                 try:
-                    message = session.get_transport_message(timeout=timing)
-                    if message is None:
-                        session.close()
-                        raise StopIteration()
+                    message = [session.get_transport_message(timeout=timing)]
                 except Empty:
                     message = HEARTBEAT
                     session.heartbeat()
@@ -92,7 +85,7 @@ class XHRStreamingTransport(Response):
 
                 if not session.connected:
                     write(close_frame(3000, 'Go away!', '\n'))
-                    break
+                    raise StreamingStop()
 
                 try:
                     write(message)
@@ -101,8 +94,8 @@ class XHRStreamingTransport(Response):
                     session.release()
                     raise StreamingStop()
 
-                size += len(message)
-                if size > self.maxsize:
+                stream_size += len(message)
+                if stream_size > self.maxsize:
                     break
         finally:
             session.release()

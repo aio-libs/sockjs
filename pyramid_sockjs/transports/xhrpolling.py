@@ -8,7 +8,7 @@ from pyramid_sockjs.transports import StreamingStop
 from pyramid_sockjs.protocol import OPEN, MESSAGE, HEARTBEAT
 from pyramid_sockjs.protocol import decode, close_frame, message_frame
 
-from .utils import session_cookie, cors_headers, cache_headers
+from .utils import get_messages, session_cookie, cors_headers, cache_headers
 
 
 class PollingTransport(object):
@@ -54,31 +54,23 @@ class XHRPollingTransport(PollingTransport):
         request.add_finished_callback(finish)
 
         try:
-            try:
-                session.acquire(request)
-            except: # should use specific exception
-                response.body = close_frame(
-                    2010, "Another connection still open", '\n')
-                return
+            session.acquire(request)
+        except: # should use specific exception
+            response.body = close_frame(
+                2010, "Another connection still open", '\n')
+            return
 
-            if session.is_new():
-                response.body = OPEN
-                session.open()
-                return
+        if session.is_new():
+            response.body = OPEN
+            session.open()
+            return
 
-            if not session.connected:
-                response.body = close_frame(3000, 'Go away!', '\n')
-                return
+        if not session.connected:
+            response.body = close_frame(3000, 'Go away!', '\n')
+            return
 
-            try:
-                message = session.get_transport_message(timeout=self.timing)
-            except Empty:
-                message = '[]'
-
-            response.body = message_frame(message, '\n')
-        finally:
-            #session.release()
-            pass
+        response.body = message_frame(
+            get_messages(session, self.timing), '\n')
 
 
 class XHRSendPollingTransport(PollingTransport):

@@ -115,14 +115,14 @@ class SessionTestCase(BaseTestCase):
         session = Session('id')
 
         session.send(['message'])
-        self.assertEqual(session.queue.get(), protocol.encode(['message']))
+        self.assertEqual(session.queue.get(), ['message'])
 
     def test_send_string(self):
         from pyramid_sockjs import Session, protocol
         session = Session('id')
 
         session.send('message')
-        self.assertEqual(session.queue.get(), protocol.encode(['message']))
+        self.assertEqual(session.queue.get(), 'message')
 
     def test_send_tick(self):
         from pyramid_sockjs import Session, protocol
@@ -133,34 +133,11 @@ class SessionTestCase(BaseTestCase):
         session.send(['message'])
         self.assertEqual(session.expires, self.now + session.timeout)
 
-    def test_send_raw(self):
-        from pyramid_sockjs import Session, protocol
-        session = Session('id')
-
-        session.send_raw(['message'])
-        self.assertEqual(session.queue.get(), ['message'])
-
-    def test_send_raw_string(self):
-        from pyramid_sockjs import Session, protocol
-        session = Session('id')
-
-        session.send_raw('message')
-        self.assertEqual(session.queue.get(), 'message')
-
-    def test_send_raw_tick(self):
-        from pyramid_sockjs import Session, protocol
-        session = Session('id')
-
-        self.now = self.now + timedelta(hours=1)
-
-        session.send_raw(['message'])
-        self.assertEqual(session.expires, self.now + session.timeout)
-
     def test_get_transport_message(self):
         from pyramid_sockjs import Session
         session = Session('id')
 
-        session.send_raw('message')
+        session.send('message')
         self.assertEqual(session.get_transport_message(), 'message')
 
         from gevent.queue import Empty
@@ -172,7 +149,7 @@ class SessionTestCase(BaseTestCase):
         from pyramid_sockjs import Session
         session = Session('id')
 
-        session.send_raw('message')
+        session.send('message')
 
         self.now = self.now + timedelta(hours=1)
 
@@ -354,13 +331,13 @@ class SessionManagerTestCase(BaseTestCase):
         sm._add(Session('id'))
         sm._gc()
 
-        self.assertIn('id', sm.sessions)
+        self.assertIn('id', sm)
 
     def test_gc_removed(self):
         Session, sm = self.make_one()
 
         sm._add(Session('id'))
-        del sm.sessions['id']
+        del sm['id']
 
         self.assertEqual(len(sm.pool), 1)
         sm._gc()
@@ -378,7 +355,7 @@ class SessionManagerTestCase(BaseTestCase):
         self.now = session.expires + timedelta(seconds=10)
 
         sm._gc()
-        self.assertNotIn('id', sm.sessions)
+        self.assertNotIn('id', sm)
         self.assertTrue(session.expired)
         self.assertFalse(session.connected)
 
@@ -394,7 +371,7 @@ class SessionManagerTestCase(BaseTestCase):
         self.now = session.expires + timedelta(seconds=10)
 
         sm._gc()
-        self.assertNotIn('id', sm.sessions)
+        self.assertNotIn('id', sm)
         self.assertNotIn('id', sm.acquired)
         self.assertTrue(session.expired)
         self.assertFalse(session.connected)
@@ -416,16 +393,16 @@ class SessionManagerTestCase(BaseTestCase):
         session2.tick()
 
         sm._gc()
-        self.assertNotIn('id1', sm.sessions)
-        self.assertIn('id2', sm.sessions)
+        self.assertNotIn('id1', sm)
+        self.assertIn('id2', sm)
 
     def test_add(self):
         Session, sm = self.make_one()
         session = Session('id')
 
         sm._add(session)
-        self.assertIn('id', sm.sessions)
-        self.assertIs(sm.sessions['id'], session)
+        self.assertIn('id', sm)
+        self.assertIs(sm['id'], session)
         self.assertIs(sm.pool[0][1], session)
         self.assertIs(session.manager, sm)
         self.assertIs(session.registry, sm.registry)
@@ -447,12 +424,14 @@ class SessionManagerTestCase(BaseTestCase):
 
     def test_get_unknown(self):
         Session, sm = self.make_one()
-        self.assertIsNone(sm.get('id'))
+        self.assertRaises(KeyError, sm.get, 'id')
 
-    def test_acquire_keyerror(self):
+    def test_get_with_create(self):
         Session, sm = self.make_one()
 
-        self.assertRaises(KeyError, sm.acquire, 'id', False)
+        session = sm.get('id', True)
+        self.assertIn(session.id, sm)
+        self.assertIsInstance(session, Session)
 
     def test_acquire_existing(self):
         Session, sm = self.make_one()
@@ -464,28 +443,29 @@ class SessionManagerTestCase(BaseTestCase):
 
         request = object()
 
-        s = sm.acquire('id', request=request)
+        s = sm.acquire(session, request=request)
 
         self.assertIs(s, session)
         self.assertIs(s.request, request)
         self.assertIn('id', sm.acquired)
         self.assertTrue(sm.acquired['id'])
+        self.assertTrue(sm.is_acquired(s))
         self.assertEqual(session.expires, self.now + timedelta(seconds=10))
 
-    def test_acquire_create(self):
+    def test_acquire_unknown(self):
         Session, sm = self.make_one()
+        session = Session('id')
 
-        s = sm.acquire('id', True)
-
-        self.assertIn('id', sm.sessions)
-        self.assertIn('id', sm.acquired)
+        self.assertRaises(KeyError, sm.acquire, session)
 
     def test_release(self):
         Session, sm = self.make_one()
 
+        session = sm.get('id', True)
+
         request = object()
 
-        s = sm.acquire('id', True, request)
+        s = sm.acquire(session, request)
         sm.release(s)
 
         self.assertNotIn('id', sm.acquired)
@@ -515,8 +495,8 @@ class SessionManagerTestCase(BaseTestCase):
         sm._add(s2)
 
         sm.broadcast('msg')
-        self.assertEqual(s1.get_transport_message(), '["msg"]')
-        self.assertEqual(s2.get_transport_message(), '["msg"]')
+        self.assertEqual(s1.get_transport_message(), 'msg')
+        self.assertEqual(s2.get_transport_message(), 'msg')
 
     def test_clear(self):
         Session, sm = self.make_one()
@@ -531,7 +511,7 @@ class SessionManagerTestCase(BaseTestCase):
 
         sm.clear()
 
-        self.assertFalse(bool(sm.sessions))
+        self.assertFalse(bool(sm))
         self.assertTrue(s1.expired)
         self.assertTrue(s2.expired)
         self.assertFalse(s1.connected)

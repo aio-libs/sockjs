@@ -20,29 +20,31 @@ def WebSocketTransport(session, request):
     websocket = request.environ['wsgi.websocket']
 
     def send():
-        websocket.send('o')
-        session.open()
+        if session.is_new():
+            try:
+                websocket.send('o')
+            except:
+                return
+            session.open()
+
+        if not session.connected:
+            websocket.send(close_frame(3000, 'Go away!'))
+            websocket.close()
+            session.release()
+            return
 
         while True:
             try:
-                message = session.get_transport_message(TIMING)
+                message = [session.get_transport_message(TIMING)]
             except Empty:
                 message = 'h'
                 session.heartbeat()
             else:
                 message = message_frame(message)
 
-            if message is None or not session.connected:
-                try:
-                    websocket.send(close_frame(3000, 'Go away!'))
-                    websocket.close()
-                    socket.shutdown(SHUT_RDWR)
-                except:
-                    pass
-                session.close()
-                break
-
             if not session.connected:
+                websocket.send(close_frame(3000, 'Go away!'))
+                websocket.close()
                 break
 
             try:
@@ -65,7 +67,6 @@ def WebSocketTransport(session, request):
             if message is None:
                 session.close()
                 websocket.close()
-                socket.shutdown(SHUT_RDWR)
                 break
 
             try:
@@ -73,7 +74,6 @@ def WebSocketTransport(session, request):
             except:
                 session.close()
                 websocket.close()
-                socket.shutdown(SHUT_RDWR)
                 break
 
             if decoded_message:
