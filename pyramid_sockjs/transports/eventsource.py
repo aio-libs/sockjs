@@ -1,7 +1,7 @@
 """ iframe-htmlfile transport """
 from gevent.queue import Empty
 from pyramid.response import Response
-from pyramid_sockjs.transports import StreamingStop
+from pyramid_sockjs.transports import StopStreaming
 from pyramid_sockjs.protocol import HEARTBEAT
 from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
 
@@ -54,7 +54,7 @@ class EventsourceTransport(Response):
                     write("data: %s\r\n\r\n" % message)
                 except:
                     session.close()
-                    raise StreamingStop()
+                    raise StopStreaming()
 
                 size += len(message)
                 if size >= self.maxsize:

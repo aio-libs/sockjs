@@ -10,11 +10,12 @@ from pyramid_sockjs.session import Session
 from pyramid_sockjs.session import SessionManager
 from pyramid_sockjs.protocol import json
 from pyramid_sockjs.protocol import IFRAME_HTML
+from pyramid_sockjs.websocket import init_websocket
 from pyramid_sockjs.transports import handlers
 from pyramid_sockjs.transports.utils import session_cookie
 from pyramid_sockjs.transports.utils import cors_headers
 from pyramid_sockjs.transports.utils import cache_headers
-from pyramid_sockjs.websocket import init_websocket
+from pyramid_sockjs.transports.websocket import RawWebSocketTransport
 
 log = logging.getLogger('pyramid_sockjs')
 
@@ -59,6 +60,10 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
     route_name = 'sockjs-%s'%name
     cfg.add_route(route_name, '%s/{server}/{session}/{transport}'%prefix)
     cfg.add_view(route_name=route_name, view=sockjs.handler)
+
+    route_name = 'sockjs-websocket-%s'%name
+    cfg.add_route(route_name, '%s/websocket'%prefix)
+    cfg.add_view(route_name=route_name, view=sockjs.websocket)
 
     route_name = 'sockjs-info-%s'%name
     cfg.add_route(route_name, '%s/info'%prefix)
@@ -122,6 +127,24 @@ class SockJSRoute(object):
             session.release()
             log.exception('Exception in transport: %s'%tid)
             return HTTPBadRequest(str(exc))
+
+    def websocket(self, request):
+        # session
+        manager = self.session_manager
+
+        sid = '%0.9d'%random.randint(1, 2147483647)
+        session = manager.get(sid, True)
+        request.environ['wsgi.sockjs_session'] = session
+
+        # websocket
+        if 'HTTP_ORIGIN' in request.environ:
+            return HTTPNotFound()
+
+        res = init_websocket(request)
+        if res is not None:
+            return res
+
+        return RawWebSocketTransport(session, request)
 
     def info(self, request):
         response = request.response

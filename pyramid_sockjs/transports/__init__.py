@@ -1,7 +1,7 @@
 # pyramid_sockjs transports
 
 
-class StreamingStop(Exception):
+class StopStreaming(StopIteration):
     """ Connection has been disconnected. """
 
 

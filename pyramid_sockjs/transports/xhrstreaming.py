@@ -3,7 +3,7 @@ from gevent.queue import Empty
 from pyramid.compat import url_unquote
 from pyramid.response import Response
 from pyramid.httpexceptions import HTTPBadRequest
-from pyramid_sockjs.transports import StreamingStop
+from pyramid_sockjs.transports import StopStreaming
 from pyramid_sockjs.protocol import OPEN, MESSAGE, HEARTBEAT
 from pyramid_sockjs.protocol import decode, close_frame, message_frame
 
@@ -85,14 +85,14 @@ class XHRStreamingTransport(Response):
 
                 if not session.connected:
                     write(close_frame(3000, 'Go away!', '\n'))
-                    raise StreamingStop()
+                    raise StopStreaming()
 
                 try:
                     write(message)
                 except:
                     session.close()
                     session.release()
-                    raise StreamingStop()
+                    raise StopStreaming()
 
                 stream_size += len(message)
                 if stream_size > self.maxsize:

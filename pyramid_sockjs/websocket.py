@@ -18,7 +18,7 @@ def init_websocket(request):
     if 'websocket' not in environ.get('HTTP_UPGRADE', '').lower():
         return HTTPBadRequest('Can "Upgrade" only to "WebSocket".')
 
-    if 'upgrade' not in environ.get('connection', '').lower():
+    if 'upgrade' not in environ.get('HTTP_CONNECTION', '').lower():
         return HTTPBadRequest('"Connection" must be "Upgrade".')
 
     version = environ.get("HTTP_SEC_WEBSOCKET_VERSION")

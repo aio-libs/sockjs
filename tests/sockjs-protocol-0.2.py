@@ -1303,7 +1303,6 @@ class HandlingClose(Test):
         # the session and forget the state related. Alternatively
         # they may return a 1002 close message.
         r3 = POST(url + '/xhr')
-        print r3.body
         self.assertTrue(r3.body in ['o\n', 'c[1002,"Connection interrupted"]\n'])
 
 # Footnote
