@@ -14,14 +14,14 @@ class PollingTransport(object):
     """ Long polling derivative transports, used for XHRPolling and JSONPolling.
     """
     timing = 5.0
-    method = None
+    heartbeat = False
 
     def __call__(self, session, request):
         meth = request.method
         session_cookie(request)
         response = request.response
 
-        if meth in ('GET', 'POST'): # self.method:
+        if meth in ('GET', 'POST'):
             result = self.process(session, request)
             if result is not None:
                 return result
@@ -68,8 +68,7 @@ class XHRPollingTransport(PollingTransport):
             response.body = close_frame(3000, 'Go away!', '\n')
             return
 
-        response.body = message_frame(
-            get_messages(session, self.timing), '\n')
+        response.body = get_messages(session, self.timing, self.heartbeat)
 
 
 class XHRSendPollingTransport(PollingTransport):

@@ -1,10 +1,10 @@
 from gevent.queue import Empty
 from datetime import datetime, timedelta
 
-from pyramid_sockjs.protocol import HEARTBEAT
+from pyramid_sockjs.protocol import HEARTBEAT, message_frame
 
 
-def get_messages(session, timeout):
+def get_messages(session, timeout, heartbeat=True):
     messages = []
     try:
         messages.append(session.get_transport_message(timeout=timeout))
@@ -14,8 +14,13 @@ def get_messages(session, timeout):
             except Empty:
                 break
     except Empty:
-        messages = HEARTBEAT
-        session.heartbeat()
+        if heartbeat:
+            messages = HEARTBEAT
+            session.heartbeat()
+        else:
+            messages = 'a[]'
+    else:
+        messages = message_frame(messages, '\n')
 
     return messages
 
