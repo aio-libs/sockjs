@@ -28,4 +28,4 @@ if __name__ == '__main__':
     config.add_view(route_name='root', renderer='__main__:chat.pt')
 
     app = config.make_wsgi_app()
-    gevent_server_runner(app, {})
+    gevent_server_runner(app, {}, host='127.0.0.1')

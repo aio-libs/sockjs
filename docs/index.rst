@@ -5,6 +5,7 @@ Pyramid SockJS
    :maxdepth: 2
 
    overview.rst
+   install.rst
    api.rst
 
 
