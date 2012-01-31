@@ -146,7 +146,7 @@ Requirements
 
 - virtualenv
 
-- gevent 1.0dev
+- gevent 1.0b1
 
 - gevent-websocket 0.3.0-dev
 
@@ -162,4 +162,4 @@ https://github.com/fafhrd91/pyramid_sockjs/tree/master/examples
 License
 -------
 
-pyramid_sockjs is offered under the BSD3 license.
+pyramid_sockjs is offered under the BSD license.

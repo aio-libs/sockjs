@@ -52,8 +52,8 @@ decode = json.loads
 def encode(data):
     return json.dumps(data, separators=(',', ':'))
 
-def close_frame(code, reason, endline=''):
-    return '%s[%d,%s]%s' % (CLOSE, code, encode(reason), endline)
+def close_frame(code, reason, eol=''):
+    return '%s[%d,%s]%s' % (CLOSE, code, encode(reason), eol)
 
-def message_frame(data, endline=''):
-    return '%s%s%s'%(MESSAGE, encode(data), endline)
+def message_frame(data, eol=''):
+    return '%s%s%s'%(MESSAGE, encode(data), eol)

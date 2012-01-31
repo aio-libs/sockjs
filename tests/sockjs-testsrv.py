@@ -37,7 +37,7 @@ if __name__ == '__main__':
     XHRStreamingTransport.timing = 0.1
     websocket.TIMING = 0.1
     jsonp.timing = 0.1
-    PollingTransport.timing = 0.1
+    PollingTransport.timing = 0.2
 
     config = Configurator()
     config.include('pyramid_sockjs')
