@@ -8,10 +8,14 @@ from pyramid_sockjs.protocol import encode, decode
 
 log = logging.getLogger('pyramid_sockjs')
 
+STATE_NEW = 0
+STATE_OPEN = 1
+STATE_CLOSING = 2
+STATE_CLOSED = 3
+
 
 class Session(object):
 
-    new = True
     manager = None
     request = None
     registry = None
@@ -20,6 +24,7 @@ class Session(object):
 
     def __init__(self, id, timeout=timedelta(seconds=10)):
         self.id = id
+        self.state = STATE_NEW
         self.expired = False
         self.timeout = timeout
         self.expires = datetime.now() + timeout
@@ -28,15 +33,11 @@ class Session(object):
 
         self.hits = 0
         self.heartbeats = 0
-        self.connected = False
-
-    def is_new(self):
-        return self.new
 
     def __str__(self):
         result = ['id=%r' % self.id]
 
-        if self.connected:
+        if self.state == STATE_OPEN:
             result.append('connected')
         else:
             result.append('disconnected')
@@ -64,16 +65,32 @@ class Session(object):
     def expire(self):
         """ Manually expire a session. """
         self.expired = True
-        self.connected = False
 
     def open(self):
         log.info('open session: %s', self.id)
-        self.new = False
-        self.connected = True
+        self.state = STATE_OPEN
         try:
             self.on_open()
         except:
             log.exception("Exceptin in .on_open method.")
+
+    def close(self):
+        log.info('close session: %s', self.id)
+        self.state = STATE_CLOSING
+        try:
+            self.on_close()
+        except:
+            log.exception("Exceptin in .on_close method.")
+
+    def closed(self):
+        log.info('session closed: %s', self.id)
+        self.state = STATE_CLOSED
+        self.release()
+        self.expire()
+        try:
+            self.on_closed()
+        except:
+            log.exception("Exceptin in .on_closed method.")
 
     def acquire(self, request=None):
         self.manager.acquire(self, request)
@@ -98,15 +115,6 @@ class Session(object):
         except:
             log.exception("Exceptin in .on_message method.")
 
-    def close(self):
-        log.info('close session: %s', self.id)
-        self.release()
-        self.expire()
-        try:
-            self.on_close()
-        except:
-            log.exception("Exceptin in .on_message method.")
-
     def on_open(self):
         """ override in subsclass """
 
@@ -114,6 +122,9 @@ class Session(object):
         """ override in subsclass """
 
     def on_close(self):
+        """ override in subsclass """
+
+    def on_closed(self):
         """ override in subsclass """
 
     def on_remove(self):
@@ -179,9 +190,10 @@ class SessionManager(dict):
                     del self[session.id]
                     if session.id in self.acquired:
                         del self.acquired[session.id]
-                    if session.connected:
+                    if session.state == STATE_OPEN:
                         session.close()
-
+                    if session.state == STATE_CLOSING:
+                        session.closed()
                 continue
 
             heappush(self.pool, (session.expires, session))

@@ -4,6 +4,11 @@ from pyramid.compat import url_unquote
 from pyramid.response import Response
 from pyramid.httpexceptions import HTTPBadRequest, HTTPServerError
 
+from pyramid_sockjs import STATE_NEW
+from pyramid_sockjs import STATE_OPEN
+from pyramid_sockjs import STATE_CLOSING
+from pyramid_sockjs import STATE_CLOSED
+
 from pyramid_sockjs.protocol import OPEN, MESSAGE, HEARTBEAT
 from pyramid_sockjs.protocol import decode, close_frame, message_frame
 
@@ -59,13 +64,15 @@ class XHRPollingTransport(PollingTransport):
                 2010, "Another connection still open", '\n')
             return
 
-        if session.is_new():
+        if session.state == STATE_NEW:
             response.body = OPEN
             session.open()
             return
 
-        if not session.connected:
+        if session.state in (STATE_CLOSING, STATE_CLOSED):
             response.body = close_frame(3000, 'Go away!', '\n')
+            if session.state == STATE_CLOSING:
+                session.closed()
             return
 
         response.body = get_messages(session, self.timing, self.heartbeat)

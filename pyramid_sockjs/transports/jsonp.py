@@ -3,6 +3,11 @@ import uuid
 from gevent.queue import Empty
 from pyramid.compat import url_unquote
 from pyramid.httpexceptions import HTTPBadRequest, HTTPServerError
+
+from pyramid_sockjs import STATE_NEW
+from pyramid_sockjs import STATE_OPEN
+from pyramid_sockjs import STATE_CLOSING
+from pyramid_sockjs import STATE_CLOSED
 from pyramid_sockjs.protocol import OPEN, HEARTBEAT
 from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
 
@@ -19,7 +24,7 @@ def JSONPolling(session, request):
         ('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'))
     session_cookie(request)
 
-    if session.is_new():
+    if session.state == STATE_NEW:
         callback = request.GET.get('c', None)
         if callback is None:
             return HTTPServerError('"callback" parameter required')

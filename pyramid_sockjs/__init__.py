@@ -3,6 +3,11 @@
 from pyramid_sockjs.session import Session
 from pyramid_sockjs.session import SessionManager
 
+from pyramid_sockjs.session import STATE_NEW
+from pyramid_sockjs.session import STATE_OPEN
+from pyramid_sockjs.session import STATE_CLOSING
+from pyramid_sockjs.session import STATE_CLOSED
+
 
 def includeme(cfg):
     from pyramid_sockjs.route import add_sockjs_route

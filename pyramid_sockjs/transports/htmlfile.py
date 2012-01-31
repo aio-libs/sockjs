@@ -4,6 +4,10 @@ from gevent.queue import Empty
 from pyramid.compat import url_unquote
 from pyramid.response import Response
 from pyramid.httpexceptions import HTTPBadRequest, HTTPServerError
+
+from pyramid_sockjs import STATE_NEW
+from pyramid_sockjs import STATE_OPEN
+from pyramid_sockjs import STATE_CLOSING
 from pyramid_sockjs.transports import StopStreaming
 from pyramid_sockjs.protocol import HEARTBEAT
 from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
@@ -62,9 +66,9 @@ class HTMLFileTransport(Response):
         timing = self.timing
         session = self.session
 
-        if session.is_new():
-            session.open()
+        if session.state == STATE_NEW:
             write('<script>\np("o");\n</script>\r\n')
+            session.open()
 
         size = 0
 
@@ -78,16 +82,17 @@ class HTMLFileTransport(Response):
                 else:
                     message = message_frame(message)
 
-                if not session.connected:
+                if session.state == STATE_CLOSING:
                     write("<script>\np(%s);\n</script>\r\n" %
                           encode(close_frame('Go away!')))
+                    session.closed()
                     break
 
                 message = "<script>\np(%s);\n</script>\r\n" % encode(message)
                 try:
                     write(message)
                 except:
-                    session.close()
+                    session.closed()
                     raise StopStreaming()
 
                 size += len(message)

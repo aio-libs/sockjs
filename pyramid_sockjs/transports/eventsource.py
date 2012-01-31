@@ -1,6 +1,10 @@
 """ iframe-htmlfile transport """
 from gevent.queue import Empty
 from pyramid.response import Response
+
+from pyramid_sockjs import STATE_NEW
+from pyramid_sockjs import STATE_OPEN
+from pyramid_sockjs import STATE_CLOSING
 from pyramid_sockjs.transports import StopStreaming
 from pyramid_sockjs.protocol import HEARTBEAT
 from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
@@ -30,7 +34,7 @@ class EventsourceTransport(Response):
         timing = self.timing
         session = self.session
 
-        if session.is_new():
+        if session.state == STATE_NEW:
             write("data: o\r\n\r\n")
             session.open()
 
@@ -46,14 +50,18 @@ class EventsourceTransport(Response):
                 else:
                     message = message_frame(message)
 
-                if not session.connected:
+                if session.state == STATE_CLOSING:
                     write("data: %s\r\n\r\n"%close_frame(1000, 'Go away!'))
+                    session.closed()
+                    break
+
+                if session.state != STATE_OPEN:
                     break
 
                 try:
                     write("data: %s\r\n\r\n" % message)
                 except:
-                    session.close()
+                    session.closed()
                     raise StopStreaming()
 
                 size += len(message)

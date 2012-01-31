@@ -5,6 +5,10 @@ from gevent.queue import Empty
 from socket import SHUT_RDWR, error
 from pyramid.response import Response
 
+from pyramid_sockjs import STATE_NEW
+from pyramid_sockjs import STATE_OPEN
+from pyramid_sockjs import STATE_CLOSING
+from pyramid_sockjs import STATE_CLOSED
 from pyramid_sockjs.transports import StopStreaming
 from pyramid_sockjs.protocol import OPEN, HEARTBEAT
 from pyramid_sockjs.protocol import decode, close_frame, message_frame
@@ -18,17 +22,17 @@ def WebSocketTransport(session, request):
     websocket = request.environ['wsgi.websocket']
 
     def send():
-        if session.is_new():
+        if session.state == STATE_NEW:
             try:
                 websocket.send('o')
             except:
                 return
             session.open()
 
-        if not session.connected:
+        if session.state == STATE_CLOSING:
             websocket.send(close_frame(3000, 'Go away!'))
             websocket.close()
-            session.release()
+            session.closed()
             return
 
         while True:
@@ -40,18 +44,19 @@ def WebSocketTransport(session, request):
             else:
                 message = message_frame(message)
 
-            if not session.connected:
+            if session.state == STATE_CLOSING:
                 try:
                     websocket.send(close_frame(3000, 'Go away!'))
                     websocket.close()
                 except:
                     pass
+                session.closed()
                 break
 
             try:
                 websocket.send(message)
             except:
-                session.close()
+                session.closed()
                 break
 
     def receive():
@@ -59,29 +64,30 @@ def WebSocketTransport(session, request):
             try:
                 message = websocket.receive()
             except:
-                session.close()
+                session.closed()
                 break
 
-            if not session.connected:
+            if session.state == STATE_CLOSING:
                 try:
                     websocket.send(close_frame(3000, 'Go away!'))
                     websocket.close()
                 except:
                     pass
+                session.closed()
                 break
 
             if message == '':
                 continue
 
             if message is None:
-                session.close()
+                session.closed()
                 websocket.close()
                 break
 
             try:
                 decoded_message = decode(message)
             except:
-                session.close()
+                session.closed()
                 websocket.close()
                 break
 
@@ -100,12 +106,12 @@ def RawWebSocketTransport(session, request):
     websocket = request.environ['wsgi.websocket']
 
     def send():
-        if session.is_new():
+        if session.state == STATE_NEW:
             session.open()
 
-        if not session.connected:
+        if session.state == STATE_CLOSING:
             websocket.close()
-            session.release()
+            session.closed()
             return
 
         while True:
@@ -114,17 +120,18 @@ def RawWebSocketTransport(session, request):
             except Empty:
                 continue
 
-            if not session.connected:
+            if session.state != STATE_OPEN:
                 try:
                     websocket.close()
                 except:
                     pass
+                session.closed()
                 break
             else:
                 try:
                     websocket.send(message)
                 except:
-                    session.close()
+                    session.closed()
                     break
 
     def receive():
@@ -132,18 +139,19 @@ def RawWebSocketTransport(session, request):
             try:
                 message = websocket.receive()
             except:
-                session.close()
+                session.closed()
                 break
 
-            if not session.connected:
+            if session.state == STATE_CLOSING:
                 try:
                     websocket.close()
                 except:
                     pass
+                session.closed()
                 break
 
             if message is None:
-                session.close()
+                session.closed()
                 websocket.close()
                 break
 

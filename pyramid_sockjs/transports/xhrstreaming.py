@@ -3,6 +3,11 @@ from gevent.queue import Empty
 from pyramid.compat import url_unquote
 from pyramid.response import Response
 from pyramid.httpexceptions import HTTPBadRequest
+
+from pyramid_sockjs import STATE_NEW
+from pyramid_sockjs import STATE_OPEN
+from pyramid_sockjs import STATE_CLOSING
+from pyramid_sockjs import STATE_CLOSED
 from pyramid_sockjs.transports import StopStreaming
 from pyramid_sockjs.protocol import OPEN, MESSAGE, HEARTBEAT
 from pyramid_sockjs.protocol import decode, close_frame, message_frame
@@ -48,9 +53,8 @@ class XHRStreamingTransport(Response):
         write(self.open_seq)
 
         session = self.session
-        is_new = session.is_new()
 
-        #if not is_new and not session.connected:
+        #if session.state == STATE_CLOSED:
         #    write('%s\n'%close_frame(1002, "Connection interrupted"))
         #    return ()
 
@@ -60,18 +64,18 @@ class XHRStreamingTransport(Response):
             write(close_frame(2010, "Another connection still open", '\n'))
             return ()
 
-        if is_new:
+        if session.state == STATE_NEW:
             write(OPEN)
             session.open()
 
-        timing = self.timing
-
-        if not session.connected:
+        if session.state in (STATE_CLOSING, STATE_CLOSED):
             write(close_frame(3000, 'Go away!', '\n'))
-            session.release()
+            if session.state == STATE_CLOSING:
+                session.closed()
             return ()
 
         stream_size = 0
+        timing = self.timing
 
         try:
             while True:
@@ -83,15 +87,18 @@ class XHRStreamingTransport(Response):
                 else:
                     message = message_frame(message, '\n')
 
-                if not session.connected:
+                if session.state == STATE_CLOSING:
                     write(close_frame(3000, 'Go away!', '\n'))
+                    session.closed()
                     raise StopStreaming()
+
+                if session.state != STATE_OPEN:
+                    break
 
                 try:
                     write(message)
                 except:
-                    session.close()
-                    session.release()
+                    session.closed()
                     raise StopStreaming()
 
                 stream_size += len(message)

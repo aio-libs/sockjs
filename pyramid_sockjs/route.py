@@ -23,7 +23,8 @@ log = logging.getLogger('pyramid_sockjs')
 def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
                      session=Session, session_manager=None,
                      disable_transports=(),
-                     sockjs_cdn='http://cdn.sockjs.org/sockjs-0.2.0.min.js'):
+                     sockjs_cdn='http://cdn.sockjs.org/sockjs-0.2.0.min.js',
+                     permission=None, decorator=None):
     # set session manager
     if session_manager is None:
         session_manager = SessionManager(name, cfg.registry, session=session)
@@ -51,31 +52,38 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
 
     route_name = 'sockjs-url-%s-greeting'%name
     cfg.add_route(route_name, prefix)
-    cfg.add_view(route_name=route_name, view=sockjs.greeting)
+    cfg.add_view(route_name=route_name, view=sockjs.greeting,
+                 permission=permission, decorator=decorator)
 
     route_name = 'sockjs-url-%s'%name
     cfg.add_route(route_name, '%s/'%prefix)
-    cfg.add_view(route_name=route_name, view=sockjs.greeting)
+    cfg.add_view(route_name=route_name, view=sockjs.greeting,
+                 permission=permission, decorator=decorator)
 
     route_name = 'sockjs-%s'%name
     cfg.add_route(route_name, '%s/{server}/{session}/{transport}'%prefix)
-    cfg.add_view(route_name=route_name, view=sockjs.handler)
+    cfg.add_view(route_name=route_name, view=sockjs.handler,
+                 permission=permission, decorator=decorator)
 
     route_name = 'sockjs-websocket-%s'%name
     cfg.add_route(route_name, '%s/websocket'%prefix)
-    cfg.add_view(route_name=route_name, view=sockjs.websocket)
+    cfg.add_view(route_name=route_name, view=sockjs.websocket,
+                 permission=permission, decorator=decorator)
 
     route_name = 'sockjs-info-%s'%name
     cfg.add_route(route_name, '%s/info'%prefix)
-    cfg.add_view(route_name=route_name, view=sockjs.info)
+    cfg.add_view(route_name=route_name, view=sockjs.info,
+                 permission=permission, decorator=decorator)
 
     route_name = 'sockjs-iframe-%s'%name
     cfg.add_route(route_name, '%s/iframe.html'%prefix)
-    cfg.add_view(route_name=route_name, view=sockjs.iframe)
+    cfg.add_view(route_name=route_name, view=sockjs.iframe,
+                 permission=permission, decorator=decorator)
 
     route_name = 'sockjs-iframe-ver-%s'%name
     cfg.add_route(route_name, '%s/iframe{version}.html'%prefix)
-    cfg.add_view(route_name=route_name, view=sockjs.iframe)
+    cfg.add_view(route_name=route_name, view=sockjs.iframe,
+                 permission=permission, decorator=decorator)
 
 
 class SockJSRoute(object):
