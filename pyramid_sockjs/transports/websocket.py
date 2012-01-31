@@ -92,7 +92,7 @@ def WebSocketTransport(session, request):
 
     jobs = [gevent.spawn(send), gevent.spawn(receive)]
 
-    return WebSocketResponse(request.response, jobs)
+    return WebSocketResponse(session, request, jobs)
 
 
 def RawWebSocketTransport(session, request):
@@ -153,19 +153,27 @@ def RawWebSocketTransport(session, request):
 
     jobs = [gevent.spawn(send), gevent.spawn(receive)]
 
-    return WebSocketResponse(request.response, jobs)
+    return WebSocketResponse(session, request, jobs)
 
 
 class WebSocketResponse(Response):
 
-    def __init__(self, response, jobs):
-        self.__dict__.update(response.__dict__)
+    def __init__(self, session, request, jobs):
+        self.__dict__.update(request.response.__dict__)
         self.jobs = jobs
+        self.session = session
+        self.request = request
 
     def __call__(self, environ, start_response):
         write = start_response(
             self.status, self._abs_headerlist(environ))
         write('')
+
+        try:
+            self.session.acquire(self.request)
+        except: # should use specific exception
+            write(close_frame(2010, "Another connection still open", '\n'))
+            return StopStreaming()
 
         gevent.joinall(self.jobs)
         raise StopStreaming()

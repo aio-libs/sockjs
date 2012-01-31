@@ -12,7 +12,9 @@ log = logging.getLogger('pyramid_sockjs')
 class Session(object):
 
     new = True
+    manager = None
     request = None
+    registry = None
     acquired = False
     timeout = timedelta(seconds=10)
 
@@ -98,6 +100,7 @@ class Session(object):
 
     def close(self):
         log.info('close session: %s', self.id)
+        self.release()
         self.expire()
         try:
             self.on_close()
@@ -112,6 +115,9 @@ class Session(object):
 
     def on_close(self):
         """ override in subsclass """
+
+    def on_remove(self):
+        """ executes on removing from session manager """
 
 
 class SessionManager(dict):
@@ -169,13 +175,19 @@ class SessionManager(dict):
 
             # Session is to be GC'd immedietely
             if session.expires < current_time:
-                del self[session.id]
-                if session.id in self.acquired:
-                    del self.acquired[session.id]
-                if session.connected:
-                    session.close()
-            else:
-                heappush(self.pool, (session.expires, session))
+                if not self.on_session_gc(session):
+                    del self[session.id]
+                    if session.id in self.acquired:
+                        del self.acquired[session.id]
+                    if session.connected:
+                        session.close()
+
+                continue
+
+            heappush(self.pool, (session.expires, session))
+
+    def on_session_gc(self, session):
+        return session.on_remove()
 
     def _add(self, session):
         if session.expired:
@@ -208,7 +220,9 @@ class SessionManager(dict):
 
         session.tick()
         session.hits += 1
+        session.manager = self
         session.request = request
+        session.registry = self.registry
         self.acquired[sid] = True
         return session
 
@@ -216,6 +230,8 @@ class SessionManager(dict):
         return session.id in self.acquired
 
     def release(self, session):
+        #session.manager = None
+        #session.registry = None
         session.request = None
         if session.id in self.acquired:
             del self.acquired[session.id]
