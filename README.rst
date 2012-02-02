@@ -3,7 +3,7 @@ Pyramid SockJS
 
 Gevent-based SockJS integration for Pyramid. SockJS interface is 
 implemented as pyramid route. It runs inside wsgi app rather than wsgi server.
-Its possible to can create any number of different sockjs routes, ie 
+Its possible to create any number of different sockjs routes, ie 
 `/__sockjs__/*` or `/mycustom-sockjs/*`. also you can provide different
 session implementation and management for each of sockjs routes.
 
@@ -80,12 +80,12 @@ Supported transports
 * websocket
 * xhr-streaming
 * xhr-polling
-* iframe-htmlfile
 * iframe-xhr-polling
+* iframe-eventsource
+* iframe-htmlfile
 * jsonp-polling
 
-Only websocket protocol version 8 and 13 are supported.
-``iframe-eventsource`` transport is not supported.
+Websocket protocol version hixie-75 and hixie-76 are not supported.
 
 
 Requirements
@@ -95,7 +95,7 @@ Requirements
 
 - virtualenv
 
-- gevent 1.0dev
+- gevent 1.0b1
 
 - gevent-websocket 0.3.0-dev
 
@@ -111,4 +111,4 @@ https://github.com/fafhrd91/pyramid_sockjs/tree/master/examples
 License
 -------
 
-pyramid_sockjs is offered under the BSD3 license.
+pyramid_sockjs is offered under the BSD license.

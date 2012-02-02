@@ -6,7 +6,7 @@ Overview
 
 Gevent-based SockJS integration for Pyramid. SockJS interface is 
 implemented as pyramid route. It runs inside wsgi app rather than wsgi server.
-You can create any number of different sockjs routes, ie 
+It's possible to create any number of different sockjs routes, ie 
 `/__sockjs__/*` or `/mycustom-sockjs/*`. also you can provide different
 session implementation and management for each of sockjs routes.
 
