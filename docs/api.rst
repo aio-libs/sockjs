@@ -4,6 +4,18 @@ API
 
 .. automodule:: pyramid_sockjs
 
-  .. autoclass:: Session
+Session states:
 
-  .. autoclass:: SessionManager
+  .. py:data:: STATE_NEW
+
+  .. py:data:: STATE_OPEN
+
+  .. py:data:: STATE_CLOSING
+
+  .. py:data:: STATE_CLOSED
+
+.. autoclass:: Session(id)
+     :members:
+
+.. autoclass:: SessionManager
+     :members:

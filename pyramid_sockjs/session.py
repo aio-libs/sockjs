@@ -15,16 +15,31 @@ STATE_CLOSED = 3
 
 
 class Session(object):
+    """ SockJS session object
+
+    ``state``: Session state
+
+    ``manager``: Session manager that hold this session
+
+    ``request``: Request object
+
+    ``registry``: Pyramid component registry
+
+    ``acquierd``: Acquired state, indicates that transport is using session
+
+    ``timeout``: Session timeout
+
+    """
 
     manager = None
     request = None
     registry = None
     acquired = False
     timeout = timedelta(seconds=10)
+    state = STATE_NEW
 
     def __init__(self, id, timeout=timedelta(seconds=10)):
         self.id = id
-        self.state = STATE_NEW
         self.expired = False
         self.timeout = timeout
         self.expires = datetime.now() + timeout
@@ -75,6 +90,7 @@ class Session(object):
             log.exception("Exceptin in .on_open method.")
 
     def close(self):
+        """ close session """
         log.info('close session: %s', self.id)
         self.state = STATE_CLOSING
         try:
@@ -104,6 +120,7 @@ class Session(object):
         return self.queue.get(block=block, timeout=timeout)
 
     def send(self, msg):
+        """ send message to client """
         log.info('outgoing message: %s, %s', self.id, msg)
         self.tick()
         self.queue.put_nowait(msg)
@@ -120,16 +137,16 @@ class Session(object):
         """ override in subsclass """
 
     def on_message(self, msg):
-        """ override in subsclass """
+        """ executes when new message is received from client """
 
     def on_close(self):
-        """ override in subsclass """
+        """ executes after session marked as closing """
 
     def on_closed(self):
-        """ override in subsclass """
+        """ executes after session marked as closed """
 
     def on_remove(self):
-        """ executes on removing from session manager """
+        """ executes before removing from session manager """
 
 
 class SessionManager(dict):
