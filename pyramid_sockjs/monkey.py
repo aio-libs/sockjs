@@ -7,7 +7,7 @@ orig_get_environ = WSGIHandler.get_environ
 orig_handle_error = WSGIHandler.handle_error
 
 
-def handle_error(self, type, value, tb):
+def handle_error(self, type, value, tb): # pragma: no cover
     if issubclass(type, StopStreaming):
         del tb
         return
@@ -15,7 +15,7 @@ def handle_error(self, type, value, tb):
     return orig_handle_error(self, type, value, tb)
 
 
-def get_environ(self):
+def get_environ(self): # pragma: no cover
     env = orig_get_environ(self)
     env['gunicorn.socket'] = self.socket
     if 'HTTP_CONNECTION' not in env:
@@ -23,7 +23,7 @@ def get_environ(self):
     return env
 
 
-def patch_gevent():
+def patch_gevent(): # pragma: no cover
     log = logging.getLogger('pyramid_sockjs')
 
     if WSGIHandler.handle_error is handle_error:
@@ -43,11 +43,11 @@ def patch_gevent():
 
 try:
     import gunicorn.util as util
-except ImportError:
+except ImportError: # pragma: no cover
     pass
 
 
-def default_headers(self):
+def default_headers(self): # pragma: no cover
     headers = [
         "HTTP/%s.%s %s\r\n" % (self.req.version[0],
                                self.req.version[1], self.status),
@@ -65,7 +65,7 @@ def default_headers(self):
         headers.append("Transfer-Encoding: chunked\r\n")
     return headers
 
-def process_headers(self, headers):
+def process_headers(self, headers): # pragma: no cover
     for name, value in headers:
         assert isinstance(name, basestring), "%r is not a string" % name
         lname = name.lower().strip()
@@ -87,7 +87,7 @@ def process_headers(self, headers):
         self.headers.append((name.strip(), str(value).strip()))
 
 
-def patch_gunicorn():
+def patch_gunicorn(): # pragma: no cover
     try:
         from gunicorn.http.wsgi import Response
     except ImportError:

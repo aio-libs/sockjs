@@ -96,7 +96,8 @@ class Session(object):
         self.manager.acquire(self, request)
 
     def release(self):
-        self.manager.release(self)
+        if self.manager is not None:
+            self.manager.release(self)
 
     def get_transport_message(self, block=True, timeout=None):
         self.tick()
@@ -259,7 +260,8 @@ class SessionManager(dict):
         """ Manually expire all sessions in the pool. """
         while self.pool:
             expr, session = heappop(self.pool)
-            session.expire()
+            if session.state != STATE_CLOSED:
+                session.closed()
             del self[session.id]
 
     def broadcast(self, msg):

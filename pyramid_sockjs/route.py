@@ -110,7 +110,7 @@ class SockJSRoute(object):
         manager = self.session_manager
 
         sid = matchdict['session']
-        if '.' in sid or '.' in matchdict['server'] or not sid:
+        if not sid or '.' in sid or '.' in matchdict['server']:
             return HTTPNotFound()
 
         try:

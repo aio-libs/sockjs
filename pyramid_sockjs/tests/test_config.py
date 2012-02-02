@@ -30,13 +30,16 @@ class AddSockJSRouteTestCase(BaseTestCase):
         super(AddSockJSRouteTestCase, self).setUp()
 
         self._views = views = {}
+        self._views_info = views_info = {}
         self._routes = routes = {}
 
         def add_route(name, pattern):
             routes[name] = pattern
 
-        def add_view(route_name=None, view=None):
+        def add_view(route_name=None, view=None,
+                     permission=None, decorator=None):
             views[route_name] = view
+            views_info[route_name] = (permission, decorator)
 
         self.config.add_route = add_route
         self.config.add_view = add_view
@@ -63,6 +66,21 @@ class AddSockJSRouteTestCase(BaseTestCase):
         self.assertIn('sockjs-info-%s'%name, self._views)
         self.assertIn('sockjs-iframe-%s'%name, self._views)
         self.assertIn('sockjs-iframe-ver-%s'%name, self._views)
+
+    def test_permission_decorator(self):
+        name = ''
+        permission = 1
+        decorator = 2
+
+        self.config.add_sockjs_route(permission=permission,
+                                     decorator=decorator)
+
+        val = (permission, decorator)
+
+        self.assertEqual(val, self._views_info['sockjs-%s'%name])
+        self.assertEqual(val, self._views_info['sockjs-info-%s'%name])
+        self.assertEqual(val, self._views_info['sockjs-iframe-%s'%name])
+        self.assertEqual(val, self._views_info['sockjs-iframe-ver-%s'%name])
 
     def test_config_error(self):
         self.config.add_sockjs_route('route')

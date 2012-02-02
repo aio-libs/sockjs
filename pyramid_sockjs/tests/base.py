@@ -11,9 +11,7 @@ else:
 
 
 class SocketMock(object):
-    rfile = object()
-    def makefile(self, *args):
-        return self.rfile
+    pass
 
 
 class BaseTestCase(TestCase):
@@ -27,7 +25,7 @@ class BaseTestCase(TestCase):
         'HTTP_HOST': 'example.com',
         'SCRIPT_NAME': '',
         'PATH_INFO': '/',
-        'gevent.socket': SocketMock()}
+        'gunicorn.socket': SocketMock()}
 
     def setUp(self):
         self.init_pyramid()
@@ -35,7 +33,7 @@ class BaseTestCase(TestCase):
     def make_request(self, environ=None, request_iface=IRequest, **kwargs):
         if environ is None:
             environ=self._environ
-        request = testing.DummyRequest(environ=environ, **kwargs)
+        request = testing.DummyRequest(environ=dict(environ), **kwargs)
         request.request_iface = IRequest
         return request
 

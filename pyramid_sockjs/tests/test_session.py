@@ -27,7 +27,7 @@ class SessionTestCase(BaseTestCase):
         super(SessionTestCase, self).tearDown()
 
     def test_ctor(self):
-        from pyramid_sockjs import Session
+        from pyramid_sockjs import Session, STATE_NEW
         session = Session('id')
 
         self.assertEqual(session.id, 'id')
@@ -36,7 +36,7 @@ class SessionTestCase(BaseTestCase):
 
         self.assertEqual(session.hits, 0)
         self.assertEqual(session.heartbeats, 0)
-        self.assertEqual(session.connected, False)
+        self.assertEqual(session.state, STATE_NEW)
 
         session = Session('id', timedelta(seconds=15))
 
@@ -45,16 +45,16 @@ class SessionTestCase(BaseTestCase):
         self.assertEqual(session.expires, self.now + timedelta(seconds=15))
 
     def test_str(self):
-        from pyramid_sockjs import Session
+        from pyramid_sockjs import Session, STATE_OPEN, STATE_CLOSING
         session = Session('test')
         session.hits = 10
         session.heartbeats = 50
-        session.connected = True
+        session.state = STATE_OPEN
 
         self.assertEqual(str(session),
                          "id='test' connected hits=10 heartbeats=50")
 
-        session.connected = False
+        session.state = STATE_CLOSING
         self.assertEqual(str(session),
                          "id='test' disconnected hits=10 heartbeats=50")
 
@@ -104,11 +104,9 @@ class SessionTestCase(BaseTestCase):
         session = Session('id')
 
         session.expired = False
-        session.connected = True
 
         session.expire()
         self.assertTrue(session.expired)
-        self.assertFalse(session.connected)
 
     def test_send(self):
         from pyramid_sockjs import Session, protocol
@@ -158,10 +156,10 @@ class SessionTestCase(BaseTestCase):
         self.assertEqual(session.expires, self.now + session.timeout)
 
     def test_open(self):
-        from pyramid_sockjs import Session
+        from pyramid_sockjs import Session, STATE_OPEN
         session = Session('id')
         session.open()
-        self.assertTrue(session.connected)
+        self.assertEqual(session.state, STATE_OPEN)
 
     def test_open_on_open(self):
         from pyramid_sockjs import Session
@@ -178,14 +176,14 @@ class SessionTestCase(BaseTestCase):
         self.assertTrue(opened[0])
 
     def test_open_on_open_exception(self):
-        from pyramid_sockjs import Session
+        from pyramid_sockjs import Session, STATE_OPEN
         class TestSession(Session):
             def on_open(self):
                 raise Exception()
 
         session = TestSession('id')
         session.open()
-        self.assertTrue(session.connected)
+        self.assertEqual(session.state, STATE_OPEN)
 
     def test_message(self):
         from pyramid_sockjs import Session
@@ -231,25 +229,25 @@ class SessionTestCase(BaseTestCase):
         self.assertIsNone(err)
 
     def test_close(self):
-        from pyramid_sockjs import Session
+        from pyramid_sockjs import Session, STATE_CLOSING
         session = Session('id')
         session.open()
         session.close()
-        self.assertTrue(session.expired)
-        self.assertFalse(session.connected)
+        self.assertFalse(session.expired)
+        self.assertEqual(session.state, STATE_CLOSING)
 
     def test_close_event(self):
         from pyramid_sockjs import Session
 
-        closed = []
+        closing = []
         class TestSession(Session):
             def on_close(self):
-                closed.append(True)
+                closing.append(True)
 
         session = TestSession('id')
         session.open()
         session.close()
-        self.assertTrue(closed[0])
+        self.assertTrue(closing[0])
 
     def test_close_on_message_exception(self):
         from pyramid_sockjs import Session
@@ -267,6 +265,45 @@ class SessionTestCase(BaseTestCase):
             err = exc
 
         self.assertIsNone(err)
+
+    def test_closed(self):
+        from pyramid_sockjs import Session, STATE_CLOSED
+        session = Session('id')
+        session.open()
+        session.closed()
+        self.assertTrue(session.expired)
+        self.assertEqual(session.state, STATE_CLOSED)
+
+    def test_closed_event(self):
+        from pyramid_sockjs import Session
+
+        closed = []
+        class TestSession(Session):
+            def on_closed(self):
+                closed.append(True)
+
+        session = TestSession('id')
+        session.open()
+        session.closed()
+        self.assertTrue(closed[0])
+
+    def test_closed_on_message_exception(self):
+        from pyramid_sockjs import Session, STATE_CLOSED
+        class TestSession(Session):
+            def on_closed(self):
+                raise Exception()
+
+        session = TestSession('id')
+        session.open()
+
+        err = None
+        try:
+            session.closed()
+        except Exception as exc: # pragma: no cover
+            err = exc
+
+        self.assertIsNone(err)
+        self.assertEqual(session.state, STATE_CLOSED)
 
 
 class GcThreadTestCase(BaseTestCase):
@@ -345,6 +382,7 @@ class SessionManagerTestCase(BaseTestCase):
         self.assertEqual(len(sm.pool), 0)
 
     def test_gc_expire(self):
+        from pyramid_sockjs import STATE_CLOSED
         Session, sm = self.make_one()
 
         session = Session('id')
@@ -357,9 +395,10 @@ class SessionManagerTestCase(BaseTestCase):
         sm._gc()
         self.assertNotIn('id', sm)
         self.assertTrue(session.expired)
-        self.assertFalse(session.connected)
+        self.assertEqual(session.state, STATE_CLOSED)
 
     def test_gc_expire_acquired(self):
+        from pyramid_sockjs import STATE_CLOSED
         Session, sm = self.make_one()
 
         session = Session('id')
@@ -374,7 +413,7 @@ class SessionManagerTestCase(BaseTestCase):
         self.assertNotIn('id', sm)
         self.assertNotIn('id', sm.acquired)
         self.assertTrue(session.expired)
-        self.assertFalse(session.connected)
+        self.assertEqual(session.state, STATE_CLOSED)
 
     def test_gc_one_expire(self):
         Session, sm = self.make_one()
@@ -433,7 +472,7 @@ class SessionManagerTestCase(BaseTestCase):
         self.assertIn(session.id, sm)
         self.assertIsInstance(session, Session)
 
-    def test_acquire_existing(self):
+    def test_acquire(self):
         Session, sm = self.make_one()
 
         session = Session('id')
@@ -455,6 +494,15 @@ class SessionManagerTestCase(BaseTestCase):
     def test_acquire_unknown(self):
         Session, sm = self.make_one()
         session = Session('id')
+
+        self.assertRaises(KeyError, sm.acquire, session)
+
+    def test_acquire_locked(self):
+        Session, sm = self.make_one()
+        session = Session('id')
+        sm._add(session)
+
+        s = sm.acquire(session)
 
         self.assertRaises(KeyError, sm.acquire, session)
 
@@ -499,6 +547,8 @@ class SessionManagerTestCase(BaseTestCase):
         self.assertEqual(s2.get_transport_message(), 'msg')
 
     def test_clear(self):
+        from pyramid_sockjs.session import STATE_CLOSED
+
         Session, sm = self.make_one()
 
         s1 = Session('s1')
@@ -514,5 +564,5 @@ class SessionManagerTestCase(BaseTestCase):
         self.assertFalse(bool(sm))
         self.assertTrue(s1.expired)
         self.assertTrue(s2.expired)
-        self.assertFalse(s1.connected)
-        self.assertFalse(s2.connected)
+        self.assertEqual(s1.state, STATE_CLOSED)
+        self.assertEqual(s2.state, STATE_CLOSED)
