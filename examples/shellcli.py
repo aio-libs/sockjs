@@ -76,6 +76,8 @@ class InteractiveConsole(code.InteractiveConsole):
         except ConnectionClosedException:
             print "Interactive shell has been disconnected. reconnecting..."
             self.ws = WebSocket8Client(self.host)
+            self.ws.recv() # read welcome msg
+            return self.runsource_ws(source, filename)
 
     def runsource_ws(self, source, filename='<input>'):
         self.count += 1
