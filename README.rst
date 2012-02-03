@@ -57,11 +57,7 @@ Installation
 
     $ ./sockjs/bin/pip install http://gevent.googlecode.com/files/gevent-1.0b1.tar.gz
 
-3. Install gevent-websocket from bitbucket::
-
-    $ ./sockjs/bin/pip install hg+https://bitbucket.org/Jeffrey/gevent-websocket@stable
-
-4. Clone pyramid_sockjs from github and then install::
+3. Clone pyramid_sockjs from github and then install::
 
     $ git clone git://github.com/fafhrd91/pyramid_sockjs.git
     $ cd pyramid_sockjs
@@ -97,7 +93,7 @@ Requirements
 
 - gevent 1.0b1
 
-- gevent-websocket 0.3.0-dev
+- gevent-websocket 0.3.0
 
 
 Examples

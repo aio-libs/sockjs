@@ -148,7 +148,7 @@ Requirements
 
 - gevent 1.0b1
 
-- gevent-websocket 0.3.0-dev
+- gevent-websocket 0.3.0
 
 
 Examples

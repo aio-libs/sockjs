@@ -1,5 +1,7 @@
 # pyramid_sockjs
 
+from pyramid_sockjs.protocol import json
+
 from pyramid_sockjs.session import Session
 from pyramid_sockjs.session import SessionManager
 
