@@ -11,7 +11,7 @@ from pyramid_sockjs import STATE_CLOSING
 from pyramid_sockjs import STATE_CLOSED
 from pyramid_sockjs.transports import StopStreaming
 from pyramid_sockjs.protocol import OPEN, HEARTBEAT
-from pyramid_sockjs.protocol import decode, close_frame, message_frame
+from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
 
 
 TIMING = 5.0
@@ -129,7 +129,7 @@ def RawWebSocketTransport(session, request):
                 break
             else:
                 try:
-                    websocket.send(message)
+                    websocket.send(encode(message))
                 except:
                     session.closed()
                     break
