@@ -281,10 +281,10 @@ class SessionManager(dict):
                 session.closed()
             del self[session.id]
 
-    def broadcast(self, msg):
+    def broadcast(self, *args, **kw):
         for session in self.values():
             if not session.expired:
-                session.send(msg)
+                session.send(*args, **kw)
 
     def __del__(self):
         self.clear()

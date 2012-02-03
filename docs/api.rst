@@ -4,6 +4,8 @@ API
 
 .. automodule:: pyramid_sockjs
 
+.. autofunction:: get_session_manager
+
 Session states:
 
   .. py:data:: STATE_NEW

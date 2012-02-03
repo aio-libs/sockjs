@@ -208,3 +208,10 @@ class GetSessionManager(object):
             return self.registry.__sockjs_managers__[name]
         except AttributeError:
             raise KeyError(name)
+
+
+def get_session_manager(name, registry):
+    try:
+        return registry.__sockjs_managers__[name]
+    except AttributeError:
+        raise KeyError(name)

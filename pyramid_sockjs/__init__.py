@@ -1,7 +1,5 @@
 # pyramid_sockjs
 
-from pyramid_sockjs.protocol import json
-
 from pyramid_sockjs.session import Session
 from pyramid_sockjs.session import SessionManager
 
@@ -9,6 +7,9 @@ from pyramid_sockjs.session import STATE_NEW
 from pyramid_sockjs.session import STATE_OPEN
 from pyramid_sockjs.session import STATE_CLOSING
 from pyramid_sockjs.session import STATE_CLOSED
+
+from pyramid_sockjs.protocol import json
+from pyramid_sockjs.route import get_session_manager
 
 
 def includeme(cfg):
