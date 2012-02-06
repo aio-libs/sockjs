@@ -149,6 +149,9 @@ class Session(object):
         """ executes before removing from session manager """
 
 
+_marker = object()
+
+
 class SessionManager(dict):
     """ A basic session manager """
 
@@ -229,13 +232,15 @@ class SessionManager(dict):
         self[session.id] = session
         heappush(self.pool, (session.expires, session))
 
-    def get(self, id, create=False):
+    def get(self, id, create=False, default=_marker):
         session = super(SessionManager, self).get(id, None)
         if session is None:
             if create:
                 session = self.factory(id, self.timeout)
                 self._add(session)
             else:
+                if default is not _marker:
+                    return default
                 raise KeyError(id)
 
         return session
