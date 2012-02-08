@@ -87,8 +87,11 @@ def WebSocketTransport(session, request):
             try:
                 decoded_message = decode(message)
             except:
+                try:
+                    websocket.close(message='broken json')
+                except:
+                    pass
                 session.closed()
-                websocket.close()
                 break
 
             if decoded_message:
@@ -109,12 +112,15 @@ def RawWebSocketTransport(session, request):
         if session.state == STATE_NEW:
             session.open()
 
-        if session.state == STATE_CLOSING:
-            websocket.close()
-            session.closed()
-            return
-
         while True:
+            if session.state == STATE_CLOSING:
+                try:
+                    websocket.close()
+                except:
+                    pass
+                session.closed()
+                break
+
             try:
                 message = session.get_transport_message(timeout=TIMING)
             except Empty:
@@ -129,7 +135,7 @@ def RawWebSocketTransport(session, request):
                 break
             else:
                 try:
-                    websocket.send(encode(message))
+                    websocket.send(message)
                 except:
                     session.closed()
                     break
@@ -140,6 +146,9 @@ def RawWebSocketTransport(session, request):
                 message = websocket.receive()
             except:
                 session.closed()
+                break
+
+            if session.state == STATE_CLOSED:
                 break
 
             if session.state == STATE_CLOSING:

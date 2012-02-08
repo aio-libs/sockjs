@@ -1,10 +1,25 @@
 import base64
 from hashlib import sha1
+from socket import SHUT_RDWR
 from pyramid.httpexceptions import HTTPBadRequest, HTTPMethodNotAllowed
 from geventwebsocket.websocket import WebSocketHybi
 
 KEY = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 SUPPORTED_VERSIONS = ('13', '8', '7')
+
+
+class WebSocketHybi(WebSocketHybi):
+
+    def _close(self):
+        if self.socket is not None:
+            self.socket.shutdown(SHUT_RDWR)
+            self.socket = None
+            self._write = None
+
+            if not self._reading:
+                self.fobj.close()
+
+            self.fobj = None
 
 
 def init_websocket(request):
