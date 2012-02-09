@@ -155,15 +155,18 @@ _marker = object()
 class SessionManager(dict):
     """ A basic session manager """
 
+    factory = Session
+    
     _gc_thread = None
     _gc_thread_stop = False
 
-    def __init__(self, name, registry, session=Session,
+    def __init__(self, name, registry, session=None,
                  gc_cycle=3.0, timeout=timedelta(seconds=10)):
         self.name = name
         self.route_name = 'sockjs-url-%s'%name
         self.registry = registry
-        self.factory = session
+        if session is not None:
+            self.factory = session
         self.acquired = {}
         self.pool = []
         self.timeout = timeout

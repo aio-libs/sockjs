@@ -6,7 +6,6 @@ from pyramid.response import Response
 from pyramid.exceptions import ConfigurationError
 from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
 
-from pyramid_sockjs.session import Session
 from pyramid_sockjs.session import SessionManager
 from pyramid_sockjs.protocol import json
 from pyramid_sockjs.protocol import IFRAME_HTML
@@ -21,7 +20,7 @@ log = logging.getLogger('pyramid_sockjs')
 
 
 def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
-                     session=Session, session_manager=None,
+                     session=None, session_manager=None,
                      disable_transports=(),
                      sockjs_cdn='http://cdn.sockjs.org/sockjs-0.2.0.min.js',
                      permission=None, decorator=None):
