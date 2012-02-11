@@ -156,7 +156,7 @@ class SessionManager(dict):
     """ A basic session manager """
 
     factory = Session
-    
+
     _gc_thread = None
     _gc_thread_stop = False
 

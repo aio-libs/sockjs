@@ -1,4 +1,7 @@
+import time
 import hashlib
+from email import utils
+from datetime import datetime
 from pyramid.compat import string_types
 
 # json
@@ -49,8 +52,12 @@ IFRAME_MD5 = hashlib.md5(IFRAME_HTML).hexdigest()
 
 decode = json.loads
 
+def dthandler(obj):
+    if isinstance(obj, datetime):
+        return utils.formatdate(time.mktime(obj.utctimetuple()))
+
 def encode(data):
-    return json.dumps(data, separators=(',', ':'))
+    return json.dumps(data, separators=(',', ':'), default=dthandler)
 
 def close_frame(code, reason, eol=''):
     return '%s[%d,%s]%s' % (CLOSE, code, encode(reason), eol)
