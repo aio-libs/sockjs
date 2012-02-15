@@ -333,7 +333,6 @@ class HTTPResponse:
     # See RFC 2616 sec 19.6 and RFC 1945 sec 6 for details.
 
     def __init__(self, sock, debuglevel=0, strict=0, method=None, buffering=False):
-        self.sock = sock
         if buffering:
             # The caller won't be using any sock.recv() calls, so buffering
             # is fine and recommended for performance.

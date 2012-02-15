@@ -283,7 +283,7 @@ class InfoTest(Test):
         # List of allowed origins. Currently ignored.
         self.assertEqual(data['origins'], ['*:*'])
         # Source of entropy for random number generator.
-        self.assertTrue(isinstance(data['entropy'], int))
+        self.assertTrue(type(data['entropy']) in [int, long])
 
     # As browsers don't have a good entropy source, the server must
     # help with tht. Info url must supply a good, unpredictable random
@@ -293,8 +293,8 @@ class InfoTest(Test):
         data1 = json.loads(r1.body)
         r2 = GET(base_url + '/info')
         data2 = json.loads(r2.body)
-        self.assertTrue(isinstance(data1['entropy'], int))
-        self.assertTrue(isinstance(data2['entropy'], int))
+        self.assertTrue(type(data1['entropy']) in [int, long])
+        self.assertTrue(type(data2['entropy']) in [int, long])
         self.assertNotEqual(data1['entropy'], data2['entropy'])
 
     # Info url must support CORS.
@@ -523,7 +523,7 @@ class WebsocketHttpErrors(Test):
 
 
 # Support WebSocket Hixie-76 protocol
-@unittest.skip('old protocol')
+@unittest.skip('not supported protocol')
 class WebsocketHixie76(Test):
     def test_transport(self):
         ws_url = 'ws:' + base_url.split(':',1)[1] + \
@@ -543,7 +543,8 @@ class WebsocketHixie76(Test):
 
         # The connection should be closed after the close frame.
         with self.assertRaises(websocket.ConnectionClosedException):
-            ws.recv()
+            if ws.recv() is None:
+                raise websocket.ConnectionClosedException
         ws.close()
 
     # Empty frames must be ignored by the server side.
@@ -600,27 +601,31 @@ class WebsocketHixie76(Test):
     # * Write response headers.
     # * Receive request nonce.
     # * Write response nonce.
-    def test_headersSanity(self):
+    def test_haproxy(self):
         url = base_url.split(':',1)[1] + \
                  '/000/' + str(uuid.uuid4()) + '/websocket'
         ws_url = 'ws:' + url
         http_url = 'http:' + url
         origin = '/'.join(http_url.split('/')[:3])
-        h = {'Upgrade': 'WebSocket',
-             'Connection': 'Upgrade',
-             'Origin': origin,
-             'Sec-WebSocket-Key1': '4 @1  46546xW%0l 1 5',
-             'Sec-WebSocket-Key2': '12998 5 Y3 1  .P00'
-            }
 
-        r = GET_async(http_url, headers=h)
+        c = RawHttpConnection(http_url)
+        r = c.request('GET', http_url, http='1.1', headers={
+                'Connection':'Upgrade',
+                'Upgrade':'WebSocket',
+                'Origin': origin,
+                'Sec-WebSocket-Key1': '4 @1  46546xW%0l 1 5',
+                'Sec-WebSocket-Key2': '12998 5 Y3 1  .P00'
+                })
+        # First check response headers
         self.assertEqual(r.status, 101)
-        self.assertEqual(r['sec-websocket-location'], ws_url)
-        self.assertEqual(r['connection'].lower(), 'upgrade')
-        self.assertEqual(r['upgrade'].lower(), 'websocket')
-        self.assertEqual(r['sec-websocket-origin'], origin)
-        self.assertFalse(r['content-length'])
-        r.close()
+        self.assertEqual(r.headers['connection'].lower(), 'upgrade')
+        self.assertEqual(r.headers['upgrade'].lower(), 'websocket')
+        self.assertEqual(r.headers['sec-websocket-location'], ws_url)
+        self.assertEqual(r.headers['sec-websocket-origin'], origin)
+        self.assertFalse('Content-Length' in r.headers)
+        # Later send token
+        c.send('aaaaaaaa')
+        self.assertEqual(c.read(), '\xca4\x00\xd8\xa5\x08G\x97,\xd5qZ\xba\xbfC{')
 
     # When user sends broken data - broken JSON for example, the
     # server must terminate the ws connection.
@@ -631,7 +636,8 @@ class WebsocketHixie76(Test):
         self.assertEqual(ws.recv(), u'o')
         ws.send(u'"a')
         with self.assertRaises(websocket.ConnectionClosedException):
-            ws.recv()
+            if ws.recv() is None:
+                raise websocket.ConnectionClosedException
         ws.close()
 
 
@@ -927,7 +933,6 @@ class EventSource(Test):
         # that actually prevent the automatic GC. See:
         #  * https://bugs.webkit.org/show_bug.cgi?id=61863
         #  * http://code.google.com/p/chromium/issues/detail?id=68160
-
         url = base_url + '/000/' + str(uuid.uuid4())
         r = GET_async(url + '/eventsource')
         self.assertEqual(r.status, 200)
@@ -1102,6 +1107,16 @@ class JsonPolling(Test):
         self.assertEqual(r.status, 200)
         self.assertEqual(r.body, 'x("a[\\"abc\\",\\"%61bc\\"]");\r\n')
 
+    def test_close(self):
+        url = close_base_url + '/000/' + str(uuid.uuid4())
+        r = GET(url + '/jsonp?c=x')
+        self.assertEqual(r.body, 'x("o");\r\n')
+
+        r = GET(url + '/jsonp?c=x')
+        self.assertEqual(r.body, 'x("c[3000,\\"Go away!\\"]");\r\n')
+
+        r = GET(url + '/jsonp?c=x')
+        self.assertEqual(r.body, 'x("c[3000,\\"Go away!\\"]");\r\n')
 
 # Raw WebSocket url: `/websocket`
 # -------------------------------
@@ -1374,9 +1389,10 @@ class Http10(Test):
         # Content-length is not allowed - we don't know it yet.
         self.assertFalse(r.headers.get('content-length'))
 
-        # Connection:Keep-Alive is not allowed either.
-        connection = r.headers.get('connection', '').lower()
-        self.assertTrue(connection in ['close', ''])
+        # `Connection` should be not set or be `close`. On the other
+        # hand, if it is set to `Keep-Alive`, it won't really hurt, as
+        # we are confident that neither `Content-Length` nor
+        # `Transfer-Encoding` are set.
 
         # This is a the same logic as HandlingClose.test_close_frame
         self.assertEqual(c.read(2048+1)[0], 'h') # prelude
