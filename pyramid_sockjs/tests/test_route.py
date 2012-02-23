@@ -2,7 +2,7 @@ from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
 
 from pyramid_sockjs import protocol
 
-from .base import BaseTestCase, SocketMock
+from base import BaseTestCase, SocketMock
 
 
 class BaseSockjs(BaseTestCase):

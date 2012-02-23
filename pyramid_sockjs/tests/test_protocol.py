@@ -1,5 +1,5 @@
 import json
-from .base import TestCase
+from base import TestCase
 
 
 class TestProtocol(TestCase):

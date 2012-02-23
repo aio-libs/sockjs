@@ -3,7 +3,7 @@ from pyramid.response import Response
 from pyramid.httpexceptions import \
      HTTPNotFound, HTTPBadRequest, HTTPMethodNotAllowed
 
-from .base import BaseTestCase, SocketMock
+from base import BaseTestCase, SocketMock
 
 
 class WebSoscketHandshake(BaseTestCase):

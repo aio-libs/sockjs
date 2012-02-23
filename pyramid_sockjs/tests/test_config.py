@@ -2,7 +2,7 @@ from pyramid.request import Request
 from pyramid.events import NewRequest
 from pyramid.exceptions import ConfigurationError
 
-from .base import BaseTestCase
+from base import BaseTestCase
 
 
 class PyramidDirectiveTestCase(BaseTestCase):

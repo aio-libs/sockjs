@@ -1,7 +1,7 @@
 import gevent
 from datetime import datetime, timedelta
 
-from .base import BaseTestCase
+from base import BaseTestCase
 
 
 class SessionTestCase(BaseTestCase):
