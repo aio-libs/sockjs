@@ -107,4 +107,4 @@ https://github.com/fafhrd91/pyramid_sockjs/tree/master/examples
 License
 -------
 
-pyramid_sockjs is offered under the BSD license.
+pyramid_sockjs is offered under the MIT license.

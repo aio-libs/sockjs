@@ -34,7 +34,7 @@ if __name__ == '__main__':
     HTMLFileTransport.maxsize = 4096
     EventsourceTransport.maxsize = 4096
     XHRStreamingTransport.maxsize = 4096
-    XHRStreamingTransport.timing = 0.1
+    XHRStreamingTransport.timing = 0.01
     websocket.TIMING = 0.1
     jsonp.timing = 0.1
     PollingTransport.timing = 0.2

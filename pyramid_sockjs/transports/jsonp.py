@@ -38,22 +38,30 @@ def JSONPolling(session, request):
         if callback is None:
             return HTTPServerError('"callback" parameter required')
 
-        messages = []
-        try:
-            messages.append(session.get_transport_message(timeout=timing))
-            while True:
-                try:
-                    messages.append(session.get_transport_message(block=False))
-                except Empty:
-                    break
-
-        except Empty:
-            messages = HEARTBEAT
-            session.heartbeat()
+        if session.state in (STATE_CLOSING, STATE_CLOSED):
+            response.text = "%s(%s);\r\n"%(
+                callback, encode(close_frame(3000, 'Go away!')))
+            if session.state == STATE_CLOSING:
+                session.closed()
         else:
-            messages = message_frame(messages)
+            messages = []
+            try:
+                messages.append(session.get_transport_message(timeout=timing))
+                while True:
+                    try:
+                        messages.append(
+                            session.get_transport_message(block=False))
+                    except Empty:
+                        break
 
-        response.text = "%s(%s);\r\n"%(callback, encode(messages))
+            except Empty:
+                messages = HEARTBEAT
+                session.heartbeat()
+            else:
+                messages = message_frame(messages)
+
+            response.text = "%s(%s);\r\n"%(callback, encode(messages))
+
         session.release()
 
     elif meth == "POST":
