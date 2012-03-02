@@ -1,0 +1,7 @@
+language: python
+python:
+  - 2.7
+install: 
+  - pip install http://gevent.googlecode.com/files/gevent-1.0b1.tar.gz
+  - python setup.py develop
+script: python setup.py test
