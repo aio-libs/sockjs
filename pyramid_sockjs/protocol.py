@@ -10,7 +10,14 @@ from pyramid.compat import string_types
 # Fastest
 try:
     import ujson as json
+    kwargs = {}
 except ImportError: # pragma: no cover
+    def dthandler(obj):
+        if isinstance(obj, datetime):
+            return utils.formatdate(time.mktime(obj.utctimetuple()))
+
+    kwargs = {'default': dthandler, 'separators': (',', ':')}
+
     # Faster
     try:
         import simplejson as json
@@ -52,12 +59,8 @@ IFRAME_MD5 = hashlib.md5(IFRAME_HTML).hexdigest()
 
 decode = json.loads
 
-def dthandler(obj):
-    if isinstance(obj, datetime):
-        return utils.formatdate(time.mktime(obj.utctimetuple()))
-
 def encode(data):
-    return json.dumps(data, separators=(',', ':'), default=dthandler)
+    return json.dumps(data, **kwargs)
 
 def close_frame(code, reason, eol=''):
     return '%s[%d,%s]%s' % (CLOSE, code, encode(reason), eol)
