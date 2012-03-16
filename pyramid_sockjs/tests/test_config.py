@@ -165,6 +165,21 @@ class AddSockJSRouteTestCase(BaseTestCase):
 
         self.assertIs(self.registry.__sockjs_managers__[name], sm)
 
+    def test_get_session_manager_name_internal(self):
+        import pyramid_sockjs
+
+        name = 'example'
+        self.config.add_sockjs_route(name)
+
+        from pyramid_sockjs.route import get_session_manager
+
+        sm = get_session_manager(name, self.registry)
+        self.assertIs(self.registry.__sockjs_managers__[name], sm)
+
+        self.assertRaises(
+            KeyError,
+            get_session_manager, 'unknown', object())
+
     def test_custom_session(self):
         import pyramid_sockjs
 

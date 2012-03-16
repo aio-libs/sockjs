@@ -465,6 +465,13 @@ class SessionManagerTestCase(BaseTestCase):
         Session, sm = self.make_one()
         self.assertRaises(KeyError, sm.get, 'id')
 
+    def test_get_unknown_with_default(self):
+        Session, sm = self.make_one()
+        default = object()
+
+        item = sm.get('id', default=default)
+        self.assertIs(item, default)
+
     def test_get_with_create(self):
         Session, sm = self.make_one()
 
