@@ -2,6 +2,14 @@
 CHANGES
 =======
 
+0.2.1 (2012-03-20)
+==================
+
+- Fixed websocket frame with '[]'
+
+- Update cors headers for dev protocol compliance
+
+
 0.2 (2012-03-16)
 ================
 

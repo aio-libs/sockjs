@@ -85,6 +85,8 @@ def WebSocketTransport(session, request):
                 break
 
             try:
+                if message.startswith('['):
+                    message = message[1:-1]
                 decoded_message = decode(message)
             except:
                 try:

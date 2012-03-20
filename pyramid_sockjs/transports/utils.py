@@ -27,8 +27,16 @@ def get_messages(session, timeout, heartbeat=True):
 
 def cors_headers(request):
     origin = request.environ.get("HTTP_ORIGIN", '*')
-    return (('access-control-allow-origin', origin),
-            ('access-control-allow-credentials', 'true'))
+    if origin == 'null':
+        origin = '*'
+    ac_headers = request.environ.get('HTTP_ACCESS_CONTROL_REQUEST_HEADERS')
+    if ac_headers is not None:
+        return (('access-control-allow-origin', origin),
+               ('access-control-allow-credentials', 'true'),
+               ('access-control-allow-headers', ac_headers))
+    else:
+        return (('access-control-allow-origin', origin),
+               ('access-control-allow-credentials', 'true'))
 
 
 def session_cookie(request):
