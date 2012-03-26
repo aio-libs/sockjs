@@ -523,7 +523,6 @@ class WebsocketHttpErrors(Test):
 
 
 # Support WebSocket Hixie-76 protocol
-@unittest.skip('not supported protocol')
 class WebsocketHixie76(Test):
     def test_transport(self):
         ws_url = 'ws:' + base_url.split(':',1)[1] + \

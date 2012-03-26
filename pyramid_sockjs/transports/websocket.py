@@ -1,7 +1,9 @@
 """ websocket transport """
+import struct
 import errno
 import gevent
 from gevent.queue import Empty
+from hashlib import md5
 from socket import SHUT_RDWR, error
 from pyramid.response import Response
 
@@ -92,7 +94,8 @@ def WebSocketTransport(session, request):
                 try:
                     websocket.close(message='broken json')
                 except:
-                    pass
+                    import traceback
+                    traceback.print_exc()
                 session.closed()
                 break
 
@@ -103,7 +106,7 @@ def WebSocketTransport(session, request):
 
     jobs = [gevent.spawn(send), gevent.spawn(receive)]
 
-    return WebSocketResponse(session, request, jobs)
+    return WebSocketResponse(session, request, jobs, websocket)
 
 
 def RawWebSocketTransport(session, request):
@@ -172,26 +175,38 @@ def RawWebSocketTransport(session, request):
 
     jobs = [gevent.spawn(send), gevent.spawn(receive)]
 
-    return WebSocketResponse(session, request, jobs)
+    return WebSocketResponse(session, request, jobs, websocket)
 
 
 class WebSocketResponse(Response):
 
-    def __init__(self, session, request, jobs):
+    def __init__(self, session, request, jobs, websocket):
         self.__dict__.update(request.response.__dict__)
         self.jobs = jobs
         self.session = session
         self.request = request
+        self.websocket = websocket
 
     def __call__(self, environ, start_response):
         write = start_response(
             self.status, self._abs_headerlist(environ))
-        write('')
+
+        # WebsocketHixie76.test_haproxy
+        if environ['wsgi.websocket_version'] == 'hixie-76':
+            part1, part2 = environ['wsgi.hixie-keys']
+            key3 = environ['wsgi.input'].rfile.read(8)
+
+            write(md5(struct.pack("!II", part1, part2) + key3).digest())
+        else:
+            write(self.body)
 
         try:
             self.session.acquire(self.request)
         except: # should use specific exception
-            write(close_frame(2010, "Another connection still open", '\n'))
+            self.websocket.send('o')
+            self.websocket.send(
+                close_frame(2010, "Another connection still open", '\n'))
+            self.websocket.close()
             return StopStreaming()
 
         gevent.joinall(self.jobs)

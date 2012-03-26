@@ -9,7 +9,7 @@ from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
 from pyramid_sockjs.session import SessionManager
 from pyramid_sockjs.protocol import json
 from pyramid_sockjs.protocol import IFRAME_HTML
-from pyramid_sockjs.websocket import init_websocket
+from pyramid_sockjs.websocket import init_websocket, init_websocket_hixie
 from pyramid_sockjs.transports import handlers
 from pyramid_sockjs.transports.utils import session_cookie
 from pyramid_sockjs.transports.utils import cors_headers
@@ -121,11 +121,13 @@ class SockJSRoute(object):
 
         # websocket
         if tid == 'websocket':
-            if 'HTTP_SEC_WEBSOCKET_VERSION' not in request.environ and \
-                   'HTTP_ORIGIN' in request.environ:
+            if 'HTTP_SEC_WEBSOCKET_VERSION' in request.environ:
+                res = init_websocket(request)
+            elif 'HTTP_ORIGIN' in request.environ:
+                res = init_websocket_hixie(request)
+            else:
                 return HTTPNotFound()
 
-            res = init_websocket(request)
             if res is not None:
                 return res
 
