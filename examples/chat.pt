@@ -102,7 +102,7 @@
       <label for="iframe-eventsource">iframe-eventsource</label>
     </li>
     <li>
-      <input id="iframe-htmlfile" type="checkbox" value="iframe-htmlfile" 
+      <input id="iframe-htmlfile" type="checkbox" value="iframe-htmlfile"
              checked="checked"></input>
       <label for="iframe-htmlfile">iframe-htmlfile</label>
     </li>
@@ -111,7 +111,7 @@
       <label for="xhr-polling">xhr-polling</label>
     </li>
     <li>
-      <input id="iframe-xhr-polling" type="checkbox" value="iframe-xhr-polling" 
+      <input id="iframe-xhr-polling" type="checkbox" value="iframe-xhr-polling"
              checked="checked"></input>
       <label for="iframe-xhr-polling">iframe-xhr-polling</label>
     </li>

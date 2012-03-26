@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import sys
 from pyramid_sockjs.session import Session
 
 
@@ -28,4 +29,9 @@ if __name__ == '__main__':
     config.add_view(route_name='root', renderer='__main__:chat.pt')
 
     app = config.make_wsgi_app()
-    gevent_server_runner(app, {}, host='127.0.0.1')
+
+    if len(sys.argv) > 1 and (sys.argv[1] == '-g'):
+        from gunicorn.app.pasterapp import paste_server
+        paste_server(app, port=8080, worker_class='gevent', workers=1)
+    else:
+        gevent_server_runner(app, {}, host='127.0.0.1')
