@@ -50,7 +50,8 @@ def session_cookie(request):
 
 
 td365 = timedelta(days=365)
-td365seconds = int(td365.total_seconds())
+td365seconds = int((td365.microseconds +
+                    (td365.seconds + td365.days*24*3600) * 10**6) / 10**6)
 
 def cache_headers(request):
     d = datetime.now() + td365
