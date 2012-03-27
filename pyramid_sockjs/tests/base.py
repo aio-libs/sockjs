@@ -11,7 +11,12 @@ else:
 
 
 class SocketMock(object):
-    pass
+
+    def makefile(self):
+        """ """
+
+    def sendall(self, msg):
+        """ """
 
 
 class BaseTestCase(TestCase):

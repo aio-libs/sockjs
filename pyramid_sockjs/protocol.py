@@ -10,7 +10,7 @@ from pyramid.compat import string_types
 # Fastest
 try:
     import ujson as json
-    kwargs = {}
+    kwargs = {} # pragma: no cover
 except ImportError: # pragma: no cover
     def dthandler(obj):
         if isinstance(obj, datetime):

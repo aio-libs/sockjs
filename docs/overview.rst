@@ -136,7 +136,11 @@ Supported transports
 * iframe-htmlfile
 * jsonp-polling
 
-Websocket protocol version hixie-75 and hixie-76 are not supported.
+
+Limitations
+-----------
+
+Pyramid sockjs does not support multple websocket wession with same session id.
 
 
 Requirements

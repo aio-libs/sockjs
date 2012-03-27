@@ -125,7 +125,7 @@ def init_websocket_hixie(request):
         try:
             part1 = get_key_value(key1)
             part2 = get_key_value(key2)
-            environ['wsgi.hixie-keys'] = (part1, part2)
+            environ['wsgi.hixie-keys'] = (part1, part2, socket)
         except Exception as err:
             return HTTPBadRequest(str(err))
 

@@ -234,7 +234,7 @@ class TestWebSocketRoute(BaseSockjs):
             'transport': 'websocket', 'session': 'session', 'server': '000'}
 
         res = route.handler(self.request)
-        self.assertIsInstance(res, HTTPNotFound)
+        self.assertIsNone(res)
 
     def test_raw_websocket_old_versions(self):
         route = self.make_one()

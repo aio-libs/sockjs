@@ -1,8 +1,10 @@
 """ websocket transport """
+import time
 import struct
 import errno
 import gevent
 from gevent.queue import Empty
+from gevent.pywsgi import format_date_time
 from hashlib import md5
 from socket import SHUT_RDWR, error
 from pyramid.response import Response
@@ -104,9 +106,7 @@ def WebSocketTransport(session, request):
 
         session.release()
 
-    jobs = [gevent.spawn(send), gevent.spawn(receive)]
-
-    return WebSocketResponse(session, request, jobs, websocket)
+    return WebSocketResponse(session, request, send, receive, websocket)
 
 
 def RawWebSocketTransport(session, request):
@@ -173,31 +173,40 @@ def RawWebSocketTransport(session, request):
 
         session.release()
 
-    jobs = [gevent.spawn(send), gevent.spawn(receive)]
-
-    return WebSocketResponse(session, request, jobs, websocket)
+    return WebSocketResponse(session, request, send, receive, websocket)
 
 
 class WebSocketResponse(Response):
 
-    def __init__(self, session, request, jobs, websocket):
+    def __init__(self, session, request, send, receive, websocket):
         self.__dict__.update(request.response.__dict__)
-        self.jobs = jobs
         self.session = session
         self.request = request
         self.websocket = websocket
+        self.send = send
+        self.receive = receive
 
     def __call__(self, environ, start_response):
-        write = start_response(
-            self.status, self._abs_headerlist(environ))
-
-        # WebsocketHixie76.test_haproxy
+        # WebsocketHixie76 handshake (test_haproxy)
         if environ['wsgi.websocket_version'] == 'hixie-76':
-            part1, part2 = environ['wsgi.hixie-keys']
-            key3 = environ['wsgi.input'].rfile.read(8)
+            part1, part2, socket = environ['wsgi.hixie-keys']
 
-            write(md5(struct.pack("!II", part1, part2) + key3).digest())
+            towrite = [
+                'HTTP/1.1 %s\r\n'%self.status,
+                'Date: %s\r\n'%format_date_time(time.time())]
+
+            for header in self._abs_headerlist(environ):
+                towrite.append("%s: %s\r\n" % header)
+
+            towrite.append("\r\n")
+            socket.sendall(''.join(towrite))
+
+            key3 = environ['wsgi.input'].rfile.read(8)
+            socket.sendall(
+                md5(struct.pack("!II", part1, part2) + key3).digest())
         else:
+            write = start_response(
+                self.status, self._abs_headerlist(environ))
             write(self.body)
 
         try:
@@ -209,5 +218,5 @@ class WebSocketResponse(Response):
             self.websocket.close()
             return StopStreaming()
 
-        gevent.joinall(self.jobs)
+        gevent.joinall((gevent.spawn(self.send), gevent.spawn(self.receive)))
         raise StopStreaming()
