@@ -201,7 +201,10 @@ class WebSocketResponse(Response):
             towrite.append("\r\n")
             socket.sendall(''.join(towrite))
 
-            key3 = environ['wsgi.input'].rfile.read(8)
+            key3 = environ['wsgi.input'].read(8)
+            if not key3:
+                key3 = environ['wsgi.input'].rfile.read(8)
+
             socket.sendall(
                 md5(struct.pack("!II", part1, part2) + key3).digest())
         else:

@@ -121,7 +121,9 @@ class SockJSRoute(object):
 
         # websocket
         if tid == 'websocket':
-            if 'HTTP_ORIGIN' in request.environ:
+            if 'HTTP_SEC_WEBSOCKET_VERSION' in request.environ:
+                res = init_websocket(request)
+            elif 'HTTP_ORIGIN' in request.environ:
                 res = init_websocket_hixie(request)
             else:
                 res = init_websocket(request)
