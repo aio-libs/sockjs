@@ -85,7 +85,7 @@ Supported transports
 Limitations
 -----------
 
-Pyramid sockjs does not support multple websocket wession with same session id.
+Pyramid sockjs does not support multple websocket session with same session id.
 
 
 Requirements

@@ -2,6 +2,14 @@
 CHANGES
 =======
 
+0.3.2 (2012-04-02)
+==================
+
+- Make 'cookie_needed' is configuration option
+
+- Update sockjs-protocol 0.3
+
+
 0.3.1 (2012-03-27)
 ==================
 

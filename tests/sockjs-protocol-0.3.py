@@ -18,7 +18,7 @@ import time
 import json
 import re
 import unittest2 as unittest
-from utils import GET, GET_async, POST, POST_async, OPTIONS
+from utils import GET, GET_async, POST, POST_async, OPTIONS, old_POST_async
 from utils import WebSocket8Client
 from utils import RawHttpConnection
 import uuid
@@ -48,6 +48,7 @@ following services:
 
  - `echo` - responds with identical data as received
  - `disabled_websocket_echo` - identical to `echo`, but with websockets disabled
+ - `cookie_needed_echo` - identical to `echo`, but with JSESSIONID cookies sent
  - `close` - server immediately closes the session
 
 This tests should not be run more often than once in five seconds -
@@ -58,6 +59,7 @@ test_top_url = os.environ.get('SOCKJS_URL', 'http://localhost:8081')
 base_url = test_top_url + '/echo'
 close_base_url = test_top_url + '/close'
 wsoff_base_url = test_top_url + '/disabled_websocket_echo'
+cookie_base_url = test_top_url + '/cookie_needed_echo'
 
 
 # Static URLs
@@ -66,12 +68,8 @@ wsoff_base_url = test_top_url + '/disabled_websocket_echo'
 class Test(unittest.TestCase):
     # We are going to test several `404/not found` pages. We don't
     # define a body or a content type.
-    def verify404(self, r, cookie=False):
+    def verify404(self, r):
         self.assertEqual(r.status, 404)
-        if cookie is False:
-            self.verify_no_cookie(r)
-        elif cookie is True:
-            self.verify_cookie(r)
 
     # In some cases `405/method not allowed` is more appropriate.
     def verify405(self, r):
@@ -84,7 +82,7 @@ class Test(unittest.TestCase):
     # responses to OPTIONS requests must be cacheable and contain
     # appropriate headers.
     def verify_options(self, url, allowed_methods):
-        for origin in [None, 'test']:
+        for origin in [None, 'test', 'null']:
             h = {}
             if origin:
                 h['Origin'] = origin
@@ -98,17 +96,6 @@ class Test(unittest.TestCase):
             self.assertEqual(r['Access-Control-Allow-Methods'], allowed_methods)
             self.assertFalse(r.body)
             self.verify_cors(r, origin)
-            self.verify_cookie(r)
-
-    # All transports except WebSockets need sticky session support
-    # from the load balancer. Some load balancers enable that only
-    # when they see `JSESSIONID` cookie. For all the session urls we
-    # must set this cookie.
-    def verify_cookie(self, r):
-        self.assertEqual(r['Set-Cookie'].split(';')[0].strip(),
-                         'JSESSIONID=dummy')
-        self.assertEqual(r['Set-Cookie'].split(';')[1].lower().strip(),
-                         'path=/')
 
     def verify_no_cookie(self, r):
         self.assertFalse(r['Set-Cookie'])
@@ -116,7 +103,10 @@ class Test(unittest.TestCase):
     # Most of the XHR/Ajax based transports do work CORS if proper
     # headers are set.
     def verify_cors(self, r, origin=None):
-        self.assertEqual(r['access-control-allow-origin'], origin or '*')
+        if origin and origin != 'null':
+            self.assertEqual(r['access-control-allow-origin'], origin)
+        else:
+            self.assertEqual(r['access-control-allow-origin'], '*')
         # In order to get cookies (`JSESSIONID` mostly) flying, we
         # need to set `allow-credentials` header to true.
         self.assertEqual(r['access-control-allow-credentials'], 'true')
@@ -277,9 +267,8 @@ class InfoTest(Test):
         # Are websockets enabled on the server?
         self.assertEqual(data['websocket'], True)
         # Do transports need to support cookies (ie: for load
-        # balancing purposes. Test server must have `cookie_needed`
-        # option enabled.
-        self.assertEqual(data['cookie_needed'], True)
+        # balancing purposes.
+        self.assertTrue(data['cookie_needed'] in  [True, False])
         # List of allowed origins. Currently ignored.
         self.assertEqual(data['origins'], ['*:*'])
         # Source of entropy for random number generator.
@@ -287,7 +276,7 @@ class InfoTest(Test):
 
     # As browsers don't have a good entropy source, the server must
     # help with tht. Info url must supply a good, unpredictable random
-    # number from the range 0..2^32 to feed the browser.
+    # number from the range <0; 2^32-1> to feed the browser.
     def test_entropy(self):
         r1 = GET(base_url + '/info')
         data1 = json.loads(r1.body)
@@ -301,6 +290,18 @@ class InfoTest(Test):
     def test_options(self):
         self.verify_options(base_url + '/info', 'OPTIONS, GET')
 
+    # SockJS client may be hosted from file:// url. In practice that
+    # means the 'Origin' headers sent by the browser will have a value
+    # of a string "null". Unfortunately, just echoing back "null"
+    # won't work - browser will understand that as a rejection. We
+    # must respond with star "*" origin in such case.
+    def test_options_null_origin(self):
+        url = base_url + '/info'
+        r = OPTIONS(url, headers={'Origin': 'null'})
+        self.assertEqual(r.status, 204)
+        self.assertFalse(r.body)
+        self.assertEqual(r['access-control-allow-origin'], '*')
+
     # The 'disabled_websocket_echo' service should have websockets
     # disabled.
     def test_disabled_websocket(self):
@@ -308,6 +309,7 @@ class InfoTest(Test):
         self.assertEqual(r.status, 200)
         data = json.loads(r.body)
         self.assertEqual(data['websocket'], False)
+
 
 # Session URLs
 # ============
@@ -440,7 +442,7 @@ class Protocol(Test):
         # Sending messages to not existing sessions is invalid.
         payload = '["a"]'
         r = POST(base_url + '/000/bad_session/xhr_send', body=payload)
-        self.verify404(r, cookie=True)
+        self.verify404(r)
 
         # The session must time out after 5 seconds of not having a
         # receiving connection. The server must send a heartbeat frame
@@ -450,11 +452,13 @@ class Protocol(Test):
         # The server must not allow two receiving connections to wait
         # on a single session. In such case the server must send a
         # close frame to the new connection.
-        r1 = POST_async(trans_url + '/xhr', load=False)
+        r1 = old_POST_async(trans_url + '/xhr', load=False)
         r2 = POST(trans_url + '/xhr')
-        r1.close()
+
         self.assertEqual(r2.body, 'c[2010,"Another connection still open"]\n')
         self.assertEqual(r2.status, 200)
+
+        r1.close()
 
     # The server may terminate the connection, passing error code and
     # message.
@@ -494,17 +498,6 @@ class WebsocketHttpErrors(Test):
         r = GET(base_url + '/0/0/websocket')
         self.assertEqual(r.status, 400)
         self.assertTrue('Can "Upgrade" only to "WebSocket".' in r.body)
-
-    # Server should be able to reject connections if origin is
-    # invalid.
-    def test_verifyOrigin(self):
-        '''
-        r = GET(base_url + '/0/0/websocket', {'Upgrade': 'WebSocket',
-                                              'Origin': 'VeryWrongOrigin'})
-        self.assertEqual(r.status, 400)
-        self.assertEqual(r.body, 'Unverified origin.')
-        '''
-        pass
 
     # Some proxies and load balancers can rewrite 'Connection' header,
     # in such case we must refuse connection.
@@ -554,7 +547,7 @@ class WebsocketHixie76(Test):
         self.assertEqual(ws.recv(), u'o')
         # Server must ignore empty messages.
         ws.send(u'')
-        ws.send(u'"a"')
+        ws.send(u'["a"]')
         self.assertEqual(ws.recv(), u'a["a"]')
         ws.close()
 
@@ -624,16 +617,17 @@ class WebsocketHixie76(Test):
         self.assertFalse('Content-Length' in r.headers)
         # Later send token
         c.send('aaaaaaaa')
-        self.assertEqual(c.read(), '\xca4\x00\xd8\xa5\x08G\x97,\xd5qZ\xba\xbfC{')
+        self.assertEqual(c.read()[:16],
+                         '\xca4\x00\xd8\xa5\x08G\x97,\xd5qZ\xba\xbfC{')
 
     # When user sends broken data - broken JSON for example, the
-    # server must terminate the ws connection.
+    # server must abruptly terminate the ws connection.
     def test_broken_json(self):
         ws_url = 'ws:' + base_url.split(':',1)[1] + \
                  '/000/' + str(uuid.uuid4()) + '/websocket'
         ws = websocket.create_connection(ws_url)
         self.assertEqual(ws.recv(), u'o')
-        ws.send(u'"a')
+        ws.send(u'["a')
         with self.assertRaises(websocket.ConnectionClosedException):
             if ws.recv() is None:
                 raise websocket.ConnectionClosedException
@@ -649,7 +643,7 @@ class WebsocketHybi10(Test):
         self.assertEqual(ws.recv(), 'o')
         # Server must ignore empty messages.
         ws.send(u'')
-        ws.send(u'"a"')
+        ws.send(u'["a"]')
         self.assertEqual(ws.recv(), 'a["a"]')
         ws.close()
 
@@ -687,13 +681,13 @@ class WebsocketHybi10(Test):
             r.close()
 
     # When user sends broken data - broken JSON for example, the
-    # server must terminate the ws connection.
+    # server must abruptly terminate the ws connection.
     def test_broken_json(self):
         ws_url = 'ws:' + base_url.split(':',1)[1] + \
                  '/000/' + str(uuid.uuid4()) + '/websocket'
         ws = WebSocket8Client(ws_url)
         self.assertEqual(ws.recv(), u'o')
-        ws.send(u'"a')
+        ws.send(u'["a')
         with self.assertRaises(ws.ConnectionClosedException):
             ws.recv()
         ws.close()
@@ -737,7 +731,6 @@ class XhrPolling(Test):
         self.assertEqual(r.body, 'o\n')
         self.assertEqual(r['content-type'],
                          'application/javascript; charset=UTF-8')
-        self.verify_cookie(r)
         self.verify_cors(r)
 
         # Xhr transports receive json-encoded array of messages.
@@ -749,7 +742,6 @@ class XhrPolling(Test):
         # Firefox/Firebug behaviour - it assumes that the content type
         # is xml and shouts about it.
         self.assertEqual(r['content-type'], 'text/plain; charset=UTF-8')
-        self.verify_cookie(r)
         self.verify_cors(r)
 
         r = POST(url + '/xhr')
@@ -761,7 +753,7 @@ class XhrPolling(Test):
     def test_invalid_session(self):
         url = base_url + '/000/' + str(uuid.uuid4())
         r = POST(url + '/xhr_send', body='["x"]')
-        self.verify404(r, cookie=None)
+        self.verify404(r)
 
     # The server must behave when invalid json data is send or when no
     # json data is sent at all.
@@ -806,23 +798,31 @@ class XhrPolling(Test):
         self.assertEqual(r.status, 200)
         self.assertEqual(r.body, 'a[' + (',').join(['"a"']*len(ctypes)) +']\n')
 
-    # JSESSIONID cookie must be set by default.
-    def test_jsessionid(self):
+    # When client sends a CORS request with
+    # 'Access-Control-Request-Headers' header set, the server must
+    # echo back this header as 'Access-Control-Allow-Headers'. This is
+    # required in order to get CORS working. Browser will be unhappy
+    # otherwise.
+    def test_request_headers_cors(self):
+        url = base_url + '/000/' + str(uuid.uuid4())
+        r = POST(url + '/xhr',
+                 headers={'Access-Control-Request-Headers': 'a, b, c'})
+        self.assertEqual(r.status, 200)
+        self.verify_cors(r)
+        self.assertEqual(r['Access-Control-Allow-Headers'], 'a, b, c')
+
+        url = base_url + '/000/' + str(uuid.uuid4())
+        r = POST(url + '/xhr',
+                 headers={'Access-Control-Request-Headers': ''})
+        self.assertEqual(r.status, 200)
+        self.verify_cors(r)
+        self.assertFalse(r['Access-Control-Allow-Headers'])
+
         url = base_url + '/000/' + str(uuid.uuid4())
         r = POST(url + '/xhr')
         self.assertEqual(r.status, 200)
-        self.assertEqual(r.body, 'o\n')
-        self.verify_cookie(r)
-
-        # And must be echoed back if it's already set.
-        url = base_url + '/000/' + str(uuid.uuid4())
-        r = POST(url + '/xhr', headers={'Cookie': 'JSESSIONID=abcdef'})
-        self.assertEqual(r.status, 200)
-        self.assertEqual(r.body, 'o\n')
-        self.assertEqual(r['Set-Cookie'].split(';')[0].strip(),
-                         'JSESSIONID=abcdef')
-        self.assertEqual(r['Set-Cookie'].split(';')[1].lower().strip(),
-                         'path=/')
+        self.verify_cors(r)
+        self.assertFalse(r['Access-Control-Allow-Headers'])
 
 
 # XhrStreaming: `/*/*/xhr_streaming`
@@ -838,7 +838,6 @@ class XhrStreaming(Test):
         self.assertEqual(r.status, 200)
         self.assertEqual(r['Content-Type'],
                          'application/javascript; charset=UTF-8')
-        self.verify_cookie(r)
         self.verify_cors(r)
 
         # The transport must first send 2KiB of `h` bytes as prelude.
@@ -897,7 +896,6 @@ class EventSource(Test):
         # As EventSource is requested using GET we must be very
         # carefull not to allow it being cached.
         self.verify_not_cached(r)
-        self.verify_cookie(r)
 
         # The transport must first send a new line prelude, due to a
         # bug in Opera.
@@ -984,7 +982,6 @@ class HtmlFile(Test):
         # As HtmlFile is requested using GET we must be very careful
         # not to allow it being cached.
         self.verify_not_cached(r)
-        self.verify_cookie(r)
 
         d = r.read()
         self.assertEqual(d.strip(), self.head % ('callback',))
@@ -1039,7 +1036,6 @@ class JsonPolling(Test):
         # As JsonPolling is requested using GET we must be very
         # carefull not to allow it being cached.
         self.verify_not_cached(r)
-        self.verify_cookie(r)
 
         self.assertEqual(r.body, 'callback("o");\r\n')
 
@@ -1050,7 +1046,6 @@ class JsonPolling(Test):
         self.assertEqual(r.body, 'ok')
         self.assertEqual(r.status, 200)
         self.assertEqual(r['Content-Type'], 'text/plain; charset=UTF-8')
-        self.verify_cookie(r)
 
         r = GET(url + '/jsonp?c=%63allback')
         self.assertEqual(r.status, 200)
@@ -1116,6 +1111,84 @@ class JsonPolling(Test):
 
         r = GET(url + '/jsonp?c=x')
         self.assertEqual(r.body, 'x("c[3000,\\"Go away!\\"]");\r\n')
+
+# JSESSIONID cookie
+# -----------------
+#
+# All transports except WebSockets need sticky session support from
+# the load balancer. Some load balancers enable that only when they
+# see `JSESSIONID` cookie. User of a sockjs server must be able to
+# opt-in for this functionality - and set this cookie for all the
+# session urls.
+#
+class JsessionidCookie(Test):
+    # Verify if info has cookie_needed set.
+    def test_basic(self):
+        r = GET(cookie_base_url + '/info')
+        self.assertEqual(r.status, 200)
+        self.verify_no_cookie(r)
+
+        data = json.loads(r.body)
+        self.assertEqual(data['cookie_needed'], True)
+
+    # Helper to check cookie validity.
+    def verify_cookie(self, r):
+        self.assertEqual(r['Set-Cookie'].split(';')[0].strip(),
+                         'JSESSIONID=dummy')
+        self.assertEqual(r['Set-Cookie'].split(';')[1].lower().strip(),
+                         'path=/')
+
+    # JSESSIONID cookie must be set by default
+    def test_xhr(self):
+        # polling url must set cookies
+        url = cookie_base_url + '/000/' + str(uuid.uuid4())
+        r = POST(url + '/xhr')
+        self.assertEqual(r.status, 200)
+        self.assertEqual(r.body, 'o\n')
+        self.verify_cookie(r)
+
+        # Cookie must be echoed back if it's already set.
+        url = cookie_base_url + '/000/' + str(uuid.uuid4())
+        r = POST(url + '/xhr', headers={'Cookie': 'JSESSIONID=abcdef'})
+        self.assertEqual(r.status, 200)
+        self.assertEqual(r.body, 'o\n')
+        self.assertEqual(r['Set-Cookie'].split(';')[0].strip(),
+                         'JSESSIONID=abcdef')
+        self.assertEqual(r['Set-Cookie'].split(';')[1].lower().strip(),
+                         'path=/')
+
+    def test_xhr_streaming(self):
+        url = cookie_base_url + '/000/' + str(uuid.uuid4())
+        r = POST_async(url + '/xhr_streaming')
+        self.assertEqual(r.status, 200)
+        self.verify_cookie(r)
+
+    def test_eventsource(self):
+        url = cookie_base_url + '/000/' + str(uuid.uuid4())
+        r = GET_async(url + '/eventsource')
+        self.assertEqual(r.status, 200)
+        self.verify_cookie(r)
+
+    def test_htmlfile(self):
+        url = cookie_base_url + '/000/' + str(uuid.uuid4())
+        r = GET_async(url + '/htmlfile?c=%63allback')
+        self.assertEqual(r.status, 200)
+        self.verify_cookie(r)
+
+    def test_jsonp(self):
+        url = cookie_base_url + '/000/' + str(uuid.uuid4())
+        r = GET(url + '/jsonp?c=%63allback')
+        self.assertEqual(r.status, 200)
+        self.verify_cookie(r)
+
+        self.assertEqual(r.body, 'callback("o");\r\n')
+
+        r = POST(url + '/jsonp_send', body='d=%5B%22x%22%5D',
+                 headers={'Content-Type': 'application/x-www-form-urlencoded'})
+        self.assertEqual(r.body, 'ok')
+        self.assertEqual(r.status, 200)
+        self.verify_cookie(r)
+
 
 # Raw WebSocket url: `/websocket`
 # -------------------------------
@@ -1256,8 +1329,8 @@ class HandlingClose(Test):
 
         # HTTP streaming requests should be automatically closed after
         # close.
-        self.assertEqual(r1.read(), None)
-        self.assertEqual(r2.read(), None)
+        self.assertFalse(r1.read())
+        self.assertFalse(r2.read())
 
     def test_close_request(self):
         url = base_url + '/000/' + str(uuid.uuid4())
@@ -1272,7 +1345,7 @@ class HandlingClose(Test):
 
         # HTTP streaming requests should be automatically closed after
         # getting the close frame.
-        self.assertEqual(r2.read(), None)
+        self.assertFalse(r2.read())
 
     # When a polling request is closed by a network error - not by
     # server, the session should be automatically closed. When there
@@ -1288,7 +1361,7 @@ class HandlingClose(Test):
         r2 = POST_async(url + '/xhr_streaming')
         r2.read() # prelude
         self.assertEqual(r2.read(), 'c[2010,"Another connection still open"]\n')
-        self.assertEqual(r2.read(), None)
+        self.assertFalse(r2.read())
 
         r1.close()
 
@@ -1307,7 +1380,7 @@ class HandlingClose(Test):
         r1 = POST(url + '/xhr')
         self.assertEqual(r1.body, 'o\n')
 
-        r1 = POST_async(url + '/xhr', load=False)
+        r1 = old_POST_async(url + '/xhr', load=False)
 
         # Can't do second polling request now.
         r2 = POST(url + '/xhr')

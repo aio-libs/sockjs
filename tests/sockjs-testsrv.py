@@ -49,6 +49,9 @@ if __name__ == '__main__':
     config.add_sockjs_route('close', '/close', session=CloseSession)
     config.add_sockjs_route('broadcast', '/broadcast', session=BroadcastSession)
 
+    config.add_sockjs_route('cookie', '/cookie_needed_echo',
+                            session=EchoSession, cookie_needed=True)
+
     app = config.make_wsgi_app()
 
     if len(sys.argv) > 1 and (sys.argv[1] == '-g'):

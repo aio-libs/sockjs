@@ -23,7 +23,7 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
                      session=None, session_manager=None,
                      disable_transports=(),
                      sockjs_cdn='http://cdn.sockjs.org/sockjs-0.2.0.min.js',
-                     permission=None, decorator=None):
+                     permission=None, decorator=None, cookie_needed=True):
     # set session manager
     if session_manager is None:
         session_manager = SessionManager(name, cfg.registry, session=session)
@@ -44,7 +44,8 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
     session_manager.start()
 
     # register routes
-    sockjs = SockJSRoute(name, session_manager, sockjs_cdn, disable_transports)
+    sockjs = SockJSRoute(
+        name, session_manager, sockjs_cdn, disable_transports, cookie_needed)
 
     if prefix.endswith('/'):
         prefix = prefix[:-1]
@@ -87,10 +88,12 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
 
 class SockJSRoute(object):
 
-    def __init__(self, name, session_manager, sockjs_cdn, disable_transports):
+    def __init__(self, name, session_manager,
+                 sockjs_cdn, disable_transports, cookie_needed):
         self.name = name
         self.session_manager = session_manager
         self.disable_transports = dict((k,1) for k in disable_transports)
+        self.cookie_needed = cookie_needed
         self.iframe_html = IFRAME_HTML%sockjs_cdn
         self.iframe_html_hxd = hashlib.md5(self.iframe_html).hexdigest()
 
@@ -173,7 +176,7 @@ class SockJSRoute(object):
 
         info = {'entropy': random.randint(1, 2147483647),
                 'websocket': 'websocket' not in self.disable_transports,
-                'cookie_needed': True,
+                'cookie_needed': self.cookie_needed,
                 'origins': ['*:*']}
         response.body = json.dumps(info)
         return response
