@@ -89,7 +89,7 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
 class SockJSRoute(object):
 
     def __init__(self, name, session_manager,
-                 sockjs_cdn, disable_transports, cookie_needed):
+                 sockjs_cdn, disable_transports, cookie_needed=True):
         self.name = name
         self.session_manager = session_manager
         self.disable_transports = dict((k,1) for k in disable_transports)

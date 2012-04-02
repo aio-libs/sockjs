@@ -216,6 +216,16 @@ class TestWebSocketRoute(BaseSockjs):
         route.handler(self.request)
         self.assertTrue(self.init[0])
 
+    def test_websocket_init2(self):
+        route = self.make_one()
+
+        self.request.environ['HTTP_SEC_WEBSOCKET_VERSION'] = '10'
+        self.request.matchdict = {
+            'transport': 'websocket', 'session': 'session', 'server': '000'}
+
+        route.handler(self.request)
+        self.assertTrue(self.init[0])
+
     def test_websocket_fail_init(self):
         route = self.make_one()
 
