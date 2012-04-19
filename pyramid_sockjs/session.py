@@ -38,10 +38,12 @@ class Session(object):
     timeout = timedelta(seconds=10)
     state = STATE_NEW
 
-    def __init__(self, id, timeout=timedelta(seconds=10)):
+    def __init__(self, id, timeout=timedelta(seconds=10), request=None):
         self.id = id
         self.expired = False
         self.timeout = timeout
+        self.request = request
+        self.registry = getattr(request, 'registry', None)
         self.expires = datetime.now() + timeout
 
         self.queue = Queue()
@@ -235,11 +237,11 @@ class SessionManager(dict):
         self[session.id] = session
         heappush(self.pool, (session.expires, session))
 
-    def get(self, id, create=False, default=_marker):
+    def get(self, id, create=False, request=None, default=_marker):
         session = super(SessionManager, self).get(id, None)
         if session is None:
             if create:
-                session = self.factory(id, self.timeout)
+                session = self.factory(id, self.timeout, request=request)
                 self._add(session)
             else:
                 if default is not _marker:
@@ -259,8 +261,9 @@ class SessionManager(dict):
         session.tick()
         session.hits += 1
         session.manager = self
-        session.request = request
-        session.registry = self.registry
+        if request is not None:
+            session.request = request
+
         self.acquired[sid] = True
         return session
 
@@ -268,13 +271,8 @@ class SessionManager(dict):
         return session.id in self.acquired
 
     def release(self, session):
-        #session.manager = None
-        #session.registry = None
-        session.request = None
         if session.id in self.acquired:
             del self.acquired[session.id]
-
-        session.request = None
 
     def active_sessions(self):
         for session in self.values():

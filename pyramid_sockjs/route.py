@@ -116,7 +116,7 @@ class SockJSRoute(object):
             return HTTPNotFound()
 
         try:
-            session = manager.get(sid, create)
+            session = manager.get(sid, create, request=request)
         except KeyError:
             return HTTPNotFound(headers=(session_cookie(request),))
 
@@ -146,7 +146,7 @@ class SockJSRoute(object):
         manager = self.session_manager
 
         sid = '%0.9d'%random.randint(1, 2147483647)
-        session = manager.get(sid, True)
+        session = manager.get(sid, True, request=request)
         request.environ['wsgi.sockjs_session'] = session
 
         # websocket

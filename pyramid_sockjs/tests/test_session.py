@@ -524,7 +524,6 @@ class SessionManagerTestCase(BaseTestCase):
         sm.release(s)
 
         self.assertNotIn('id', sm.acquired)
-        self.assertIsNone(s.request)
 
     def test_active_sessions(self):
         Session, sm = self.make_one()
