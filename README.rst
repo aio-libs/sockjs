@@ -78,12 +78,14 @@ Supported transports
 
 * websocket (`hixie-76 <http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76>`_
   and `hybi-10 <http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10>`_)
-* xhr-streaming
-* xhr-polling
-* iframe-xhr-polling
-* iframe-eventsource
-* iframe-htmlfile
-* jsonp-polling
+* `xhr-streaming <https://secure.wikimedia.org/wikipedia/en/wiki/XMLHttpRequest#Cross-domain_requests>`_
+* `xhr-polling <https://secure.wikimedia.org/wikipedia/en/wiki/XMLHttpRequest#Cross-domain_requests>`_
+* `iframe-xhr-polling <https://developer.mozilla.org/en/DOM/window.postMessage>`_
+* iframe-eventsource (`EventSource <http://dev.w3.org/html5/eventsource/>`_ used from an 
+  `iframe via postMessage <https://developer.mozilla.org/en/DOM/window.postMessage>`_)
+* iframe-htmlfile (`HtmlFile <http://cometdaily.com/2007/11/18/ie-activexhtmlfile-transport-part-ii/>`_
+  used from an `iframe via postMessage <https://developer.mozilla.org/en/DOM/window.postMessage>`_.)
+* `jsonp-polling <https://secure.wikimedia.org/wikipedia/en/wiki/JSONP>`_
 
 
 Limitations
