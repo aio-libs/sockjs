@@ -1,4 +1,4 @@
-Pyramid SockJS
+pyramid_sockjs
 ==============
 
 `pyramid_sockjs` is a `gevent <http://www.gevent.org/>`_-based `SockJS <http://sockjs.org>`_ integration for 
