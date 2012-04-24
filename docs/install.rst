@@ -5,14 +5,19 @@ Installation
 virtualenv
 ==========
 
+
 1. Install virtualenv::
 
     $ wget https://raw.github.com/pypa/virtualenv/master/virtualenv.py
     $ python2.7 ./virtualenv.py --no-site-packages sockjs
 
-2. Install gevent 1.0b1::
+2. Install gevent 1.0b2 (non-Windows users)::
 
-    $ ./sockjs/bin/pip install http://gevent.googlecode.com/files/gevent-1.0b1.tar.gz
+    $ ./sockjs/bin/pip install http://gevent.googlecode.com/files/gevent-1.0b2.tar.gz
+
+2. Install gevent 1.0b2 (Windows users, presuming you are running 32bit Python 2.7)::
+
+    $ ./sockjs/Scripts/easy_install http://gevent.googlecode.com/files/gevent-1.0b2-py2.7-win32.egg
 
 3. Clone pyramid_sockjs from github and then install::
 
