@@ -3,8 +3,9 @@ pyramid_sockjs
 
 `pyramid_sockjs` is a `gevent <http://www.gevent.org/>`_-based `SockJS <http://sockjs.org>`_ integration for 
 `Pyramid <http://www.pylonsproject.org/>`_.  SockJS interface is implemented as a 
-`pyramid route <http://pyramid.readthedocs.org/en/latest/narr/urldispatch.html>`_. It runs inside 
-WSGI app rather than WSGI server. Its possible to create any number of different sockjs routes, ie 
+`pyramid route <http://pyramid.readthedocs.org/en/latest/narr/urldispatch.html>`_. pyramid_sockjs runs inside 
+a WSGI application rather than WSGI server.  This means all of your previous WSGI/Pyramid experience will be
+relevant. Its possible to create any number of different sockjs routes, ie 
 `/__sockjs__/*` or `/mycustom-sockjs/*`. You can provide different session implementation 
 and management for each sockjs route.
 
@@ -106,10 +107,6 @@ Requirements
 
 - `gevent-websocket 0.3.0 or greater <http://pypi.python.org/pypi/gevent-websocket/>`_
 
-Why
----
-pyramid_sockjs runs inside WSGI app rather than WSGI server....  sockjs vs socketio..
-and why gevent?  
 
 Examples
 --------
