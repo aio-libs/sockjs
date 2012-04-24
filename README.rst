@@ -76,7 +76,7 @@ To run chat example use following command::
 Supported transports
 --------------------
 
-* "websocket":https://en.wikipedia.org/wiki/WebSocket
+* `websocket <https://en.wikipedia.org/wiki/WebSocket>`_
 * xhr-streaming
 * xhr-polling
 * iframe-xhr-polling
