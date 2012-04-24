@@ -1,11 +1,11 @@
 Pyramid SockJS
 ==============
 
-Gevent-based SockJS integration for Pyramid. SockJS interface is 
-implemented as pyramid route. It runs inside wsgi app rather than wsgi server.
+Gevent-based `SockJS <http://sockjs.org>`_ integration for `Pyramid <http://www.pylonsproject.org/>`_. 
+SockJS interface is implemented as pyramid route. It runs inside WSGI app rather than WSGI server.
 Its possible to create any number of different sockjs routes, ie 
-`/__sockjs__/*` or `/mycustom-sockjs/*`. also you can provide different
-session implementation and management for each of sockjs routes.
+`/__sockjs__/*` or `/mycustom-sockjs/*`. You can provide different session implementation 
+and management for each sockjs route.
 
 Gevent based server is required for ``pyramid_sockjs``. 
 For example ``gunicorn`` with gevent worker. ``pyramid_sockjs`` provides
@@ -27,7 +27,7 @@ Example of sockjs route::
 
 Client side code::
 
-  <script src="http://cdn.sockjs.org/sockjs-0.2.min.js"></script>
+  <script src="http://cdn.sockjs.org/sockjs-0.3.min.js"></script>
   <script>
       var sock = new SockJS('http://localhost:8080/__sockjs__');
 
@@ -72,7 +72,6 @@ To run chat example use following command::
     $ ./sockjs/bin/python ./pyramid_sockjs/examples/chat.py
 
 
-
 Supported transports
 --------------------
 
@@ -99,20 +98,19 @@ Requirements
 
 - Python 2.6/2.7
 
-- virtualenv
+- `virtualenv <http://pypi.python.org/pypi/virtualenv>`_
 
-- gevent 1.0b1
+- `gevent 1.0b1 or greater <http://www.gevent.org/>`_
 
-- gevent-websocket 0.3.0
+- `gevent-websocket 0.3.0 or greater <http://pypi.python.org/pypi/gevent-websocket/>`_
 
 
 Examples
 --------
 
-You can find them in the `examples` repository at github.
+You can find several `examples` in the pyramid_sockjs repository at github.
 
 https://github.com/fafhrd91/pyramid_sockjs/tree/master/examples
-
 
 License
 -------
