@@ -76,7 +76,8 @@ To run chat example use following command::
 Supported transports
 --------------------
 
-* `websocket <https://en.wikipedia.org/wiki/WebSocket>`_
+* websocket (`hixie-76 <http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76>`_
+  and `hybi-10 <http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10>`_)
 * xhr-streaming
 * xhr-polling
 * iframe-xhr-polling
