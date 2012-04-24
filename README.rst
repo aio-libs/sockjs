@@ -106,6 +106,10 @@ Requirements
 
 - `gevent-websocket 0.3.0 or greater <http://pypi.python.org/pypi/gevent-websocket/>`_
 
+Why
+---
+pyramid_sockjs runs inside WSGI app rather than WSGI server....  sockjs vs socketio..
+and why gevent?  
 
 Examples
 --------
