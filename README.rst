@@ -53,16 +53,19 @@ Installation
     $ wget https://raw.github.com/pypa/virtualenv/master/virtualenv.py
     $ python2.7 ./virtualenv.py --no-site-packages sockjs
 
-2. Install gevent 1.0b1::
+2. Install gevent 1.0b2 (non-Windows)::
 
-    $ ./sockjs/bin/pip install http://gevent.googlecode.com/files/gevent-1.0b1.tar.gz
+    $ ./sockjs/bin/pip install http://gevent.googlecode.com/files/gevent-1.0b2.tar.gz
+
+2. Install gevent 1.0b2 (Windows, 32bit Python 2.7)::
+
+    $ ./sockjs/Scripts/easy_install http://gevent.googlecode.com/files/gevent-1.0b2-py2.7-win32.egg
 
 3. Clone pyramid_sockjs from github and then install::
 
     $ git clone git://github.com/fafhrd91/pyramid_sockjs.git
     $ cd pyramid_sockjs
     $ ../sockjs/bin/python setup.py develop
-
 
 To run chat example use following command::
 
@@ -73,7 +76,7 @@ To run chat example use following command::
 Supported transports
 --------------------
 
-* websocket
+* "websocket":https://en.wikipedia.org/wiki/WebSocket
 * xhr-streaming
 * xhr-polling
 * iframe-xhr-polling
