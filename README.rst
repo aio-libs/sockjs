@@ -1,9 +1,10 @@
 Pyramid SockJS
 ==============
 
-Gevent-based `SockJS <http://sockjs.org>`_ integration for `Pyramid <http://www.pylonsproject.org/>`_. 
-SockJS interface is implemented as pyramid route. It runs inside WSGI app rather than WSGI server.
-Its possible to create any number of different sockjs routes, ie 
+`pyramid_sockjs` is a `gevent<http://www.gevent.org/>`_-based `SockJS <http://sockjs.org>`_ integration for 
+`Pyramid <http://www.pylonsproject.org/>`_.  SockJS interface is implemented as a 
+`pyramid route <http://pyramid.readthedocs.org/en/latest/narr/urldispatch.html>`_. It runs inside 
+WSGI app rather than WSGI server. Its possible to create any number of different sockjs routes, ie 
 `/__sockjs__/*` or `/mycustom-sockjs/*`. You can provide different session implementation 
 and management for each sockjs route.
 
@@ -20,7 +21,7 @@ Example of sockjs route::
 
    def main(global_settings, **settings):
        config = Configurator(settings=settings)
-       config.add_sockjs_route()
+       config.add_sockjs_route(prefix='/__sockjs__')
 
        return config.make_wsgi_app()
 
@@ -92,6 +93,7 @@ Limitations
 
 Pyramid sockjs does not support multple websocket session with same session id.
 
+gevent does not support Python 3
 
 Requirements
 ------------
