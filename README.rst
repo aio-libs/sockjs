@@ -1,7 +1,7 @@
 Pyramid SockJS
 ==============
 
-`pyramid_sockjs` is a `gevent<http://www.gevent.org/>`_-based `SockJS <http://sockjs.org>`_ integration for 
+`pyramid_sockjs` is a `gevent <http://www.gevent.org/>`_-based `SockJS <http://sockjs.org>`_ integration for 
 `Pyramid <http://www.pylonsproject.org/>`_.  SockJS interface is implemented as a 
 `pyramid route <http://pyramid.readthedocs.org/en/latest/narr/urldispatch.html>`_. It runs inside 
 WSGI app rather than WSGI server. Its possible to create any number of different sockjs routes, ie 
