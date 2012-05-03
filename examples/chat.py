@@ -23,7 +23,7 @@ if __name__ == '__main__':
     config = Configurator()
     config.include('pyramid_sockjs')
 
-    config.add_sockjs_route(session=ChatSession)
+    config.add_sockjs_route(prefix='/__sockjs__', session=ChatSession)
 
     config.add_route('root', '/')
     config.add_view(route_name='root', renderer='__main__:chat.pt')

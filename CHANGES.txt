@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.3.3 (Unreleased)
+0.3.3 (2012-05-02)
 ==================
 
 - Pass `request` to session factory
