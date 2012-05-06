@@ -46,6 +46,9 @@ Client side code::
       };
   </script>
 
+.. image :: https://secure.travis-ci.org/fafhrd91/pyramid_sockjs.png
+  :target:  https://secure.travis-ci.org/fafhrd91/pyramid_sockjs
+
 
 Installation
 ------------
