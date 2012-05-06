@@ -2,6 +2,12 @@
 CHANGES
 =======
 
+0.3.4 (2012-05-06)
+==================
+
+- Fixed datetime serialization, assume all datetime objects in utc tz.
+
+
 0.3.3 (2012-05-02)
 ==================
 
