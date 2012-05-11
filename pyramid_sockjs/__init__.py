@@ -25,4 +25,3 @@ def includeme(cfg):
     # patch gevent
     import pyramid_sockjs.monkey
     pyramid_sockjs.monkey.patch_gevent()
-    pyramid_sockjs.monkey.patch_gunicorn()

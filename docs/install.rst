@@ -37,7 +37,8 @@ for server section::
     host = 127.0.0.1
     port = 8080
 
-To use gunicorn server use following configuation for server section::
+To use gunicorn server use following configuation for server section, 
+gunicorn 0.14.3 or greater is required::
 
     [server:main]
     use = egg:gunicorn

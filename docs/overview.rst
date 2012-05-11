@@ -128,31 +128,37 @@ detailed description.
 Supported transports
 --------------------
 
-* websocket
-* xhr-streaming
-* xhr-polling
-* iframe-xhr-polling
-* iframe-eventsource
-* iframe-htmlfile
-* jsonp-polling
+* websocket (`hixie-76 <http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76>`_
+  and `hybi-10 <http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10>`_)
+* `xhr-streaming <https://secure.wikimedia.org/wikipedia/en/wiki/XMLHttpRequest#Cross-domain_requests>`_
+* `xhr-polling <https://secure.wikimedia.org/wikipedia/en/wiki/XMLHttpRequest#Cross-domain_requests>`_
+* `iframe-xhr-polling <https://developer.mozilla.org/en/DOM/window.postMessage>`_
+* iframe-eventsource (`EventSource <http://dev.w3.org/html5/eventsource/>`_ used from an.
+  `iframe via postMessage <https://developer.mozilla.org/en/DOM/window.postMessage>`_)
+* iframe-htmlfile (`HtmlFile <http://cometdaily.com/2007/11/18/ie-activexhtmlfile-transport-part-ii/>`_
+  used from an `iframe via postMessage <https://developer.mozilla.org/en/DOM/window.postMessage>`_.)
+* `jsonp-polling <https://secure.wikimedia.org/wikipedia/en/wiki/JSONP>`_
 
 
 Limitations
 -----------
 
-pyramid_sockjs does not support multple websocket session with same session id.
+Pyramid sockjs does not support multple websocket session with same session id.
 
+gevent does not support Python 3
 
 Requirements
 ------------
 
 - Python 2.6/2.7
 
-- virtualenv
+- `virtualenv <http://pypi.python.org/pypi/virtualenv>`_
 
-- gevent 1.0b1
+- `gevent 1.0b1 or greater <http://www.gevent.org/>`_
 
-- gevent-websocket 0.3.0
+- `gevent-websocket 0.3.0 or greater <http://pypi.python.org/pypi/gevent-websocket/>`_
+
+- `gunicorn 0.14.3 or greater <http://gunicorn.org/>`_
 
 
 Examples

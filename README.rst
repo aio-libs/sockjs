@@ -110,6 +110,8 @@ Requirements
 
 - `gevent-websocket 0.3.0 or greater <http://pypi.python.org/pypi/gevent-websocket/>`_
 
+- `gunicorn 0.14.3 or greater <http://gunicorn.org/>`_
+
 
 Examples
 --------
