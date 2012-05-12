@@ -57,9 +57,13 @@ def WebSocketTransport(session, request):
                 session.closed()
                 break
 
+            elif session.state == STATE_CLOSED:
+                break
+
             try:
                 websocket.send(message)
             except:
+                session.close()
                 session.closed()
                 break
 
@@ -68,7 +72,7 @@ def WebSocketTransport(session, request):
             try:
                 message = websocket.receive()
             except:
-                session.closed()
+                session.close()
                 break
 
             if session.state == STATE_CLOSING:
@@ -79,11 +83,14 @@ def WebSocketTransport(session, request):
                     pass
                 session.closed()
                 break
+            elif session.state == STATE_CLOSED:
+                break
 
             if message == '':
                 continue
 
             if message is None:
+                session.close()
                 session.closed()
                 websocket.close()
                 break
@@ -96,8 +103,8 @@ def WebSocketTransport(session, request):
                 try:
                     websocket.close(message='broken json')
                 except:
-                    import traceback
-                    traceback.print_exc()
+                    pass
+                session.close()
                 session.closed()
                 break
 
