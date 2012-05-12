@@ -18,8 +18,6 @@ def handle_error(self, type, value, tb): # pragma: no cover
 def get_environ(self): # pragma: no cover
     env = orig_get_environ(self)
     env['gunicorn.socket'] = self.socket
-    if 'HTTP_CONNECTION' not in env:
-        env['HTTP_CONNECTION'] = self.headers.get('Connection','')
     return env
 
 

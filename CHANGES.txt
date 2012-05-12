@@ -5,9 +5,10 @@ CHANGES
 0.3.5 (Unreleased)
 ==================
 
-- fixed close/closed for websocket transport
+- fixed close/closed for websocket transport.
 
-- gunicorn 0.14.3
+- removed gunicorn monkey patche.
+  gunicorn 0.14.3 is required
 
 
 0.3.4 (2012-05-06)

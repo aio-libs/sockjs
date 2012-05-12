@@ -4,6 +4,10 @@ from datetime import datetime, timedelta
 from base import BaseTestCase
 
 
+class _SM(object):
+    debug = True
+
+
 class SessionTestCase(BaseTestCase):
 
     def setUp(self):
@@ -50,6 +54,7 @@ class SessionTestCase(BaseTestCase):
         session.hits = 10
         session.heartbeats = 50
         session.state = STATE_OPEN
+        session.manager = _SM()
 
         self.assertEqual(str(session),
                          "id='test' connected hits=10 heartbeats=50")
@@ -111,6 +116,7 @@ class SessionTestCase(BaseTestCase):
     def test_send(self):
         from pyramid_sockjs import Session, protocol
         session = Session('id')
+        session.manager = _SM()
 
         session.send(['message'])
         self.assertEqual(session.queue.get(), ['message'])
@@ -118,6 +124,7 @@ class SessionTestCase(BaseTestCase):
     def test_send_string(self):
         from pyramid_sockjs import Session, protocol
         session = Session('id')
+        session.manager = _SM()
 
         session.send('message')
         self.assertEqual(session.queue.get(), 'message')
@@ -125,6 +132,7 @@ class SessionTestCase(BaseTestCase):
     def test_send_tick(self):
         from pyramid_sockjs import Session, protocol
         session = Session('id')
+        session.manager = _SM()
 
         self.now = self.now + timedelta(hours=1)
 
@@ -134,6 +142,7 @@ class SessionTestCase(BaseTestCase):
     def test_get_transport_message(self):
         from pyramid_sockjs import Session
         session = Session('id')
+        session.manager = _SM()
 
         session.send('message')
         self.assertEqual(session.get_transport_message(), 'message')
@@ -146,6 +155,7 @@ class SessionTestCase(BaseTestCase):
     def test_get_transport_message_tick(self):
         from pyramid_sockjs import Session
         session = Session('id')
+        session.manager = _SM()
 
         session.send('message')
 

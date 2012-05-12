@@ -74,10 +74,13 @@ def init_websocket(request):
     if not key or len(base64.b64decode(key)) != 16:
         return HTTPBadRequest('HTTP_SEC_WEBSOCKET_KEY is invalid key')
 
-    # get gevent.socket see pyramid_sockjs.monkey
+    # get socket object
     socket = environ.get('gunicorn.socket', None)
     if socket is None:
-        return HTTPBadRequest("socket object is not available")
+        socket = environ.get('gevent.socket', None)
+        if socket is None:
+            return HTTPBadRequest("socket object is not available")
+        environ['gunicorn.socket'] = socket
 
     headers = [
         ("Upgrade", "websocket"),
@@ -104,10 +107,12 @@ def get_key_value(key_value):
 def init_websocket_hixie(request):
     environ = request.environ
 
-    # get gevent.socket see pyramid_sockjs.monkey
     socket = environ.get('gunicorn.socket', None)
     if socket is None:
-        return HTTPBadRequest("socket object is not available")
+        socket = environ.get('gevent.socket', None)
+        if socket is None:
+            return HTTPBadRequest("socket object is not available")
+        environ['gunicorn.socket'] = socket
 
     websocket = WebSocketHixie(socket, environ)
     environ['wsgi.websocket'] = websocket

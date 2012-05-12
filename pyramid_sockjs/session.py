@@ -123,7 +123,9 @@ class Session(object):
 
     def send(self, msg):
         """ send message to client """
-        log.info('outgoing message: %s, %s', self.id, msg)
+        if self.manager.debug:
+            log.info('outgoing message: %s, %s', self.id, str(msg)[:200])
+
         self.tick()
         self.queue.put_nowait(msg)
 
@@ -172,6 +174,8 @@ class SessionManager(dict):
         self.acquired = {}
         self.pool = []
         self.timeout = timeout
+        debug = registry.settings.get('debug_sockjs','').lower()
+        self.debug = debug in ('true','t','yes')
         self._gc_cycle = gc_cycle
 
     def route_url(self, request):
