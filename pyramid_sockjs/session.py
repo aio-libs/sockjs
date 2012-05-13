@@ -200,8 +200,8 @@ class SessionManager(dict):
             self._gc_thread.join()
 
     def _gc(self):
-        print 'GC processing ============', self.pool
         current_time = datetime.now()
+        print 'GC processing ============', current_time, self.pool
 
         while self.pool:
             expires, session = self.pool[0]
