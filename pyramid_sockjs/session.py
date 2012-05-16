@@ -128,7 +128,7 @@ class Session(object):
         self.queue.put_nowait(msg)
 
     def message(self, msg):
-        log.info('incoming message: %s, %s', self.id, msg)
+        log.info('incoming message: %s, %s', self.id, msg[:200])
         self.tick()
         try:
             self.on_message(msg)
