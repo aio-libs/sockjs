@@ -40,9 +40,6 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
 
     cfg.registry.__sockjs_managers__[name] = session_manager
 
-    # start gc
-    session_manager.start()
-
     # register routes
     sockjs = SockJSRoute(
         name, session_manager, sockjs_cdn, disable_transports, cookie_needed)
@@ -84,6 +81,11 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
     cfg.add_route(route_name, '%s/iframe{version}.html'%prefix)
     cfg.add_view(route_name=route_name, view=sockjs.iframe,
                  permission=permission, decorator=decorator)
+
+    # start session gc
+    #session_manager.start()
+    cfg.action('pyramid_sockjs:gc:%s'%name,
+               session_manager.start, order=999999+1)
 
 
 class SockJSRoute(object):

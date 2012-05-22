@@ -2,6 +2,12 @@
 CHANGES
 =======
 
+0.3.6 (Unreleased)
+==================
+
+- Use Configurator action for session gc start. #6
+
+
 0.3.5 (2012-05-19)
 ==================
 
