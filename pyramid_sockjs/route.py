@@ -83,7 +83,6 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
                  permission=permission, decorator=decorator)
 
     # start session gc
-    #session_manager.start()
     cfg.action('pyramid_sockjs:gc:%s'%name,
                session_manager.start, order=999999+1)
 
