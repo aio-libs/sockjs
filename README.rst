@@ -95,9 +95,12 @@ Supported transports
 Limitations
 -----------
 
-Pyramid sockjs does not support multple websocket session with same session id.
+- Pyramid sockjs does not support multple websocket session with same session id.
 
-gevent does not support Python 3
+- gevent does not support Python 3
+
+- Pyramid sockjs can't detect client disconnection on heroku.
+
 
 Requirements
 ------------

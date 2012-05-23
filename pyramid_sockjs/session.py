@@ -189,7 +189,6 @@ class SessionManager(dict):
                     self._gc() # pragma: no cover
 
             self._gc_thread = gevent.Greenlet(_gc_sessions)
-            print 'GC started ========================='
 
         if not self._gc_thread:
             self._gc_thread.start()
@@ -201,7 +200,6 @@ class SessionManager(dict):
 
     def _gc(self):
         current_time = datetime.now()
-        print 'GC processing ============', current_time, self.pool
 
         while self.pool:
             expires, session = self.pool[0]
