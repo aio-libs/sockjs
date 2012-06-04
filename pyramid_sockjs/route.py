@@ -15,6 +15,7 @@ from pyramid_sockjs.transports.utils import session_cookie
 from pyramid_sockjs.transports.utils import cors_headers
 from pyramid_sockjs.transports.utils import cache_headers
 from pyramid_sockjs.transports.websocket import RawWebSocketTransport
+from pyramid.security import authenticated_userid
 
 log = logging.getLogger('pyramid_sockjs')
 
@@ -23,7 +24,8 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
                      session=None, session_manager=None,
                      disable_transports=(),
                      sockjs_cdn='http://cdn.sockjs.org/sockjs-0.3.1.min.js',
-                     permission=None, decorator=None, cookie_needed=True):
+                     permission=None, decorator=None, cookie_needed=True,
+                     per_user=True):
     # set session manager
     if session_manager is None:
         session_manager = SessionManager(name, cfg.registry, session=session)
@@ -42,7 +44,8 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
 
     # register routes
     sockjs = SockJSRoute(
-        name, session_manager, sockjs_cdn, disable_transports, cookie_needed)
+        name, session_manager, sockjs_cdn, disable_transports, cookie_needed,
+        per_user)
 
     if prefix.endswith('/'):
         prefix = prefix[:-1]
@@ -90,11 +93,13 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
 class SockJSRoute(object):
 
     def __init__(self, name, session_manager,
-                 sockjs_cdn, disable_transports, cookie_needed=True):
+                 sockjs_cdn, disable_transports, cookie_needed=True,
+                 per_user=True):
         self.name = name
         self.session_manager = session_manager
         self.disable_transports = dict((k,1) for k in disable_transports)
         self.cookie_needed = cookie_needed
+        self.per_user = per_user
         self.iframe_html = IFRAME_HTML%sockjs_cdn
         self.iframe_html_hxd = hashlib.md5(self.iframe_html).hexdigest()
 
@@ -112,9 +117,14 @@ class SockJSRoute(object):
         # session
         manager = self.session_manager
 
-        sid = matchdict['session']
-        if not sid or '.' in sid or '.' in matchdict['server']:
+        sid_part = matchdict['session']
+        if not sid_part or '.' in sid_part or '.' in matchdict['server']:
             return HTTPNotFound()
+
+        if self.per_user:
+            sid = (authenticated_userid(request), sid_part)
+        else:
+            sid = (None, sid_part)
 
         try:
             session = manager.get(sid, create, request=request)
@@ -146,7 +156,12 @@ class SockJSRoute(object):
         # session
         manager = self.session_manager
 
-        sid = '%0.9d'%random.randint(1, 2147483647)
+        sid_part = '%0.9d' % random.randint(1, 2147483647)
+        if self.per_user:
+            sid = (authenticated_userid(request), sid_part)
+        else:
+            sid = (None, sid_part)
+
         session = manager.get(sid, True, request=request)
         request.environ['wsgi.sockjs_session'] = session
 
