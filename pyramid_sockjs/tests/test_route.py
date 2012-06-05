@@ -167,7 +167,7 @@ class TestSockJSRoute(BaseSockjs):
             'transport': 'test', 'session': 'session', 'server': '000'}
         res = route.handler(self.request)
 
-        session = route.session_manager['session']
+        session = route.session_manager[(None, 'session')]
         self.assertFalse(route.session_manager.is_acquired(session))
 
         del handlers['test']
