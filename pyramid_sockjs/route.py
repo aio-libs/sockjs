@@ -117,14 +117,12 @@ class SockJSRoute(object):
         # session
         manager = self.session_manager
 
-        sid_part = matchdict['session']
-        if not sid_part or '.' in sid_part or '.' in matchdict['server']:
+        sid = matchdict['session']
+        if not sid or '.' in sid or '.' in matchdict['server']:
             return HTTPNotFound()
 
         if self.per_user:
-            sid = (authenticated_userid(request), sid_part)
-        else:
-            sid = (None, sid_part)
+            sid = (authenticated_userid(request), sid)
 
         try:
             session = manager.get(sid, create, request=request)
@@ -156,11 +154,9 @@ class SockJSRoute(object):
         # session
         manager = self.session_manager
 
-        sid_part = '%0.9d' % random.randint(1, 2147483647)
+        sid = '%0.9d' % random.randint(1, 2147483647)
         if self.per_user:
-            sid = (authenticated_userid(request), sid_part)
-        else:
-            sid = (None, sid_part)
+            sid = (authenticated_userid(request), sid)
 
         session = manager.get(sid, True, request=request)
         request.environ['wsgi.sockjs_session'] = session
