@@ -2,8 +2,10 @@
 CHANGES
 =======
 
-0.3.6 (Unreleased)
+0.3.6 (2012-06-21)
 ==================
+
+- Possible session hijacking #7
 
 - Use Configurator action for session gc start. #6
 
