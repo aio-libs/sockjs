@@ -25,7 +25,7 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
                      disable_transports=(),
                      sockjs_cdn='http://cdn.sockjs.org/sockjs-0.3.1.min.js',
                      permission=None, decorator=None, cookie_needed=True,
-                     per_user=False):
+                     per_user=True):
     # set session manager
     if session_manager is None:
         session_manager = SessionManager(name, cfg.registry, session=session)
