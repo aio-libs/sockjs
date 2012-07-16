@@ -2,6 +2,13 @@
 CHANGES
 =======
 
+0.3.7 (Unreleased)
+==================
+
+- Explicitly open session before receive any messages,
+  for webscoket transport.
+
+
 0.3.6 (2012-06-21)
 ==================
 

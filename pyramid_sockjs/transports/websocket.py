@@ -25,14 +25,16 @@ def WebSocketTransport(session, request):
     socket = request.environ['gunicorn.socket']
     websocket = request.environ['wsgi.websocket']
 
-    def send():
+    def open():
         if session.state == STATE_NEW:
             try:
                 websocket.send('o')
             except:
                 return
             session.open()
+            return True
 
+    def send():
         if session.state == STATE_CLOSING:
             websocket.send(close_frame(3000, 'Go away!'))
             websocket.close()
@@ -113,12 +115,17 @@ def WebSocketTransport(session, request):
 
         session.release()
 
-    return WebSocketResponse(session, request, send, receive, websocket)
+    return WebSocketResponse(session, request, open, send, receive, websocket)
 
 
 def RawWebSocketTransport(session, request):
     socket = request.environ['gunicorn.socket']
     websocket = request.environ['wsgi.websocket']
+
+    def open():
+        if session.state == STATE_NEW:
+            session.open()
+            return True
 
     def send():
         if session.state == STATE_NEW:
@@ -180,16 +187,17 @@ def RawWebSocketTransport(session, request):
 
         session.release()
 
-    return WebSocketResponse(session, request, send, receive, websocket)
+    return WebSocketResponse(session, request, open, send, receive, websocket)
 
 
 class WebSocketResponse(Response):
 
-    def __init__(self, session, request, send, receive, websocket):
+    def __init__(self, session, request, open, send, receive, websocket):
         self.__dict__.update(request.response.__dict__)
         self.session = session
         self.request = request
         self.websocket = websocket
+        self.open = open
         self.send = send
         self.receive = receive
 
@@ -228,5 +236,7 @@ class WebSocketResponse(Response):
             self.websocket.close()
             return StopStreaming()
 
-        gevent.joinall((gevent.spawn(self.send), gevent.spawn(self.receive)))
+        if self.open():
+            gevent.joinall((gevent.spawn(self.send),
+                            gevent.spawn(self.receive)))
         raise StopStreaming()
