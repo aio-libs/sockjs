@@ -2,10 +2,10 @@
 CHANGES
 =======
 
-0.3.7 (Unreleased)
+0.3.7 (2012-07-16)
 ==================
 
-- Explicitly open session before receive any messages,
+- Explicitly open session before accept any incoming messages,
   for webscoket transport.
 
 

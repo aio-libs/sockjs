@@ -23,7 +23,7 @@ log = logging.getLogger('pyramid_sockjs')
 def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
                      session=None, session_manager=None,
                      disable_transports=(),
-                     sockjs_cdn='http://cdn.sockjs.org/sockjs-0.3.1.min.js',
+                     sockjs_cdn='http://cdn.sockjs.org/sockjs-0.3.2.min.js',
                      permission=None, decorator=None, cookie_needed=True,
                      per_user=True):
     # set session manager
