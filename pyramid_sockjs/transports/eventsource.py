@@ -25,10 +25,10 @@ class EventsourceTransport(Response):
     def __call__(self, environ, start_response):
         write = start_response(
             self.status,
-            (('Content-Type','text/event-stream; charset=UTF-8'),
+            [('Content-Type','text/event-stream; charset=UTF-8'),
              ('Cache-Control',
               'no-store, no-cache, must-revalidate, max-age=0'),
-             session_cookie(self.request)))
+             session_cookie(self.request)])
         write('\r\n')
 
         timing = self.timing
