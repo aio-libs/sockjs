@@ -21,7 +21,7 @@ virtualenv
 
 3. Clone pyramid_sockjs from github and then install::
 
-    $ git clone git://github.com/fafhrd91/pyramid_sockjs.git
+    $ git clone https://github.com/fafhrd91/pyramid_sockjs.git
     $ cd pyramid_sockjs
     $ ../sockjs/bin/python setup.py develop
 
