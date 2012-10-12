@@ -20,6 +20,12 @@ class PyramidDirectiveTestCase(BaseTestCase):
         request = Request(self._environ)
         request.registry = self.registry
         self.registry.notify(NewRequest(request))
+        try:
+            from pyramid.interfaces import IRequestExtensions
+            extensions = self.registry.getUtility(IRequestExtensions)
+            request._set_extensions(extensions)
+        except ImportError:
+            pass
 
         self.assertTrue(hasattr(request, 'get_sockjs_manager'))
 
@@ -136,6 +142,13 @@ class AddSockJSRouteTestCase(BaseTestCase):
         request.registry = self.registry
         self.registry.notify(NewRequest(request))
 
+        try:
+            from pyramid.interfaces import IRequestExtensions
+            extensions = self.registry.getUtility(IRequestExtensions)
+            request._set_extensions(extensions)
+        except ImportError:
+            pass
+
         sm = request.get_sockjs_manager()
         self.assertIs(self.registry.__sockjs_managers__[''], sm)
 
@@ -143,6 +156,12 @@ class AddSockJSRouteTestCase(BaseTestCase):
         request = Request(self._environ)
         request.registry = self.registry
         self.registry.notify(NewRequest(request))
+        try:
+            from pyramid.interfaces import IRequestExtensions
+            extensions = self.registry.getUtility(IRequestExtensions)
+            request._set_extensions(extensions)
+        except ImportError:
+            pass
 
         self.assertRaises(
             KeyError, request.get_sockjs_manager, 'test')
@@ -160,6 +179,12 @@ class AddSockJSRouteTestCase(BaseTestCase):
         request = Request(self._environ)
         request.registry = self.registry
         self.registry.notify(NewRequest(request))
+        try:
+            from pyramid.interfaces import IRequestExtensions
+            extensions = self.registry.getUtility(IRequestExtensions)
+            request._set_extensions(extensions)
+        except ImportError:
+            pass
 
         sm = request.get_sockjs_manager(name)
 
@@ -226,6 +251,12 @@ class SessionManagerRouteUrlTestCase(BaseTestCase):
         request = Request(self._environ)
         request.registry = self.registry
         self.registry.notify(NewRequest(request))
+        try:
+            from pyramid.interfaces import IRequestExtensions
+            extensions = self.registry.getUtility(IRequestExtensions)
+            request._set_extensions(extensions)
+        except ImportError:
+            pass
 
         sm = request.get_sockjs_manager(name)
         self.assertEqual(
