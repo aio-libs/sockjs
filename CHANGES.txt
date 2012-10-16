@@ -5,6 +5,8 @@ CHANGES
 0.3.8 (Unreleased)
 ==================
 
+- Fix TypeError in Session.__str__ method
+
 - Fix eventsource transport for gevent 1.0b3 version
 
 
