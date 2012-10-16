@@ -52,7 +52,7 @@ class Session(object):
         self.heartbeats = 0
 
     def __str__(self):
-        result = ['id=%s' % (self.id,)]
+        result = ['id=%r' % (self.id,)]
 
         if self.state == STATE_OPEN:
             result.append('connected')
