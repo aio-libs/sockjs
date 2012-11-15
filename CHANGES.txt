@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.3.8 (Unreleased)
+0.3.8 (2012-11-15)
 ==================
 
 - Update sockjs-protocol-0.3.3
