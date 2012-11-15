@@ -4,7 +4,7 @@
 effort to define a protocol between in-browser
 [SockJS-client](https://github.com/sockjs/sockjs-client) and its
 server-side counterparts, like
-[SockJS-node](https://github.com/sockjs/sockjs-client). This should
+[SockJS-node](https://github.com/sockjs/sockjs-node). This should
 help others to write alternative server implementations.
 
 
@@ -18,9 +18,9 @@ import time
 import json
 import re
 import unittest2 as unittest
-from utils import GET, GET_async, POST, POST_async, OPTIONS, old_POST_async
-from utils import WebSocket8Client
-from utils import RawHttpConnection
+from utils_03 import GET, GET_async, POST, POST_async, OPTIONS, old_POST_async
+from utils_03 import WebSocket8Client
+from utils_03 import RawHttpConnection
 import uuid
 
 
@@ -732,6 +732,8 @@ class XhrPolling(Test):
         self.assertEqual(r['content-type'],
                          'application/javascript; charset=UTF-8')
         self.verify_cors(r)
+        # iOS 6 caches POSTs. Make sure we send no-cache header.
+        self.verify_not_cached(r)
 
         # Xhr transports receive json-encoded array of messages.
         r = POST(url + '/xhr_send', body='["x"]')
@@ -743,6 +745,8 @@ class XhrPolling(Test):
         # is xml and shouts about it.
         self.assertEqual(r['content-type'], 'text/plain; charset=UTF-8')
         self.verify_cors(r)
+        # iOS 6 caches POSTs. Make sure we send no-cache header.
+        self.verify_not_cached(r)
 
         r = POST(url + '/xhr')
         self.assertEqual(r.status, 200)
@@ -839,6 +843,8 @@ class XhrStreaming(Test):
         self.assertEqual(r['Content-Type'],
                          'application/javascript; charset=UTF-8')
         self.verify_cors(r)
+        # iOS 6 caches POSTs. Make sure we send no-cache header.
+        self.verify_not_cached(r)
 
         # The transport must first send 2KiB of `h` bytes as prelude.
         self.assertEqual(r.read(), 'h' *  2048 + '\n')
@@ -1046,6 +1052,8 @@ class JsonPolling(Test):
         self.assertEqual(r.body, 'ok')
         self.assertEqual(r.status, 200)
         self.assertEqual(r['Content-Type'], 'text/plain; charset=UTF-8')
+        # iOS 6 caches POSTs. Make sure we send no-cache header.
+        self.verify_not_cached(r)
 
         r = GET(url + '/jsonp?c=%63allback')
         self.assertEqual(r.status, 200)

@@ -51,6 +51,8 @@ class XHRPollingTransport(PollingTransport):
         response = request.response
         response.content_type = 'application/javascript; charset=UTF-8'
         response.headerlist.extend(cors_headers(request))
+        response.headerlist.append(
+            ('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'))
 
         def finish(request):
             session.release()
@@ -86,6 +88,8 @@ class XHRSendPollingTransport(PollingTransport):
         response = request.response
         response.content_type = 'text/plain; charset=UTF-8'
         response.headerlist.extend(cors_headers(request))
+        response.headerlist.append(
+            ('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'))
 
         data = request.body_file.read()
         if not data:

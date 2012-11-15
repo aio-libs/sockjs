@@ -30,7 +30,8 @@ class XHRStreamingTransport(Response):
         meth = request.method
         self.headers = (
             ('Content-Type', 'application/javascript; charset=UTF-8'),
-            ("Connection", "close"),
+            ('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'),
+            ('Connection', 'close'),
             session_cookie(request),
             ) + cors_headers(request)
 

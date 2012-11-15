@@ -29,7 +29,7 @@ Example of sockjs route::
 
 Client side code::
 
-  <script src="http://cdn.sockjs.org/sockjs-0.3.min.js"></script>
+  <script src="http://cdn.sockjs.org/sockjs-0.3.4.min.js"></script>
   <script>
       var sock = new SockJS('http://localhost:8080/__sockjs__');
 
