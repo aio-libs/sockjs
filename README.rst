@@ -58,13 +58,13 @@ Installation
     $ wget https://raw.github.com/pypa/virtualenv/master/virtualenv.py
     $ python2.7 ./virtualenv.py --no-site-packages sockjs
 
-2. Install gevent 1.0b2 (non-Windows)::
+2. Install gevent 1.0rc1 (non-Windows)::
 
-    $ ./sockjs/bin/pip install http://gevent.googlecode.com/files/gevent-1.0b2.tar.gz
+    $ ./sockjs/bin/pip install https://github.com/downloads/SiteSupport/gevent/gevent-1.0rc1.tar.gz
 
-2. Install gevent 1.0b2 (Windows, 32bit Python 2.7)::
+2. Install gevent 1.0rc1 (Windows, 32bit Python 2.7)::
 
-    $ ./sockjs/Scripts/easy_install http://gevent.googlecode.com/files/gevent-1.0b2-py2.7-win32.egg
+    $ ./sockjs/Scripts/easy_install https://github.com/downloads/SiteSupport/gevent/gevent-1.0rc1.win32-py2.7.exe
 
 3. Clone pyramid_sockjs from github and then install::
 
