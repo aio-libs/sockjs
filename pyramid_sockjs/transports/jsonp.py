@@ -13,6 +13,7 @@ from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
 
 from .utils import session_cookie, cors_headers
 
+from urllib import unquote_plus
 
 timing = 5.0
 
@@ -72,7 +73,7 @@ def JSONPolling(session, request):
             if not data.startswith('d='):
                 return HTTPServerError("Payload expected.")
 
-            data = url_unquote(data[2:])
+            data = unquote_plus(data[2:])
 
         if not data:
             return HTTPServerError("Payload expected.")
