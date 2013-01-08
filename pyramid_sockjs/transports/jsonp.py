@@ -1,5 +1,6 @@
 """ jsonp transport """
 import uuid
+from urllib import unquote_plus
 from gevent.queue import Empty
 from pyramid.compat import url_unquote
 from pyramid.httpexceptions import HTTPBadRequest, HTTPServerError
@@ -13,7 +14,6 @@ from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
 
 from .utils import session_cookie, cors_headers
 
-from urllib import unquote_plus
 
 timing = 5.0
 
