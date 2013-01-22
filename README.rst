@@ -1,9 +1,9 @@
-Experimaetan SockJS server based on Tulip (PEP 3156)
+Experimental SockJS server based on Tulip (PEP 3156)
 ====================================================
 
 `pyramid_sockjs2` is a experimental `SockJS <http://sockjs.org>`_ server
 based on `tulip <http://code.google.com/p/tulip/>`_ 
-`PEP 3156 <http://www.python.org/dev/peps/pep-3156/>`_ asyn io module.
+`PEP 3156 <http://www.python.org/dev/peps/pep-3156/>`_ async io module.
 
 `pyramid_sockjs` is a `SockJS <http://sockjs.org>`_ integration for 
 `Pyramid <http://www.pylonsproject.org/>`_.  SockJS interface is implemented as a 
