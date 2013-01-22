@@ -884,6 +884,76 @@ class XhrStreaming(Test):
         self.assertFalse(r.read())
 
 
+# EventSource: `/*/*/eventsource`
+# -------------------------------
+#
+# For details of this protocol framing read the spec:
+#
+# * [http://dev.w3.org/html5/eventsource/](http://dev.w3.org/html5/eventsource/)
+#
+# Beware leading spaces.
+class EventSource(Test):
+    def test_transport(self):
+        url = base_url + '/000/' + str(uuid.uuid4())
+        r = GET_async(url + '/eventsource')
+        self.assertEqual(r.status, 200)
+        self.assertEqual(r['Content-Type'],
+                         'text/event-stream; charset=UTF-8')
+        # As EventSource is requested using GET we must be very
+        # carefull not to allow it being cached.
+        self.verify_not_cached(r)
+
+        # The transport must first send a new line prelude, due to a
+        # bug in Opera.
+        self.assertEqual(r.read(), '\r\n')
+
+        self.assertEqual(r.read(), 'data: o\r\n\r\n')
+
+        r1 = POST(url + '/xhr_send', body='["x"]')
+        self.assertFalse(r1.body)
+        self.assertEqual(r1.status, 204)
+
+        self.assertEqual(r.read(), 'data: a["x"]\r\n\r\n')
+
+        # This protocol doesn't allow binary data and we need to
+        # specially treat leading space, new lines and things like
+        # \x00. But, now the protocol json-encodes everything, so
+        # there is no way to trigger this case.
+        r1 = POST(url + '/xhr_send', body=r'["  \u0000\n\r "]')
+        self.assertFalse(r1.body)
+        self.assertEqual(r1.status, 204)
+
+        self.assertEqual(r.read(),
+                         'data: a["  \\u0000\\n\\r "]\r\n\r\n')
+
+        r.close()
+
+    def test_response_limit(self):
+        # Single streaming request should be closed after enough data
+        # was delivered (by default 128KiB, but 4KiB for test server).
+        # Although EventSource transport is better, and in theory may
+        # not need this mechanism, there are some bugs in the browsers
+        # that actually prevent the automatic GC. See:
+        #  * https://bugs.webkit.org/show_bug.cgi?id=61863
+        #  * http://code.google.com/p/chromium/issues/detail?id=68160
+        url = base_url + '/000/' + str(uuid.uuid4())
+        r = GET_async(url + '/eventsource')
+        self.assertEqual(r.status, 200)
+        self.assertTrue(r.read()) # prelude
+        self.assertEqual(r.read(), 'data: o\r\n\r\n')
+
+        # Test server should gc streaming session after 4096 bytes
+        # were sent (including framing).
+        msg = '"' + ('x' * 4096) + '"'
+        r1 = POST(url + '/xhr_send', body='[' + msg + ']')
+        self.assertEqual(r1.status, 204)
+        self.assertEqual(r.read(), 'data: a[' + msg + ']\r\n\r\n')
+
+        # The connection should be closed after enough data was
+        # delivered.
+        self.assertFalse(r.read())
+
+
 # HtmlFile: `/*/*/htmlfile`
 # -------------------------
 #
@@ -1456,37 +1526,6 @@ class Http11(Test):
 # Footnote
 # ========
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': True,
-    'formatters': {
-        'generic': {
-            'format': '%(asctime)s %(levelname)-5.5s [%(name)s] %(message)s'
-        },
-    },
-    'handlers': {
-        'console':{
-            'level':'INFO',
-            'class':'logging.StreamHandler',
-            'formatter': 'generic'
-        },
-    },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
-    },
-    'loggers': {
-        'default': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-    }
-}
-
-from logging.config import dictConfig
-
 # Make this script runnable.
 if __name__ == '__main__':
-    dictConfig(LOGGING)
     unittest.main()

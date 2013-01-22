@@ -56,6 +56,6 @@ class EventsourceTransport(Transport):
                 if size >= self.maxsize:
                     break
         finally:
-            session.release(self.interrupted)
+            session.release()
 
         return b''
