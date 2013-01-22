@@ -223,6 +223,7 @@ class RawHttpConnection(object):
         data = []
         while size > 0:
             c = self.s.recv(size)
+            #print (repr(size), c)
             if not c:
                 raise Exception('Socket closed!')
             size -= len(c)

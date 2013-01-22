@@ -13,6 +13,7 @@ from pyramid_sockjs.route import get_session_manager
 
 
 def includeme(cfg):
+    from pyramid.settings import asbool
     from pyramid_sockjs.route import add_sockjs_route
     from pyramid_sockjs.route import GetSessionManager
 
@@ -22,6 +23,5 @@ def includeme(cfg):
     cfg.add_directive('add_sockjs_route', add_sockjs_route)
     cfg.set_request_property(get_manager, 'get_sockjs_manager', True)
 
-    # patch gevent
-    import pyramid_sockjs.monkey
-    pyramid_sockjs.monkey.patch_gevent()
+    settings = cfg.get_settings()
+    settings['debug_sockjs'] = asbool(settings.get('debug_sockjs', 'f'))

@@ -18,7 +18,7 @@ class ChatSession(Session):
 if __name__ == '__main__':
     """ Simple sockjs chat """
     from pyramid.config import Configurator
-    from pyramid_sockjs.paster import gevent_server_runner
+    from pyramid_sockjs.server import tulip_server_runner
 
     config = Configurator()
     config.include('pyramid_sockjs')
@@ -30,8 +30,4 @@ if __name__ == '__main__':
 
     app = config.make_wsgi_app()
 
-    if len(sys.argv) > 1 and (sys.argv[1] == '-g'):
-        from gunicorn.app.pasterapp import paste_server
-        paste_server(app, port=8080, worker_class='gevent', workers=1)
-    else:
-        gevent_server_runner(app, {}, host='127.0.0.1')
+    tulip_server_runner(app, {}, **{'host': '127.0.0.1', 'port': '8080'})

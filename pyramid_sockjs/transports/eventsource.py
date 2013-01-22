@@ -1,73 +1,61 @@
-""" iframe-htmlfile transport """
-from gevent.queue import Empty
+""" iframe-eventsource transport """
+import tulip
+from itertools import chain
 from pyramid.response import Response
+from pyramid_sockjs.protocol import CLOSE, close_frame
 
-from pyramid_sockjs import STATE_NEW
-from pyramid_sockjs import STATE_OPEN
-from pyramid_sockjs import STATE_CLOSING
-from pyramid_sockjs.transports import StopStreaming
-from pyramid_sockjs.protocol import HEARTBEAT
-from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
-
+from .base import Transport
 from .utils import session_cookie
 
 
-class EventsourceTransport(Response):
+class EventsourceTransport(Transport):
 
-    timing = 5.0
     maxsize = 131072 # 128K bytes
 
-    def __init__(self, session, request):
-        self.__dict__.update(request.response.__dict__)
-        self.session = session
-        self.request = request
-
     def __call__(self, environ, start_response):
-        write = start_response(
-            self.status,
-            [('Content-Type','text/event-stream; charset=UTF-8'),
-             ('Cache-Control',
-              'no-store, no-cache, must-revalidate, max-age=0'),
-             session_cookie(self.request)])
-        write('\r\n')
+        headers = list(
+            chain(
+                (('Content-Type','text/event-stream; charset=UTF-8'),
+                 ('Cache-Control',
+                  'no-store, no-cache, must-revalidate, max-age=0')),
+                session_cookie(self.request)))
 
-        timing = self.timing
+        write = start_response('200 Ok', headers)
+        write(b'\r\n')
+
+        # get session
         session = self.session
-
-        if session.state == STATE_NEW:
-            write("data: o\r\n\r\n")
-            session.open()
-
-        size = 0
+        try:
+            session.acquire(self.request)
+        except: # should use specific exception
+            message = close_frame(2010, b"Another connection still open")
+            write(b''.join((b'data: ', message, b'\r\n\r\n')))
+            return b''
 
         try:
+            size = 0
+
             while True:
+                self.wait = tulip.Task(session.wait())
                 try:
-                    message = [session.get_transport_message(timeout=timing)]
-                except Empty:
-                    message = HEARTBEAT
-                    session.heartbeat()
-                else:
-                    message = message_frame(message)
-
-                if session.state == STATE_CLOSING:
-                    write("data: %s\r\n\r\n"%close_frame(1000, 'Go away!'))
+                    tp, message = yield from self.wait
+                except tulip.CancelledError:
+                    session.close()
                     session.closed()
                     break
+                finally:
+                    self.wait = None
 
-                if session.state != STATE_OPEN:
-                    break
+                write(b''.join((b'data: ', message, b'\r\n\r\n')))
 
-                try:
-                    write("data: %s\r\n\r\n" % message)
-                except:
+                if tp == CLOSE:
                     session.closed()
-                    raise StopStreaming()
+                    break
 
                 size += len(message)
                 if size >= self.maxsize:
                     break
         finally:
-            session.release()
+            session.release(self.interrupted)
 
-        return []
+        return b''

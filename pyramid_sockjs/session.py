@@ -1,10 +1,12 @@
+import tulip
 import logging
-import gevent
-from gevent.queue import Queue
+import collections
 from heapq import heappush, heappop
 from datetime import datetime, timedelta
 from pyramid.compat import string_types
-from pyramid_sockjs.protocol import encode, decode
+from pyramid_sockjs.protocol import encode, decode, message_frame, close_frame
+from pyramid_sockjs.protocol import OPEN, CLOSE, MESSAGE, HEARTBEAT, FRAMES
+from pyramid_sockjs.exceptions import SessionIsAcquired
 
 log = logging.getLogger('pyramid_sockjs')
 
@@ -12,6 +14,11 @@ STATE_NEW = 0
 STATE_OPEN = 1
 STATE_CLOSING = 2
 STATE_CLOSED = 3
+
+FRAME_OPEN = OPEN
+FRAME_CLOSE = CLOSE
+FRAME_MESSAGE = MESSAGE
+FRAME_HEARTBEAT = HEARTBEAT
 
 
 class Session(object):
@@ -37,6 +44,9 @@ class Session(object):
     acquired = False
     timeout = timedelta(seconds=10)
     state = STATE_NEW
+    interrupted = False
+
+    _heartbeat = False
 
     def __init__(self, id, timeout=timedelta(seconds=10), request=None):
         self.id = id
@@ -46,10 +56,11 @@ class Session(object):
         self.registry = getattr(request, 'registry', None)
         self.expires = datetime.now() + timeout
 
-        self.queue = Queue()
-
         self.hits = 0
         self.heartbeats = 0
+
+        self._waiter = None  # A future.
+        self._queue = collections.deque()
 
     def __str__(self):
         result = ['id=%r' % (self.id,)]
@@ -59,8 +70,8 @@ class Session(object):
         else:
             result.append('disconnected')
 
-        if self.queue.qsize():
-            result.append('queue[%s]' % self.queue.qsize())
+        if len(self._queue):
+            result.append('queue[%s]' % len(self._queue))
         if self.hits:
             result.append('hits=%s' % self.hits)
         if self.heartbeats:
@@ -76,8 +87,23 @@ class Session(object):
         else:
             self.expires = datetime.now() + timeout
 
-    def heartbeat(self):
+    def acquire(self, request=None, heartbeat=True):
+        self.acquired = True
+        self._heartbeat = heartbeat
+        self.manager.acquire(self, request)
+
+    def release(self):
+        self.acquired = False
+        self._heartbeat = False
+        if self.manager is not None:
+            self.manager.release(self)
+
+    def heartbeat(self, expires):
+        self.expired = False
+        self.expires = expires
         self.heartbeats += 1
+        if self._heartbeat:
+            self.send_frame(FRAME_HEARTBEAT, FRAME_HEARTBEAT)
 
     def expire(self):
         """ Manually expire a session. """
@@ -86,6 +112,7 @@ class Session(object):
     def open(self):
         log.info('open session: %s', self.id)
         self.state = STATE_OPEN
+        self.send_frame(FRAME_OPEN, FRAME_OPEN, True)
         try:
             self.on_open()
         except:
@@ -100,6 +127,8 @@ class Session(object):
         except:
             log.exception("Exceptin in .on_close method.")
 
+        self.send_frame(FRAME_CLOSE, close_frame(3000, b'Go away!'))
+
     def closed(self):
         log.info('session closed: %s', self.id)
         self.state = STATE_CLOSED
@@ -110,16 +139,42 @@ class Session(object):
         except:
             log.exception("Exceptin in .on_closed method.")
 
-    def acquire(self, request=None):
-        self.manager.acquire(self, request)
+    def interrupt(self):
+        log.info('session has been interrupted: %s', self.id)
+        self.interrupted = True
+        try:
+            self.on_interrupt()
+        except:
+            log.exception("Exceptin in .on_interrupt method.")
 
-    def release(self):
-        if self.manager is not None:
-            self.manager.release(self)
+    @tulip.coroutine
+    def wait(self, block=True):
+        if block:
+            while not self._queue:
+                self._waiter = tulip.Future()
+                yield from self._waiter
 
-    def get_transport_message(self, block=True, timeout=None):
-        self.tick()
-        return self.queue.get(block=block, timeout=timeout)
+        # cleanup HB
+        hb = None
+        while self._queue and (self._queue[0][0] == HEARTBEAT):
+            hb = self._queue.popleft()
+
+        # join message frames
+        messages = []
+        while self._queue and (self._queue[0][0] == FRAME_MESSAGE):
+            messages.append(self._queue.popleft()[1])
+
+        if messages:
+            if len(messages) > 1:
+                return FRAME_MESSAGE, b''.join(
+                    (b'a[', b','.join([m[2:-1] for m in messages]), b']'))
+            else:
+                return FRAME_MESSAGE, messages[0]
+
+        if self._queue:
+            return self._queue.popleft()
+
+        return FRAME_HEARTBEAT, FRAME_HEARTBEAT
 
     def send(self, msg):
         """ send message to client """
@@ -127,7 +182,18 @@ class Session(object):
             log.info('outgoing message: %s, %s', self.id, str(msg)[:200])
 
         self.tick()
-        self.queue.put_nowait(msg)
+        self.send_frame(FRAME_MESSAGE, message_frame(msg))
+
+    def send_frame(self, tp, frame, prepend=False):
+        if prepend:
+            self._queue.appendleft((tp, frame))
+        else:
+            self._queue.append((tp, frame))
+
+        waiter = self._waiter
+        if waiter is not None:
+            self._waiter = None
+            waiter.set_result(False)
 
     def message(self, msg):
         log.info('incoming message: %s, %s', self.id, msg[:200])
@@ -152,6 +218,9 @@ class Session(object):
     def on_remove(self):
         """ executes before removing from session manager """
 
+    def on_interrupt(self):
+        """ executes in case of network disconnection """
+
 
 _marker = object()
 
@@ -159,74 +228,58 @@ _marker = object()
 class SessionManager(dict):
     """ A basic session manager """
 
-    factory = Session
+    _hb_cb = None
 
-    _gc_thread = None
-    _gc_thread_stop = False
-
-    def __init__(self, name, registry, session=None,
-                 gc_cycle=5.0, timeout=timedelta(seconds=10)):
+    def __init__(self, name, registry, session=Session,
+                 heartbeat=7.0, timeout=timedelta(seconds=10)):
         self.name = name
         self.route_name = 'sockjs-url-%s'%name
         self.registry = registry
-        if session is not None:
-            self.factory = session
+        self.factory = session
         self.acquired = {}
-        self.pool = []
+        self.sessions = []
+        self.heartbeat = heartbeat
         self.timeout = timeout
-        debug = registry.settings.get('debug_sockjs','').lower()
-        self.debug = debug in ('true','t','yes')
-        self._gc_cycle = gc_cycle
+        self.debug = registry.settings['debug_sockjs']
 
     def route_url(self, request):
         return request.route_url(self.route_name)
 
     def start(self):
-        if self._gc_thread is None:
-            def _gc_sessions():
-                while not self._gc_thread_stop:
-                    gevent.sleep(self._gc_cycle)
-                    self._gc() # pragma: no cover
-
-            self._gc_thread = gevent.Greenlet(_gc_sessions)
-
-        if not self._gc_thread:
-            self._gc_thread.start()
+        el = tulip.get_event_loop()
+        self._hb_cb = el.call_repeatedly(self.heartbeat, self._heartbeat)
 
     def stop(self):
-        if self._gc_thread:
-            self._gc_thread_stop = True
-            self._gc_thread.join()
+        if self._hb_cb: self._hb_cb.cancel()
 
-    def _gc(self):
-        current_time = datetime.now()
+    def _heartbeat(self):
+        sessions = self.sessions
 
-        while self.pool:
-            expires, session = self.pool[0]
+        if sessions:
+            now = datetime.now()
+            expires = now + self.timeout
 
-            # check if session is removed
-            if session.id in self:
-                if expires > current_time:
-                    break
-            else:
-                self.pool.pop(0)
-                continue
+            idx = 0
+            while idx < len(sessions):
+                session = sessions[idx]
 
-            expires, session = self.pool.pop(0)
-
-            # Session is to be GC'd immedietely
-            if session.expires < current_time:
-                if not self.on_session_gc(session):
-                    del self[session.id]
+                if session.expires < now:
+                    # Session is to be GC'd immedietely
+                    if not self.on_session_gc(session):
+                        del self[session.id]
+                        del self.sessions[idx]
                     if session.id in self.acquired:
                         del self.acquired[session.id]
                     if session.state == STATE_OPEN:
                         session.close()
                     if session.state == STATE_CLOSING:
                         session.closed()
-                continue
+                    continue
 
-            heappush(self.pool, (session.expires, session))
+                elif session.acquired:
+                    session.heartbeat(expires)
+
+                idx += 1
 
     def on_session_gc(self, session):
         return session.on_remove()
@@ -239,14 +292,16 @@ class SessionManager(dict):
         session.registry = self.registry
 
         self[session.id] = session
-        heappush(self.pool, (session.expires, session))
+        self.sessions.append(session)
+        return session
 
     def get(self, id, create=False, request=None, default=_marker):
         session = super(SessionManager, self).get(id, None)
         if session is None:
             if create:
-                session = self.factory(id, self.timeout, request=request)
-                self._add(session)
+                session = self._add(
+                    self.factory(id, self.timeout, request=request))
+                session.open()
             else:
                 if default is not _marker:
                     return default
@@ -258,7 +313,7 @@ class SessionManager(dict):
         sid = session.id
 
         if sid in self.acquired:
-            raise KeyError("Another connection still open")
+            raise SessionIsAcquired("Another connection still open")
         if sid not in self:
             raise KeyError("Unknown session")
 
@@ -285,16 +340,20 @@ class SessionManager(dict):
 
     def clear(self):
         """ Manually expire all sessions in the pool. """
-        while self.pool:
-            expr, session = heappop(self.pool)
+        for session in list(self.values()):
             if session.state != STATE_CLOSED:
                 session.closed()
-            del self[session.id]
 
-    def broadcast(self, *args, **kw):
+        self.clear()
+        self.sessions.clear()
+
+    def broadcast(self, message):
+        frame = message_frame(message)
+
+        print ([str(v) for v in self.values()])
         for session in self.values():
             if not session.expired:
-                session.send(*args, **kw)
+                session.send_frame(MESSAGE, frame)
 
     def __del__(self):
         self.clear()

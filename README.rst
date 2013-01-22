@@ -1,7 +1,11 @@
-pyramid_sockjs
-==============
+Experimaetan SockJS server based on Tulip (PEP 3156)
+====================================================
 
-`pyramid_sockjs` is a `gevent <http://www.gevent.org/>`_-based `SockJS <http://sockjs.org>`_ integration for 
+`pyramid_sockjs2` is a experimental `SockJS <http://sockjs.org>`_ server
+based on `tulip <http://code.google.com/p/tulip/>`_ 
+`PEP 3156 <http://www.python.org/dev/peps/pep-3156/>`_ asyn io module.
+
+`pyramid_sockjs` is a `SockJS <http://sockjs.org>`_ integration for 
 `Pyramid <http://www.pylonsproject.org/>`_.  SockJS interface is implemented as a 
 `pyramid route <http://pyramid.readthedocs.org/en/latest/narr/urldispatch.html>`_. pyramid_sockjs runs inside 
 a WSGI application rather than WSGI server.  This means all of your previous WSGI/Pyramid experience will be
@@ -9,9 +13,7 @@ relevant. Its possible to create any number of different sockjs routes, ie
 `/__sockjs__/*` or `/mycustom-sockjs/*`. You can provide different session implementation 
 and management for each sockjs route.
 
-Gevent based server is required for ``pyramid_sockjs``. 
-For example ``gunicorn`` with gevent worker. ``pyramid_sockjs`` provides
-simple gevent based paster server runner::
+Simple tulip based wsgi server is required::
 
    [server:main]
    use = egg:pyramid_sockjs#server
@@ -56,25 +58,23 @@ Installation
 1. Install virtualenv::
 
     $ wget https://raw.github.com/pypa/virtualenv/master/virtualenv.py
-    $ python2.7 ./virtualenv.py --no-site-packages sockjs
+    $ python3.3 ./virtualenv.py --no-site-packages sockjs
 
-2. Install gevent 1.0rc2 (non-Windows)::
+2. Install tulip::
 
-    $ ./sockjs/bin/pip install https://github.com/downloads/SiteSupport/gevent/gevent-1.0rc2.tar.gz
-
-2. Install gevent 1.0rc1 (Windows, 32bit Python 2.7)::
-
-    $ ./sockjs/Scripts/easy_install https://github.com/downloads/SiteSupport/gevent/gevent-1.0rc2.win32-py2.7.exe
+    $ hg clone https://code.google.com/p/tulip/
+    $ cd tulip
+    $ ../sockjs/bin/python setup.py develop
 
 3. Clone pyramid_sockjs from github and then install::
 
-    $ git clone https://github.com/fafhrd91/pyramid_sockjs.git
-    $ cd pyramid_sockjs
+    $ git clone https://github.com/fafhrd91/pyramid_sockjs2.git
+    $ cd pyramid_sockjs2
     $ ../sockjs/bin/python setup.py develop
 
 To run chat example use following command::
 
-    $ ./sockjs/bin/python ./pyramid_sockjs/examples/chat.py
+    $ ./sockjs/bin/python ./pyramid_sockjs2/examples/chat.py
 
 
 Supported transports
@@ -97,31 +97,21 @@ Limitations
 
 - Pyramid sockjs does not support multple websocket session with same session id.
 
-- gevent does not support Python 3
-
-- Pyramid sockjs can't detect client disconnection on heroku.
-
 
 Requirements
 ------------
 
-- Python 2.6/2.7
+- Python 3.3
 
 - `virtualenv <http://pypi.python.org/pypi/virtualenv>`_
-
-- `gevent 1.0rc2 or greater <http://www.gevent.org/>`_
-
-- `gevent-websocket 0.3.6 or greater <http://pypi.python.org/pypi/gevent-websocket/>`_
-
-- `gunicorn 0.14.3 or greater <http://gunicorn.org/>`_
 
 
 Examples
 --------
 
-You can find several `examples` in the pyramid_sockjs repository at github.
+You can find several `examples` in the pyramid_sockjs2 repository at github.
 
-https://github.com/fafhrd91/pyramid_sockjs/tree/master/examples
+https://github.com/fafhrd91/pyramid_sockjs2/tree/master/examples
 
 License
 -------

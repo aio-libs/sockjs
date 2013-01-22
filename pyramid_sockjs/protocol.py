@@ -36,10 +36,10 @@ except ImportError: # pragma: no cover
 # Frames
 # ------
 
-OPEN      = "o\n"
-CLOSE     = "c"
-MESSAGE   = "a"
-HEARTBEAT = "h\n"
+OPEN      = b"o"
+CLOSE     = b"c"
+MESSAGE   = b"a"
+HEARTBEAT = b"h"
 
 
 # ------------------
@@ -62,15 +62,24 @@ IFRAME_HTML = """<!DOCTYPE html>
 </html>
 """.strip()
 
-IFRAME_MD5 = hashlib.md5(IFRAME_HTML).hexdigest()
+IFRAME_MD5 = hashlib.md5(IFRAME_HTML.encode()).hexdigest()
 
 decode = json.loads
 
 def encode(data):
-    return json.dumps(data, **kwargs)
+    return json.dumps(data, **kwargs).encode()
 
-def close_frame(code, reason, eol=''):
-    return '%s[%d,%s]%s' % (CLOSE, code, encode(reason), eol)
+def close_frame(code, reason):
+    return CLOSE + b'[' + str(code).encode() + b',' + encode(reason) + b']'
 
-def message_frame(data, eol=''):
-    return '%s%s%s'%(MESSAGE, encode(data), eol)
+def message_frame(message):
+    return MESSAGE + encode([message])
+
+def heartbeat_frame():
+    return 'h'
+
+FRAMES = {
+    CLOSE: close_frame,
+    MESSAGE: message_frame,
+    HEARTBEAT: heartbeat_frame,
+}

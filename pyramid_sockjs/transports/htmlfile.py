@@ -1,21 +1,14 @@
 """ iframe-htmlfile transport """
-import gevent
-from gevent.queue import Empty
-from pyramid.compat import url_unquote
-from pyramid.response import Response
-from pyramid.httpexceptions import HTTPBadRequest, HTTPServerError
+import tulip
+from itertools import chain
+from pyramid_sockjs.protocol import CLOSE, close_frame, encode
+from pyramid_sockjs.exceptions import SessionIsAcquired
 
-from pyramid_sockjs import STATE_NEW
-from pyramid_sockjs import STATE_OPEN
-from pyramid_sockjs import STATE_CLOSING
-from pyramid_sockjs.transports import StopStreaming
-from pyramid_sockjs.protocol import HEARTBEAT
-from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
-
-from .utils import get_messages, session_cookie, cors_headers
+from .base import Transport
+from .utils import session_cookie, cors_headers
 
 
-PRELUDE = r"""
+PRELUDE1 = b"""
 <!doctype html>
 <html><head>
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
@@ -23,82 +16,62 @@ PRELUDE = r"""
 </head><body><h2>Don't panic!</h2>
   <script>
     document.domain = document.domain;
-    var c = parent.%s;
+    var c = parent."""
+
+PRELUDE2 = b""";
     c.start();
     function p(d) {c.message(d);};
     window.onload = function() {c.stop();};
-  </script>
-""".strip()
+  </script>"""
 
 
-class HTMLFileTransport(Response):
+class HTMLFileTransport(Transport):
 
-    timing = 5.0
     maxsize = 131072 # 128K bytes
 
-    def __init__(self, session, request):
-        response = request.response
-        self.__dict__.update(response.__dict__)
-        self.session = session
-        self.request = request
-
-        self.headers = (
-            ('Content-Type', 'text/html; charset=UTF-8'),
-            ('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'),
-            ("Connection", "close"),
-            session_cookie(request),
-            ) + cors_headers(request)
-
     def __call__(self, environ, start_response):
+        session = self.session
         request = self.request
+
+        headers = list(chain(
+            (('Content-Type', 'text/html; charset=UTF-8'),
+             ('Cache-Control','no-store, no-cache, must-revalidate, max-age=0'),
+             ("Connection", "close")),
+            session_cookie(request), cors_headers(environ)))
+
         callback = request.GET.get('c', None)
         if callback is None:
-            self.status = 500
-            self.body = '"callback" parameter required'
-            return super(HTMLFileTransport, self).__call__(
-                environ, start_response)
+            start_response('500 Internal Server Error', headers)
+            return (b'"callback" parameter required',)
 
-        write = start_response(self.status, self.headerlist)
-        prelude = PRELUDE % callback
-        prelude += ' ' * 1024
-        write(prelude)
+        write = start_response('200 Ok', headers)
+        write(b''.join((PRELUDE1,callback.encode('utf-8'),PRELUDE2,b' '*1024)))
 
-        timing = self.timing
+        # get session
         session = self.session
-
-        if session.state == STATE_NEW:
-            write('<script>\np("o");\n</script>\r\n')
-            session.open()
-
-        size = 0
-
         try:
-            while True:
+            session.acquire(self.request)
+        except SessionIsAcquired:
+            write(close_frame(2010, b"Another connection still open"))
+        else:
+            size = 0
+            while size < self.maxsize:
                 try:
-                    message = [session.get_transport_message(timeout=timing)]
-                except Empty:
-                    message = HEARTBEAT
-                    session.heartbeat()
-                else:
-                    message = message_frame(message)
-
-                if session.state == STATE_CLOSING:
-                    write("<script>\np(%s);\n</script>\r\n" %
-                          encode(close_frame('Go away!')))
+                    tp, msg = yield from session.wait()
+                except tulip.CancelledError:
+                    session.close()
                     session.closed()
                     break
 
-                message = "<script>\np(%s);\n</script>\r\n" % encode(message)
-                try:
-                    write(message)
-                except:
+                write(b''.join(
+                    (b'<script>\np(', encode(msg), b');\n</script>\r\n')))
+            
+                if tp == CLOSE:
                     session.closed()
-                    raise StopStreaming()
-
-                size += len(message)
-                if size > self.maxsize:
                     break
-        finally:
+
+                size += len(msg)
+
             session.release()
 
-        return []
+        return (b'',)

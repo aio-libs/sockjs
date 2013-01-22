@@ -7,14 +7,12 @@ from pyramid.exceptions import ConfigurationError
 from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
 
 from pyramid_sockjs.session import SessionManager
-from pyramid_sockjs.protocol import json
-from pyramid_sockjs.protocol import IFRAME_HTML
-from pyramid_sockjs.websocket import init_websocket, init_websocket_hixie
+from pyramid_sockjs.protocol import IFRAME_HTML, json
 from pyramid_sockjs.transports import handlers
 from pyramid_sockjs.transports.utils import session_cookie
 from pyramid_sockjs.transports.utils import cors_headers
 from pyramid_sockjs.transports.utils import cache_headers
-from pyramid_sockjs.transports.websocket import RawWebSocketTransport
+from pyramid_sockjs.transports.rawwebsocket import RawWebSocketTransport
 from pyramid.security import authenticated_userid
 
 log = logging.getLogger('pyramid_sockjs')
@@ -100,7 +98,7 @@ class SockJSRoute(object):
         self.disable_transports = dict((k,1) for k in disable_transports)
         self.cookie_needed = cookie_needed
         self.per_user = per_user
-        self.iframe_html = IFRAME_HTML%sockjs_cdn
+        self.iframe_html = (IFRAME_HTML%sockjs_cdn).encode('utf-8')
         self.iframe_html_hxd = hashlib.md5(self.iframe_html).hexdigest()
 
     def handler(self, request):
@@ -127,21 +125,9 @@ class SockJSRoute(object):
         try:
             session = manager.get(sid, create, request=request)
         except KeyError:
-            return HTTPNotFound(headers=(session_cookie(request),))
+            return HTTPNotFound(headers=session_cookie(request))
 
         request.environ['wsgi.sockjs_session'] = session
-
-        # websocket
-        if tid == 'websocket':
-            if 'HTTP_SEC_WEBSOCKET_VERSION' in request.environ:
-                res = init_websocket(request)
-            elif 'HTTP_ORIGIN' in request.environ:
-                res = init_websocket_hixie(request)
-            else:
-                res = init_websocket(request)
-
-            if res is not None:
-                return res
 
         try:
             return transport(session, request)
@@ -165,37 +151,38 @@ class SockJSRoute(object):
         if 'HTTP_ORIGIN' in request.environ:
             return HTTPNotFound()
 
-        res = init_websocket(request)
-        if res is not None:
-            return res
-
-        return RawWebSocketTransport(session, request)
+        try:
+            return RawWebSocketTransport(session, request)
+        except Exception as exc:
+            session.release()
+            log.exception('Exception in transport: %s'%tid)
+            return HTTPBadRequest(str(exc))
 
     def info(self, request):
         response = request.response
         response.content_type = 'application/json; charset=UTF-8'
         response.headerlist.append(
             ('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'))
-        response.headerlist.extend(cors_headers(request))
+        response.headerlist.extend(cors_headers(request.environ))
 
         if request.method == 'OPTIONS':
-            session_cookie(request)
             response.status = 204
             response.headerlist.append(
                 ("Access-Control-Allow-Methods", "OPTIONS, GET"))
-            response.headerlist.extend(cache_headers(request))
+            response.headerlist.extend(cache_headers())
+            response.headerlist.extend(session_cookie(request))
             return response
 
         info = {'entropy': random.randint(1, 2147483647),
                 'websocket': 'websocket' not in self.disable_transports,
                 'cookie_needed': self.cookie_needed,
                 'origins': ['*:*']}
-        response.body = json.dumps(info)
+        response.text = json.dumps(info)
         return response
 
     def iframe(self, request):
         response = request.response
-        response.headerlist.extend(cache_headers(request))
+        response.headerlist.extend(cache_headers())
 
         cached = request.environ.get('HTTP_IF_NONE_MATCH')
         if cached:
@@ -210,7 +197,7 @@ class SockJSRoute(object):
 
     def greeting(self, request):
         request.response.content_type = 'text/plain; charset=UTF-8'
-        request.response.body = 'Welcome to SockJS!\n'
+        request.response.body = b'Welcome to SockJS!\n'
         return request.response
 
 

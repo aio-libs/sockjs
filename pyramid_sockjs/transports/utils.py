@@ -1,61 +1,38 @@
-from gevent.queue import Empty
+from webob.cookies import Morsel
 from datetime import datetime, timedelta
 
-from pyramid_sockjs.protocol import HEARTBEAT, message_frame
 
-
-def get_messages(session, timeout, heartbeat=True):
-    messages = []
-    try:
-        messages.append(session.get_transport_message(timeout=timeout))
-        while True:
-            try:
-                messages.append(session.get_transport_message(block=False))
-            except Empty:
-                break
-    except Empty:
-        if heartbeat:
-            messages = HEARTBEAT
-            session.heartbeat()
-        else:
-            messages = 'a[]'
-    else:
-        messages = message_frame(messages, '\n')
-
-    return messages
-
-
-def cors_headers(request):
-    origin = request.environ.get("HTTP_ORIGIN", '*')
+def cors_headers(environ):
+    origin = environ.get("HTTP_ORIGIN", '*')
     if origin == 'null':
         origin = '*'
-    ac_headers = request.environ.get('HTTP_ACCESS_CONTROL_REQUEST_HEADERS')
+    ac_headers = environ.get('HTTP_ACCESS_CONTROL_REQUEST_HEADERS')
     if ac_headers is not None:
         return (('access-control-allow-origin', origin),
-               ('access-control-allow-credentials', 'true'),
-               ('access-control-allow-headers', ac_headers))
+                ('access-control-allow-credentials', 'true'),
+                ('access-control-allow-headers', ac_headers))
     else:
         return (('access-control-allow-origin', origin),
-               ('access-control-allow-credentials', 'true'))
+                ('access-control-allow-credentials', 'true'))
 
 
 def session_cookie(request):
-    cookie = request.cookies.get('JSESSIONID')
+    cookie = request.cookies.get('JSESSIONID', b'dummy')
+    if isinstance(cookie, str):
+        cookie = cookie.encode('utf-8')
 
-    if not cookie:
-        cookie = 'dummy'
+    m = Morsel(b'JSESSIONID', cookie)
+    m.path = b'/'
 
-    request.response.set_cookie('JSESSIONID', cookie)
-    return ('Set-Cookie', request.response.headers['Set-Cookie'])
+    return (('Set-Cookie', m.serialize()),)
 
 
 td365 = timedelta(days=365)
 td365seconds = int((td365.microseconds +
                     (td365.seconds + td365.days*24*3600) * 10**6) / 10**6)
 
-def cache_headers(request):
+def cache_headers():
     d = datetime.now() + td365
-
     return (
         ('Access-Control-Max-Age', td365seconds),
         ('Cache-Control', 'max-age=%d, public' % td365seconds),

@@ -1,91 +1,55 @@
 """ websocket transport """
-import time
+import hashlib
+import logging
 import struct
-import errno
-import gevent
-from gevent.queue import Empty
-from gevent.pywsgi import format_date_time
-from hashlib import md5
-from socket import SHUT_RDWR, error
-from pyramid.response import Response
+import tulip
+from zope.interface import implementer
+from pyramid.interfaces import IResponse
+from pyramid.httpexceptions import HTTPException
+from pyramid_sockjs.protocol import CLOSE, decode, close_frame
 
-from pyramid_sockjs import STATE_NEW
-from pyramid_sockjs import STATE_OPEN
-from pyramid_sockjs import STATE_CLOSING
-from pyramid_sockjs import STATE_CLOSED
-from pyramid_sockjs.transports import StopStreaming
-from pyramid_sockjs.protocol import OPEN, HEARTBEAT
-from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
+from .wsproto import init_websocket, init_websocket_hixie
 
 
-TIMING = 5.0
+@implementer(IResponse)
 
+class WebSocketTransport:
 
-def WebSocketTransport(session, request):
-    socket = request.environ['gunicorn.socket']
-    websocket = request.environ['wsgi.websocket']
+    error = None
 
-    def open():
-        if session.state == STATE_NEW:
-            try:
-                websocket.send('o')
-            except:
-                return
-            session.open()
-            return True
+    def __init__(self, session, request):
+        self.session = session
+        self.request = request
 
-    def send():
-        if session.state == STATE_CLOSING:
-            websocket.send(close_frame(3000, 'Go away!'))
-            websocket.close()
-            session.closed()
-            return
+    @tulip.coroutine
+    def send(self):
+        ws = self.proto
+        session = self.session
 
         while True:
             try:
-                message = [session.get_transport_message(timeout=TIMING)]
-            except Empty:
-                message = 'h'
-                session.heartbeat()
+                tp, message = yield from session.wait()
+            except tulip.CancelledError:
+                break
             else:
-                message = message_frame(message)
+                ws.send(message)
 
-            if session.state == STATE_CLOSING:
-                try:
-                    websocket.send(close_frame(3000, 'Go away!'))
-                    websocket.close()
-                except:
-                    pass
+            if tp == CLOSE:
+                ws.close()
                 session.closed()
                 break
 
-            elif session.state == STATE_CLOSED:
-                break
+    @tulip.coroutine
+    def receive(self):
+        ws = self.proto
+        session = self.session
 
-            try:
-                websocket.send(message)
-            except:
-                session.close()
-                session.closed()
-                break
-
-    def receive():
         while True:
             try:
-                message = websocket.receive()
-            except:
+                message = yield from ws.receive()
+            except Exception as err:
+                logging.exception(err)
                 session.close()
-                break
-
-            if session.state == STATE_CLOSING:
-                try:
-                    websocket.send(close_frame(3000, 'Go away!'))
-                    websocket.close()
-                except:
-                    pass
-                session.closed()
-                break
-            elif session.state == STATE_CLOSED:
                 break
 
             if message == '':
@@ -94,149 +58,76 @@ def WebSocketTransport(session, request):
             if message is None:
                 session.close()
                 session.closed()
-                websocket.close()
+                ws.close()
                 break
 
             try:
                 if message.startswith('['):
                     message = message[1:-1]
-                decoded_message = decode(message)
+
+                session.message(decode(message))
             except:
-                try:
-                    websocket.close(message='broken json')
-                except:
-                    pass
+                ws.close(message=b'broken json')
                 session.close()
                 session.closed()
                 break
 
-            if decoded_message:
-                session.message(decoded_message)
-
         session.release()
-
-    return WebSocketResponse(session, request, open, send, receive, websocket)
-
-
-def RawWebSocketTransport(session, request):
-    socket = request.environ['gunicorn.socket']
-    websocket = request.environ['wsgi.websocket']
-
-    def open():
-        if session.state == STATE_NEW:
-            session.open()
-            return True
-
-    def send():
-        if session.state == STATE_NEW:
-            session.open()
-
-        while True:
-            if session.state == STATE_CLOSING:
-                try:
-                    websocket.close()
-                except:
-                    pass
-                session.closed()
-                break
-
-            try:
-                message = session.get_transport_message(timeout=TIMING)
-            except Empty:
-                continue
-
-            if session.state != STATE_OPEN:
-                try:
-                    websocket.close()
-                except:
-                    pass
-                session.closed()
-                break
-            else:
-                try:
-                    websocket.send(message)
-                except:
-                    session.closed()
-                    break
-
-    def receive():
-        while True:
-            try:
-                message = websocket.receive()
-            except:
-                session.closed()
-                break
-
-            if session.state == STATE_CLOSED:
-                break
-
-            if session.state == STATE_CLOSING:
-                try:
-                    websocket.close()
-                except:
-                    pass
-                session.closed()
-                break
-
-            if message is None:
-                session.closed()
-                websocket.close()
-                break
-
-            session.message(message)
-
-        session.release()
-
-    return WebSocketResponse(session, request, open, send, receive, websocket)
-
-
-class WebSocketResponse(Response):
-
-    def __init__(self, session, request, open, send, receive, websocket):
-        self.__dict__.update(request.response.__dict__)
-        self.session = session
-        self.request = request
-        self.websocket = websocket
-        self.open = open
-        self.send = send
-        self.receive = receive
 
     def __call__(self, environ, start_response):
-        # WebsocketHixie76 handshake (test_haproxy)
-        if environ['wsgi.websocket_version'] == 'hixie-76':
-            part1, part2, socket = environ['wsgi.hixie-keys']
+        request = self.request
+
+        # init websocket protocol
+        hixie_76 = False
+        try:
+            if 'HTTP_SEC_WEBSOCKET_VERSION' in request.environ:
+                status, headers, self.proto = init_websocket(request)
+            elif 'HTTP_ORIGIN' in request.environ:
+                status, headers, self.proto = init_websocket_hixie(request)
+                hixie_76 = environ['wsgi.websocket_version'] == 'hixie-76'
+            else:
+                status, headers, self.proto = init_websocket(request)
+        except HTTPException as error: 
+            import traceback
+            traceback.print_exc()
+            return error(environ, start_response)
+
+        # send handshake headers
+        if hixie_76:
+            write = request.environ['tulip.transport'].write
+
+            import time
+            from pyramid_sockjs.server import format_date_time
 
             towrite = [
-                'HTTP/1.1 %s\r\n'%self.status,
-                'Date: %s\r\n'%format_date_time(time.time())]
+                ('HTTP/1.1 %s\r\n'%status).encode(),
+                ('Date: %s\r\n'%format_date_time(time.time())).encode()]
 
-            for header in self._abs_headerlist(environ):
-                towrite.append("%s: %s\r\n" % header)
+            for key, val in headers:
+                towrite.append(b''.join(
+                    (key.encode('utf-8'), b': ', val.encode('utf-8'), b'\r\n')))
 
-            towrite.append("\r\n")
-            socket.sendall(''.join(towrite))
+            towrite.append(b"\r\n")
+            write(b''.join(towrite))
 
-            key3 = environ['wsgi.input'].read(8)
-            if not key3:
-                key3 = environ['wsgi.input'].rfile.read(8)
+            part1, part2 = environ['wsgi.hixie_keys']
 
-            socket.sendall(
-                md5(struct.pack("!II", part1, part2) + key3).digest())
+            key3 = yield from environ['tulip.input'].read(8)
+            body = hashlib.md5(struct.pack("!II", part1, part2) + key3).digest()
+            write(body)
         else:
-            write = start_response(
-                self.status, self._abs_headerlist(environ))
-            write(self.body)
+            write = start_response(status, headers)
+            write(b'')
 
         try:
-            self.session.acquire(self.request)
+            self.session.acquire(request)
         except: # should use specific exception
-            self.websocket.send('o')
-            self.websocket.send(
-                close_frame(2010, "Another connection still open", '\n'))
-            self.websocket.close()
-            return StopStreaming()
+            self.proto.send(b'o')
+            self.proto.send(close_frame(2010, b"Another connection still open"))
+            self.proto.close()
 
-        if self.open():
-            gevent.joinall((gevent.spawn(self.send),
-                            gevent.spawn(self.receive)))
-        raise StopStreaming()
+        yield from tulip.wait(
+            (self.send(), self.receive()),
+            return_when=tulip.FIRST_COMPLETED)
+
+        return ()

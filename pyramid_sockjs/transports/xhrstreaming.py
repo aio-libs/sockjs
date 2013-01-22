@@ -1,111 +1,85 @@
-import gevent
-from gevent.queue import Empty
-from pyramid.compat import url_unquote
-from pyramid.response import Response
-from pyramid.httpexceptions import HTTPBadRequest
-
-from pyramid_sockjs import STATE_NEW
-from pyramid_sockjs import STATE_OPEN
-from pyramid_sockjs import STATE_CLOSING
+import tulip
+from webob.cookies import Morsel
 from pyramid_sockjs import STATE_CLOSED
-from pyramid_sockjs.transports import StopStreaming
-from pyramid_sockjs.protocol import OPEN, MESSAGE, HEARTBEAT
-from pyramid_sockjs.protocol import decode, close_frame, message_frame
+from pyramid_sockjs.protocol import CLOSE, close_frame
+from pyramid_sockjs.exceptions import SessionIsAcquired
 
+from .base import Transport
 from .utils import session_cookie, cors_headers, cache_headers
 
+from pprint import pprint
 
-class XHRStreamingTransport(Response):
 
-    timing = 5.0
+class XHRStreamingTransport(Transport):
+
     maxsize = 131072 # 128K bytes
-    open_seq = 'h' *  2048 + '\n'
+    open_seq = b'h' *  2048 + b'\n'
 
     def __init__(self, session, request):
-        self.__dict__.update(request.response.__dict__)
+        super(XHRStreamingTransport, self).__init__(session, request)
 
-        self.session = session
-        self.request = request
-
-        meth = request.method
-        self.headers = (
-            ('Content-Type', 'application/javascript; charset=UTF-8'),
-            ('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'),
-            ('Connection', 'close'),
-            session_cookie(request),
-            ) + cors_headers(request)
-
-        if meth not in ('GET', 'POST', 'OPTIONS'):
+        if request.method not in ('GET', 'POST', 'OPTIONS'):
             raise Exception("No support for such method: %s"%meth)
 
     def __call__(self, environ, start_response):
         request = self.request
-        if request.method == 'OPTIONS':
-            self.status = 204
-            self.content_type = 'application/javascript; charset=UTF-8'
-            self.headerlist.append(
-                ("Access-Control-Allow-Methods", "OPTIONS, POST"))
-            self.headerlist.extend(cache_headers(request))
-            return super(XHRStreamingTransport, self).__call__(
-                environ, start_response)
+        headers = list(
+            (('Connection', 'close'),
+             ('Content-Type', 'application/javascript; charset=UTF-8'),
+             ('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+         ) + session_cookie(request) + cors_headers(environ))
 
-        write = start_response(
-            self.status, self._abs_headerlist(environ))
+        if request.method == 'OPTIONS':
+            headers.append(
+                ("Access-Control-Allow-Methods", "OPTIONS, POST"))
+            headers.extend(cache_headers())
+            start_response('204 No Content', headers)
+            return b''
+
+        # open sequence (sockjs protocol)
+        write = start_response('200 Ok', headers)
         write(self.open_seq)
 
         session = self.session
 
-        #if session.state == STATE_CLOSED:
-        #    write('%s\n'%close_frame(1002, "Connection interrupted"))
-        #    return ()
+        # session was interrupted
+        if session.interrupted:
+            write(close_frame(1002, b"Connection interrupted")+b'\n')
 
-        try:
-            session.acquire(self.request)
-        except: # should use specific exception
-            write(close_frame(2010, "Another connection still open", '\n'))
-            return ()
+        # session is closed
+        elif session.state == STATE_CLOSED:
+            write(close_frame(3000, b'Go away!')+b'\n')
 
-        if session.state == STATE_NEW:
-            write(OPEN)
-            session.open()
-
-        if session.state in (STATE_CLOSING, STATE_CLOSED):
-            write(close_frame(3000, 'Go away!', '\n'))
-            if session.state == STATE_CLOSING:
-                session.closed()
-            return ()
-
-        stream_size = 0
-        timing = self.timing
-
-        try:
-            while True:
+        else:
+            # acquire session
+            try:
+                session.acquire(self.request)
+            except SessionIsAcquired:
+                write(close_frame(2010, b"Another connection still open")+b'\n')
+            else:
+                # message loop
                 try:
-                    message = [session.get_transport_message(timeout=timing)]
-                except Empty:
-                    message = HEARTBEAT
-                    session.heartbeat()
-                else:
-                    message = message_frame(message, '\n')
+                    size = 0
 
-                if session.state == STATE_CLOSING:
-                    write(close_frame(3000, 'Go away!', '\n'))
-                    session.closed()
-                    raise StopStreaming()
+                    while size < self.maxsize:
+                        self.wait = tulip.Task(session.wait())
+                        try:
+                            tp, message = yield from self.wait
+                        except tulip.CancelledError:
+                            break
+                        finally:
+                            self.wait = None
 
-                if session.state != STATE_OPEN:
-                    break
+                        write(message+b'\n')
 
-                try:
-                    write(message)
-                except:
-                    session.closed()
-                    raise StopStreaming()
+                        if tp == CLOSE:
+                            session.closed()
+                            break
 
-                stream_size += len(message)
-                if stream_size > self.maxsize:
-                    break
-        finally:
-            session.release()
+                        # sockjs api (limit for one streaming connection)
+                        size += len(message)
 
-        return []
+                finally:
+                    session.release()
+
+        return b''

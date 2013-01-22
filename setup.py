@@ -4,12 +4,10 @@ import logging
 import multiprocessing # atexit exception
 from setuptools import setup, find_packages
 
-version='0.3.9'
+version='2.0'
 
 install_requires = ['setuptools',
-                    'pyramid >= 1.3',
-                    'gevent >= 1.0rc2',
-                    'gevent-websocket >= 0.3.6',
+                    'pyramid >= 1.4',
                     ]
 
 tests_require = install_requires + ['nose']
@@ -26,15 +24,14 @@ setup(name='pyramid_sockjs',
           "License :: OSI Approved :: MIT License",
           "Intended Audience :: Developers",
           "Programming Language :: Python",
-          "Programming Language :: Python :: 2.6",
-          "Programming Language :: Python :: 2.7",
+          "Programming Language :: Python :: 3.3",
           "Programming Language :: Python :: Implementation :: CPython",
           "Framework :: Pyramid",
           "Topic :: Internet :: WWW/HTTP",
           'Topic :: Internet :: WWW/HTTP :: WSGI'],
       author='Nikolay Kim',
       author_email='fafhrd91@gmail.com',
-      url='https://github.com/fafhrd91/pyramid_sockjs/',
+      url='https://github.com/fafhrd91/pyramid_sockjs2/',
       license='MIT',
       packages=find_packages(),
       install_requires = install_requires,
@@ -44,7 +41,7 @@ setup(name='pyramid_sockjs',
       zip_safe = False,
       entry_points = {
           'paste.server_runner': [
-              'server = pyramid_sockjs.paster:gevent_server_runner',
+              'server = pyramid_sockjs.paster:tulip_server_runner',
               ],
           },
       )
