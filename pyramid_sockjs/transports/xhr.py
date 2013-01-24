@@ -23,7 +23,7 @@ class XHRTransport(Transport):
                  ("Access-Control-Allow-Methods", "OPTIONS, POST")),
                 session_cookie(request),cors_headers(environ),cache_headers()))
             start_response('204 No Content', headers)
-            return b''
+            return (b'',)
 
         session = self.session
 
@@ -34,7 +34,7 @@ class XHRTransport(Transport):
         # session closed
         elif session.state == STATE_CLOSED:
             message = close_frame(3000, b'Go away!')+b'\n'
-            
+
         else:
             try:
                 session.acquire(request, False)
@@ -42,21 +42,16 @@ class XHRTransport(Transport):
                 message = close_frame(
                     2010, b"Another connection still open")+b'\n'
             else:
-                self.wait = tulip.Task(session.wait())
-                self.wait.add_done_callback(lambda fut: handler.cancel())
+                self.wait = tulip.Task(
+                    tulip.wait((session.wait(),), self.timing))
 
-                handler = tulip.get_event_loop().call_later(
-                    self.timing, self.wait.cancel)
-
-                try:
-                    tp, message = yield from self.wait
-                    handler.cancel()
+                done, pending = yield from self.wait
+                if done:
+                    tp, message = done.pop().result()
                     if tp == CLOSE:
                         session.closed()
-                except tulip.CancelledError:
+                else:
                     message = b'a[]'
-                finally:
-                    self.wait = None
 
                 session.release()
                 message = message + b'\n'
@@ -69,4 +64,4 @@ class XHRTransport(Transport):
             session_cookie(request), cors_headers(environ)))
 
         start_response('200 Ok', headers)
-        return message
+        return (message,)

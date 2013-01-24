@@ -1,6 +1,11 @@
-from pyramid_sockjs.session import Session
-from pyramid_sockjs.session import SessionManager
-from pyramid_sockjs.server import tulip_server_runner
+from gtulip import TulipWorker
+from gunicorn.app.pasterapp import paste_server
+
+from pyramid.config import Configurator
+from pyramid_sockjs.session import Session, SessionManager
+from pyramid_sockjs.transports.eventsource import EventsourceTransport
+from pyramid_sockjs.transports.htmlfile import HTMLFileTransport
+from pyramid_sockjs.transports.xhrstreaming import XHRStreamingTransport
 
 
 class EchoSession(Session):
@@ -23,10 +28,6 @@ class BroadcastSession(Session):
 
 if __name__ == '__main__':
     """ Sockjs tests server """
-    from pyramid.config import Configurator
-    from pyramid_sockjs.transports.eventsource import EventsourceTransport
-    from pyramid_sockjs.transports.htmlfile import HTMLFileTransport
-    from pyramid_sockjs.transports.xhrstreaming import XHRStreamingTransport
 
     HTMLFileTransport.maxsize = 4096
     EventsourceTransport.maxsize = 4096
@@ -46,4 +47,4 @@ if __name__ == '__main__':
 
     app = config.make_wsgi_app()
 
-    tulip_server_runner(app, {}, **{'host': '127.0.0.1', 'port': '8081'})
+    paste_server(app, port=8081, worker_class=TulipWorker, workers=1)

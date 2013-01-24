@@ -16,9 +16,10 @@ and management for each sockjs route.
 Simple tulip based wsgi server is required::
 
    [server:main]
-   use = egg:pyramid_sockjs#server
+   use = egg:gunicorn#main
    host = 0.0.0.0
    port = 8080
+   worker = gtulip.TulipWorker
 
 Example of sockjs route::
 
@@ -103,7 +104,12 @@ Requirements
 
 - Python 3.3
 
-- `virtualenv <http://pypi.python.org/pypi/virtualenv>`_
+- gunicorn 0.17.2
+
+- tulip http://code.google.com/p/tulip/
+
+- gtulip https://github.com/fafhrd91/gtulip
+
 
 
 Examples
@@ -116,4 +122,4 @@ https://github.com/fafhrd91/pyramid_sockjs2/tree/master/examples
 License
 -------
 
-pyramid_sockjs is offered under the MIT license.
+pyramid_sockjs2 is offered under the MIT license.

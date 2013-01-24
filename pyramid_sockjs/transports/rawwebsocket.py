@@ -25,15 +25,10 @@ class RawWebSocketTransport:
         session = self.session
 
         while True:
-            try:
-                tp, message = yield from session.wait()
-            except tulip.CancelledError:
-                break
-            else:
-                if tp == MESSAGE:
-                    ws.send(decode(message[2:-1]).encode('utf-8'))
-
-            if tp == CLOSE:
+            tp, message = yield from session.wait()
+            if tp == MESSAGE:
+                ws.send(decode(message[2:-1]).encode('utf-8'))
+            elif tp == CLOSE:
                 ws.close()
                 session.closed()
                 break
@@ -48,19 +43,15 @@ class RawWebSocketTransport:
                 message = yield from ws.receive()
             except Exception as err:
                 logging.exception(err)
-                session.close()
                 break
 
             if message == '':
                 continue
 
             if message is None:
-                session.closed()
                 break
 
             session.message(message)
-
-        session.release()
 
     def __call__(self, environ, start_response):
         request = self.request
@@ -78,7 +69,10 @@ class RawWebSocketTransport:
         self.session.acquire(request)
 
         yield from tulip.wait(
-            (self.send(), self.receive()),
-            return_when=tulip.FIRST_COMPLETED)
+            (self.send(), self.receive()), return_when=tulip.FIRST_COMPLETED)
 
+        self.session.closed()
+
+        # ugly hack
+        environ['tulip.closed'] = True
         return ()

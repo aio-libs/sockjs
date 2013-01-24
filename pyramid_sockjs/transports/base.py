@@ -15,6 +15,7 @@ class Transport:
         request.environ['tulip.add_close_callback'](self.close)
 
     def close(self):
-        self.session.interrupt()
+        if self.session.acquired:
+            self.session.interrupt()
         if self.wait is not None and not self.wait.done():
             self.wait.cancel()

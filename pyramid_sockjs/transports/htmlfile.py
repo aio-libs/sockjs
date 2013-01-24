@@ -56,22 +56,22 @@ class HTMLFileTransport(Transport):
         else:
             size = 0
             while size < self.maxsize:
+                self.wait = tulip.Task(tulip.wait((session.wait(),)))
                 try:
-                    tp, msg = yield from session.wait()
+                    tp, msg = (yield from self.wait)[0].pop().result()
                 except tulip.CancelledError:
                     session.close()
                     session.closed()
-                    break
+                else:
+                    write(b''.join(
+                        (b'<script>\np(', encode(msg), b');\n</script>\r\n')))
 
-                write(b''.join(
-                    (b'<script>\np(', encode(msg), b');\n</script>\r\n')))
-            
-                if tp == CLOSE:
-                    session.closed()
-                    break
+                    if tp == CLOSE:
+                        session.closed()
+                        break
 
-                size += len(msg)
+                    size += len(msg)
 
             session.release()
 
-        return (b'',)
+        return ()

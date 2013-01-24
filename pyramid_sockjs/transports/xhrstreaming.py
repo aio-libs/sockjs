@@ -7,8 +7,6 @@ from pyramid_sockjs.exceptions import SessionIsAcquired
 from .base import Transport
 from .utils import session_cookie, cors_headers, cache_headers
 
-from pprint import pprint
-
 
 class XHRStreamingTransport(Transport):
 
@@ -34,7 +32,7 @@ class XHRStreamingTransport(Transport):
                 ("Access-Control-Allow-Methods", "OPTIONS, POST"))
             headers.extend(cache_headers())
             start_response('204 No Content', headers)
-            return b''
+            return (b'',)
 
         # open sequence (sockjs protocol)
         write = start_response('200 Ok', headers)
@@ -58,18 +56,16 @@ class XHRStreamingTransport(Transport):
                 write(close_frame(2010, b"Another connection still open")+b'\n')
             else:
                 # message loop
-                try:
-                    size = 0
+                size = 0
 
-                    while size < self.maxsize:
-                        self.wait = tulip.Task(session.wait())
-                        try:
-                            tp, message = yield from self.wait
-                        except tulip.CancelledError:
-                            break
-                        finally:
-                            self.wait = None
-
+                while size < self.maxsize:
+                    self.wait = tulip.Task(tulip.wait((session.wait(),)))
+                    try:
+                        tp, message = (yield from self.wait)[0].pop().result()
+                    except tulip.CancelledError:
+                        session.close()
+                        session.closed()
+                    else:
                         write(message+b'\n')
 
                         if tp == CLOSE:
@@ -79,7 +75,6 @@ class XHRStreamingTransport(Transport):
                         # sockjs api (limit for one streaming connection)
                         size += len(message)
 
-                finally:
-                    session.release()
+                session.release()
 
-        return b''
+        return (b'',)

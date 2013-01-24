@@ -88,6 +88,9 @@ class Session(object):
             self.expires = datetime.now() + timeout
 
     def acquire(self, request=None, heartbeat=True):
+        if self.state == STATE_NEW:
+            self.open()
+
         self.acquired = True
         self._heartbeat = heartbeat
         self.manager.acquire(self, request)
@@ -132,6 +135,7 @@ class Session(object):
     def closed(self):
         log.info('session closed: %s', self.id)
         self.state = STATE_CLOSED
+        self._queue.clear()
         self.release()
         self.expire()
         try:
@@ -229,6 +233,7 @@ class SessionManager(dict):
     """ A basic session manager """
 
     _hb_cb = None
+    started = False
 
     def __init__(self, name, registry, session=Session,
                  heartbeat=7.0, timeout=timedelta(seconds=10)):
@@ -246,8 +251,10 @@ class SessionManager(dict):
         return request.route_url(self.route_name)
 
     def start(self):
-        el = tulip.get_event_loop()
-        self._hb_cb = el.call_repeatedly(self.heartbeat, self._heartbeat)
+        if not self.started:
+            self.started = True
+            el = tulip.get_event_loop()
+            self._hb_cb = el.call_repeatedly(self.heartbeat, self._heartbeat)
 
     def stop(self):
         if self._hb_cb: self._hb_cb.cancel()
@@ -301,7 +308,6 @@ class SessionManager(dict):
             if create:
                 session = self._add(
                     self.factory(id, self.timeout, request=request))
-                session.open()
             else:
                 if default is not _marker:
                     return default
@@ -350,7 +356,6 @@ class SessionManager(dict):
     def broadcast(self, message):
         frame = message_frame(message)
 
-        print ([str(v) for v in self.values()])
         for session in self.values():
             if not session.expired:
                 session.send_frame(MESSAGE, frame)

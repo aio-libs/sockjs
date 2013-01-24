@@ -29,7 +29,7 @@ import uuid
 
 """
 The SockJS server provides one or more SockJS services. The services
-are usually exposed with a simple url prefixes, like:
+are usually exposed with a simple url prefix, like:
 `http://localhost:8000/echo` or
 `http://localhost:8000/broadcast`. We'll call this kind of url a
 `base_url`. There is nothing wrong with base url being more complex,
@@ -77,6 +77,10 @@ class Test(unittest.TestCase):
         self.assertFalse(r['content-type'])
         self.assertTrue(r['allow'])
         self.assertFalse(r.body)
+
+    # Compare the 'content-type' header ignoring spaces
+    def verify_content_type(self, r, content_type):
+        self.assertEqual(r['content-type'].replace(' ', ''), content_type)
 
     # Multiple transport protocols need to support OPTIONS method. All
     # responses to OPTIONS requests must be cacheable and contain
@@ -130,7 +134,7 @@ class BaseUrlGreeting(Test):
         for url in [base_url, base_url + '/']:
             r = GET(url)
             self.assertEqual(r.status, 200)
-            self.assertEqual(r['content-type'], 'text/plain; charset=UTF-8')
+            self.verify_content_type(r, 'text/plain;charset=UTF-8')
             self.assertEqual(r.body, 'Welcome to SockJS!\n')
             self.verify_no_cookie(r)
 
@@ -203,7 +207,7 @@ class IframePage(Test):
     def verify(self, url):
         r = GET(url)
         self.assertEqual(r.status, 200)
-        self.assertEqual(r['content-type'], 'text/html; charset=UTF-8')
+        self.verify_content_type(r, 'text/html;charset=UTF-8')
         # The iframe page must be strongly cacheable, supply
         # Cache-Control, Expires and Etag headers and avoid
         # Last-Modified header.
@@ -257,8 +261,7 @@ class InfoTest(Test):
     def test_basic(self):
         r = GET(base_url + '/info')
         self.assertEqual(r.status, 200)
-        self.assertEqual(r['content-type'],
-                         'application/json; charset=UTF-8')
+        self.verify_content_type(r, 'application/json;charset=UTF-8')
         self.verify_no_cookie(r)
         self.verify_not_cached(r)
         self.verify_cors(r)
@@ -296,11 +299,11 @@ class InfoTest(Test):
     # won't work - browser will understand that as a rejection. We
     # must respond with star "*" origin in such case.
     def test_options_null_origin(self):
-        url = base_url + '/info'
-        r = OPTIONS(url, headers={'Origin': 'null'})
-        self.assertEqual(r.status, 204)
-        self.assertFalse(r.body)
-        self.assertEqual(r['access-control-allow-origin'], '*')
+            url = base_url + '/info'
+            r = OPTIONS(url, headers={'Origin': 'null'})
+            self.assertEqual(r.status, 204)
+            self.assertFalse(r.body)
+            self.assertEqual(r['access-control-allow-origin'], '*')
 
     # The 'disabled_websocket_echo' service should have websockets
     # disabled.
@@ -398,7 +401,7 @@ class SessionURLs(Test):
 #
 # * `a` - Array of json-encoded messages. For example: `a["message"]`.
 #
-# * `c` - Close frame. This frame is send to the browser every time
+# * `c` - Close frame. This frame is sent to the browser every time
 #   the client asks for data on closed connection. This may happen
 #   multiple times. Close frame contains a code and a string explaining
 #   a reason of closure, like: `c[3000,"Go away!"]`.
@@ -453,6 +456,7 @@ class Protocol(Test):
         # on a single session. In such case the server must send a
         # close frame to the new connection.
         r1 = old_POST_async(trans_url + '/xhr', load=False)
+        time.sleep(0.25)
         r2 = POST(trans_url + '/xhr')
 
         self.assertEqual(r2.body, 'c[2010,"Another connection still open"]\n')
@@ -474,6 +478,7 @@ class Protocol(Test):
 
         # Until the timeout occurs, the server must constantly serve
         # the close message.
+
         r = POST(trans_url + '/xhr')
         self.assertEqual(r.status, 200)
         self.assertEqual(r.body, 'c[3000,"Go away!"]\n')
@@ -556,7 +561,7 @@ class WebsocketHixie76(Test):
     # defined by a lifetime of underlying WebSocket connection. It is
     # correct to have two separate sessions sharing the same
     # `session_id` at the same time.
-    def _test_reuseSessionId(self):
+    def test_reuseSessionId(self):
         on_close = lambda(ws): self.assertFalse(True)
 
         ws_url = 'ws:' + base_url.split(':',1)[1] + \
@@ -567,10 +572,10 @@ class WebsocketHixie76(Test):
         ws2 = websocket.create_connection(ws_url, on_close=on_close)
         self.assertEqual(ws2.recv(), u'o')
 
-        ws1.send(u'"a"')
+        ws1.send(u'["a"]')
         self.assertEqual(ws1.recv(), u'a["a"]')
 
-        ws2.send(u'"b"')
+        ws2.send(u'["b"]')
         self.assertEqual(ws2.recv(), u'a["b"]')
 
         ws1.close()
@@ -580,7 +585,7 @@ class WebsocketHixie76(Test):
         # previous connection.
         ws1 = websocket.create_connection(ws_url)
         self.assertEqual(ws1.recv(), u'o')
-        ws1.send(u'"a"')
+        ws1.send(u'["a"]')
         self.assertEqual(ws1.recv(), u'a["a"]')
         ws1.close()
 
@@ -729,8 +734,7 @@ class XhrPolling(Test):
         r = POST(url + '/xhr')
         self.assertEqual(r.status, 200)
         self.assertEqual(r.body, 'o\n')
-        self.assertEqual(r['content-type'],
-                         'application/javascript; charset=UTF-8')
+        self.verify_content_type(r, 'application/javascript;charset=UTF-8')
         self.verify_cors(r)
         # iOS 6 caches POSTs. Make sure we send no-cache header.
         self.verify_not_cached(r)
@@ -743,7 +747,7 @@ class XhrPolling(Test):
         # even though the response code is `204`. This is due to
         # Firefox/Firebug behaviour - it assumes that the content type
         # is xml and shouts about it.
-        self.assertEqual(r['content-type'], 'text/plain; charset=UTF-8')
+        self.verify_content_type(r, 'text/plain;charset=UTF-8')
         self.verify_cors(r)
         # iOS 6 caches POSTs. Make sure we send no-cache header.
         self.verify_not_cached(r)
@@ -759,7 +763,7 @@ class XhrPolling(Test):
         r = POST(url + '/xhr_send', body='["x"]')
         self.verify404(r)
 
-    # The server must behave when invalid json data is send or when no
+    # The server must behave when invalid json data is sent or when no
     # json data is sent at all.
     def test_invalid_json(self):
         url = base_url + '/000/' + str(uuid.uuid4())
@@ -783,7 +787,7 @@ class XhrPolling(Test):
         self.assertEqual(r.body, 'a["a"]\n')
         self.assertEqual(r.status, 200)
 
-    # The server must accept messages send with different content
+    # The server must accept messages sent with different content
     # types.
     def test_content_types(self):
         url = base_url + '/000/' + str(uuid.uuid4())
@@ -840,8 +844,7 @@ class XhrStreaming(Test):
         url = base_url + '/000/' + str(uuid.uuid4())
         r = POST_async(url + '/xhr_streaming')
         self.assertEqual(r.status, 200)
-        self.assertEqual(r['Content-Type'],
-                         'application/javascript; charset=UTF-8')
+        self.verify_content_type(r, 'application/javascript;charset=UTF-8')
         self.verify_cors(r)
         # iOS 6 caches POSTs. Make sure we send no-cache header.
         self.verify_not_cached(r)
@@ -897,8 +900,7 @@ class EventSource(Test):
         url = base_url + '/000/' + str(uuid.uuid4())
         r = GET_async(url + '/eventsource')
         self.assertEqual(r.status, 200)
-        self.assertEqual(r['Content-Type'],
-                         'text/event-stream; charset=UTF-8')
+        self.verify_content_type(r, 'text/event-stream;charset=UTF-8')
         # As EventSource is requested using GET we must be very
         # carefull not to allow it being cached.
         self.verify_not_cached(r)
@@ -983,8 +985,7 @@ class HtmlFile(Test):
         url = base_url + '/000/' + str(uuid.uuid4())
         r = GET_async(url + '/htmlfile?c=%63allback')
         self.assertEqual(r.status, 200)
-        self.assertEqual(r['Content-Type'],
-                         'text/html; charset=UTF-8')
+        self.verify_content_type(r, 'text/html;charset=UTF-8')
         # As HtmlFile is requested using GET we must be very careful
         # not to allow it being cached.
         self.verify_not_cached(r)
@@ -1037,8 +1038,7 @@ class JsonPolling(Test):
         url = base_url + '/000/' + str(uuid.uuid4())
         r = GET(url + '/jsonp?c=%63allback')
         self.assertEqual(r.status, 200)
-        self.assertEqual(r['Content-Type'],
-                         'application/javascript; charset=UTF-8')
+        self.verify_content_type(r, 'application/javascript;charset=UTF-8')
         # As JsonPolling is requested using GET we must be very
         # carefull not to allow it being cached.
         self.verify_not_cached(r)
@@ -1051,7 +1051,7 @@ class JsonPolling(Test):
         # to respond with something - let it be the string `ok`.
         self.assertEqual(r.body, 'ok')
         self.assertEqual(r.status, 200)
-        self.assertEqual(r['Content-Type'], 'text/plain; charset=UTF-8')
+        self.verify_content_type(r, 'text/plain;charset=UTF-8')
         # iOS 6 caches POSTs. Make sure we send no-cache header.
         self.verify_not_cached(r)
 
@@ -1065,7 +1065,7 @@ class JsonPolling(Test):
         self.assertEqual(r.status, 500)
         self.assertTrue('"callback" parameter required' in r.body)
 
-    # The server must behave when invalid json data is send or when no
+    # The server must behave when invalid json data is sent or when no
     # json data is sent at all.
     def test_invalid_json(self):
         url = base_url + '/000/' + str(uuid.uuid4())
@@ -1202,11 +1202,11 @@ class JsessionidCookie(Test):
 # -------------------------------
 #
 # SockJS protocol defines a bit of higher level framing. This is okay
-# when the browser using SockJS-client establishes the connection, but
-# it's not really appropriate when the connection is being esablished
+# when the browser uses SockJS-client to establish the connection, but
+# it's not really appropriate when the connection is being established
 # from another program. Although SockJS focuses on server-browser
 # communication, it should be straightforward to connect to SockJS
-# from command line or some any programming language.
+# from the command line or using any programming language.
 #
 # In order to make writing command-line clients easier, we define this
 # `/websocket` entry point. This entry point is special and doesn't
@@ -1281,7 +1281,7 @@ class JSONEncoding(Test):
         # skip framing, quotes and parenthesis
         recv = r.body.strip()[2:-1]
 
-        # Received string is indeed what we send previously, aka - escaped.
+        # Received string is indeed what we sent previously, aka - escaped.
         self.assertEqual(recv, server_killer_string_esc)
 
     def test_xhr_server_decodes(self):
@@ -1301,7 +1301,7 @@ class JSONEncoding(Test):
         # skip framing, quotes and parenthesis
         recv = r.body.strip()[2:-1]
 
-        # Received string is indeed what we send previously. We don't
+        # Received string is indeed what we sent previously. We don't
         # really need to know what exactly got escaped and what not.
         a = json.loads(recv)
         b = json.loads(client_killer_string_esc)
@@ -1389,6 +1389,7 @@ class HandlingClose(Test):
         self.assertEqual(r1.body, 'o\n')
 
         r1 = old_POST_async(url + '/xhr', load=False)
+        time.sleep(0.25)
 
         # Can't do second polling request now.
         r2 = POST(url + '/xhr')

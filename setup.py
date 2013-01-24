@@ -8,6 +8,8 @@ version='2.0'
 
 install_requires = ['setuptools',
                     'pyramid >= 1.4',
+                    'gtulip',
+                    'gunicorn',
                     ]
 
 tests_require = install_requires + ['nose']
@@ -39,9 +41,4 @@ setup(name='pyramid_sockjs',
       test_suite = 'nose.collector',
       include_package_data = True,
       zip_safe = False,
-      entry_points = {
-          'paste.server_runner': [
-              'server = pyramid_sockjs.paster:tulip_server_runner',
-              ],
-          },
       )

@@ -30,22 +30,18 @@ class EventsourceTransport(Transport):
         except: # should use specific exception
             message = close_frame(2010, b"Another connection still open")
             write(b''.join((b'data: ', message, b'\r\n\r\n')))
-            return b''
+            return (b'',)
 
-        try:
-            size = 0
+        size = 0
 
-            while True:
-                self.wait = tulip.Task(session.wait())
-                try:
-                    tp, message = yield from self.wait
-                except tulip.CancelledError:
-                    session.close()
-                    session.closed()
-                    break
-                finally:
-                    self.wait = None
-
+        while size < self.maxsize:
+            self.wait = tulip.Task(tulip.wait((session.wait(),)))
+            try:
+                tp, message = (yield from self.wait)[0].pop().result()
+            except tulip.CancelledError:
+                session.close()
+                session.closed()
+            else:
                 write(b''.join((b'data: ', message, b'\r\n\r\n')))
 
                 if tp == CLOSE:
@@ -53,9 +49,6 @@ class EventsourceTransport(Transport):
                     break
 
                 size += len(message)
-                if size >= self.maxsize:
-                    break
-        finally:
-            session.release()
 
-        return b''
+        session.release()
+        return ()

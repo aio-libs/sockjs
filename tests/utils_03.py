@@ -100,7 +100,6 @@ class WebSocket8Client(object):
         if self.client:
             self.client.running = False
             self.client.close()
-            self.client.close_connection()
             self.client._th.join()
             self.client = None
 
@@ -223,7 +222,6 @@ class RawHttpConnection(object):
         data = []
         while size > 0:
             c = self.s.recv(size)
-            #print (repr(size), c)
             if not c:
                 raise Exception('Socket closed!')
             size -= len(c)

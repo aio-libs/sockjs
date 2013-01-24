@@ -29,7 +29,7 @@ class XHRSendTransport:
                 cors_headers(environ) + 
                 cache_headers())
             start_response('204 No Content', headers)
-            return b''
+            return (b'',)
 
         data = request.body_file.read()
         if not data:
@@ -52,4 +52,4 @@ class XHRSendTransport:
             session_cookie(request) + cors_headers(environ))
 
         start_response('204 No Content', headers)
-        return b''
+        return (b'',)

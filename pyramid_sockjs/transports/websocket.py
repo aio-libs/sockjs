@@ -2,8 +2,10 @@
 import hashlib
 import logging
 import struct
+import time
 import tulip
 from zope.interface import implementer
+from gunicorn.util import http_date
 from pyramid.interfaces import IResponse
 from pyramid.httpexceptions import HTTPException
 from pyramid_sockjs.protocol import CLOSE, decode, close_frame
@@ -27,12 +29,8 @@ class WebSocketTransport:
         session = self.session
 
         while True:
-            try:
-                tp, message = yield from session.wait()
-            except tulip.CancelledError:
-                break
-            else:
-                ws.send(message)
+            tp, message = yield from session.wait()
+            ws.send(message)
 
             if tp == CLOSE:
                 ws.close()
@@ -49,30 +47,22 @@ class WebSocketTransport:
                 message = yield from ws.receive()
             except Exception as err:
                 logging.exception(err)
-                session.close()
                 break
 
             if message == '':
                 continue
 
-            if message is None:
-                session.close()
-                session.closed()
-                ws.close()
+            elif message is None:
                 break
+            else:
+                try:
+                    if message.startswith('['):
+                        message = message[1:-1]
 
-            try:
-                if message.startswith('['):
-                    message = message[1:-1]
-
-                session.message(decode(message))
-            except:
-                ws.close(message=b'broken json')
-                session.close()
-                session.closed()
-                break
-
-        session.release()
+                    session.message(decode(message))
+                except:
+                    ws.close(message=b'broken json')
+                    break
 
     def __call__(self, environ, start_response):
         request = self.request
@@ -88,20 +78,14 @@ class WebSocketTransport:
             else:
                 status, headers, self.proto = init_websocket(request)
         except HTTPException as error: 
-            import traceback
-            traceback.print_exc()
             return error(environ, start_response)
 
         # send handshake headers
         if hixie_76:
-            write = request.environ['tulip.transport'].write
-
-            import time
-            from pyramid_sockjs.server import format_date_time
-
+            write = request.environ['tulip.write']
             towrite = [
                 ('HTTP/1.1 %s\r\n'%status).encode(),
-                ('Date: %s\r\n'%format_date_time(time.time())).encode()]
+                ('Date: %s\r\n'%http_date(time.time())).encode()]
 
             for key, val in headers:
                 towrite.append(b''.join(
@@ -112,7 +96,7 @@ class WebSocketTransport:
 
             part1, part2 = environ['wsgi.hixie_keys']
 
-            key3 = yield from environ['tulip.input'].read(8)
+            key3 = environ['wsgi.input'].read(8)
             body = hashlib.md5(struct.pack("!II", part1, part2) + key3).digest()
             write(body)
         else:
@@ -125,9 +109,14 @@ class WebSocketTransport:
             self.proto.send(b'o')
             self.proto.send(close_frame(2010, b"Another connection still open"))
             self.proto.close()
+            environ['tulip.closed'] = True
+            return ()
 
         yield from tulip.wait(
-            (self.send(), self.receive()),
-            return_when=tulip.FIRST_COMPLETED)
+            (self.send(), self.receive()), return_when=tulip.FIRST_COMPLETED)
 
+        self.session.closed()
+
+        # ugly hack
+        environ['tulip.closed'] = True
         return ()

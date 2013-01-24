@@ -52,8 +52,8 @@ def init_websocket(request):
              ("Sec-WebSocket-Accept", base64.b64encode(
                  hashlib.sha1((key + KEY).encode()).digest()).decode())],
             WebSocketHybi(
-                request.environ['tulip.input'].read,
-                request.environ['tulip.transport'].write,
+                request.environ['tulip.read'],
+                request.environ['tulip.write'],
                 request.environ))
 
 
@@ -65,9 +65,7 @@ class WebSocketHybi:
     OPCODE_PONG = 0xA
 
     def __init__(self, read, write, environ):
-        self.origin = environ.get('HTTP_SEC_WEBSOCKET_ORIGIN')
-        self.protocol = environ.get('HTTP_SEC_WEBSOCKET_PROTOCOL', 'unknown')
-        self.path = environ.get('PATH_INFO')
+        self.environ = environ
         self._chunks = bytearray()
 
         self._read = read
@@ -76,6 +74,7 @@ class WebSocketHybi:
         self.close_code = None
         self.close_message = None
         self._reading = False
+        self._closed = False
 
     def _parse_header(self, data):
         if len(data) != 2:
@@ -168,13 +167,14 @@ class WebSocketHybi:
 
             length = struct.unpack('!Q', data1)[0]
 
-        mask = yield from read(4)
-        if len(mask) != 4:
-            raise WebSocketError(
-                'Incomplete read while reading mask: %r' % (
-                    data0 + data1 + mask))
+        if has_mask:
+            mask = yield from read(4)
+            if len(mask) != 4:
+                raise WebSocketError(
+                    'Incomplete read while reading mask: %r' % (
+                        data0 + data1 + mask))
 
-        mask = struct.unpack('!BBBB', mask)
+            mask = struct.unpack('!BBBB', mask)
 
         if length:
             payload = yield from read(length)
@@ -200,7 +200,12 @@ class WebSocketHybi:
         result = bytearray()
 
         while True:
-            frame = yield from self._receive_frame()
+            try:
+                frame = yield from self._receive_frame()
+            except:
+                if self._closed:
+                    return
+                raise
             if frame is None:
                 if result:
                     raise WebSocketError('Peer closed connection unexpectedly')
@@ -266,7 +271,7 @@ class WebSocketHybi:
     def receive(self):
         result = yield from self._receive()
         if not result:
-            return result
+            return
 
         message, is_binary = result
         if is_binary:
@@ -292,7 +297,6 @@ class WebSocketHybi:
         else:
             raise FrameTooLargeException()
 
-        print ('ws:send', header + message)
         self._write(header + message)
 
     def send(self, message, binary=False):
@@ -304,9 +308,11 @@ class WebSocketHybi:
 
     def close(self, code=1000, message=b''):
         """Close the websocket, sending the specified code and message"""
-        self._send_frame(
-            struct.pack('!H%ds' % len(message), code, message), 
-            opcode=self.OPCODE_CLOSE)
+        if not self._closed:
+            self._send_frame(
+                struct.pack('!H%ds' % len(message), code, message),
+                opcode=self.OPCODE_CLOSE)
+            self._closed = True
 
 
 def reconstruct_url(environ):
@@ -352,11 +358,11 @@ def get_key_value(key_value):
 def init_websocket_hixie(request):
     environ = request.environ
 
-    read = request.environ['tulip.input'].read
+    read = request.environ['tulip.read']
 
     websocket = WebSocketHixie(
         read,
-        request.environ['tulip.transport'].write,
+        request.environ['tulip.write'],
         request.environ)
 
     key1 = environ.get('HTTP_SEC_WEBSOCKET_KEY1')
@@ -409,19 +415,21 @@ def init_websocket_hixie(request):
 class WebSocketHixie:
 
     def __init__(self, read, write, environ):
-        self.transport = environ['tulip.transport']
         self.origin = environ.get('HTTP_ORIGIN')
         self.protocol = environ.get('HTTP_SEC_WEBSOCKET_PROTOCOL')
         self.path = environ.get('PATH_INFO')
 
         self._read = read
         self._write = write
+        self._closed = False
 
     def send(self, message):
         self._write(b"\x00" + message + b"\xFF")
 
-    def close(self):
-        pass
+    def close(self, message=b''):
+        if not self._closed:
+            self._closed = True
+            self._write(b"\xFF")
 
     def _message_length(self):
         length = 0

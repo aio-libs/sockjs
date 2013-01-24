@@ -50,7 +50,7 @@ class JSONPolling(Response):
                 self.headers['Content-Length'] = str(len(body))
 
                 write = start_response('200 Ok', self._abs_headerlist(environ))
-                return [body]
+                return (body,)
 
             # get session
             try:
@@ -60,17 +60,19 @@ class JSONPolling(Response):
                 err = HTTPServerError(b"Another connection still open")
                 return err(environ, start_response)
 
-            _wait_task = tulip.Task(session.wait())
-            _stop_handler = tulip.get_event_loop().call_later(
-                self.timing, _wait_task.cancel)
-
+            self.wait = tulip.Task(tulip.wait((session.wait(),), self.timing))
             try:
-                tp, message = yield from _wait_task
-                _stop_handler.cancel()
-                if tp == CLOSE:
-                    session.closed()
+                done, pending = yield from self.wait
+                if done:
+                    tp, message = done.pop().result()
+                    if tp == CLOSE:
+                        session.closed()
+                else:
+                    message = b'a[]'
             except tulip.CancelledError:
-                message = b'a[]'
+                session.close()
+                session.closed()
+                message = b''
 
             body = b''.join((
                 callback.encode('utf-8'), b'(', encode(message), b');\r\n'))
@@ -78,7 +80,7 @@ class JSONPolling(Response):
 
             write = start_response(self.status, self._abs_headerlist(environ))
             session.release()
-            return [body]
+            return (body,)
 
         elif meth == "POST":
             data = request.body_file.read()
@@ -114,4 +116,4 @@ class JSONPolling(Response):
         else:
             raise Exception("No support for such method: %s"%meth)
 
-        return b''
+        return (b'',)

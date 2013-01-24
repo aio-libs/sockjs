@@ -84,8 +84,8 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
                  permission=permission, decorator=decorator)
 
     # start session gc
-    cfg.action('pyramid_sockjs:gc:%s'%name,
-               session_manager.start, order=999999+1)
+    #cfg.action('pyramid_sockjs:gc:%s'%name,
+    #           session_manager.start, order=999999+1)
 
 
 class SockJSRoute(object):
@@ -114,6 +114,8 @@ class SockJSRoute(object):
 
         # session
         manager = self.session_manager
+        if not manager.started:
+            manager.start()
 
         sid = matchdict['session']
         if not sid or '.' in sid or '.' in matchdict['server']:
