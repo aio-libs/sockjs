@@ -27,7 +27,7 @@ PRELUDE2 = b""";
 
 class HTMLFileTransport(Transport):
 
-    maxsize = 131072 # 128K bytes
+    maxsize = 131072  # 128K bytes
 
     def __call__(self, environ, start_response):
         session = self.session
@@ -35,7 +35,8 @@ class HTMLFileTransport(Transport):
 
         headers = list(chain(
             (('Content-Type', 'text/html; charset=UTF-8'),
-             ('Cache-Control','no-store, no-cache, must-revalidate, max-age=0'),
+             ('Cache-Control',
+              'no-store, no-cache, must-revalidate, max-age=0'),
              ("Connection", "close")),
             session_cookie(request), cors_headers(environ)))
 
@@ -45,7 +46,8 @@ class HTMLFileTransport(Transport):
             return (b'"callback" parameter required',)
 
         write = start_response('200 Ok', headers)
-        write(b''.join((PRELUDE1,callback.encode('utf-8'),PRELUDE2,b' '*1024)))
+        write(b''.join(
+            (PRELUDE1, callback.encode('utf-8'), PRELUDE2, b' '*1024)))
 
         # get session
         session = self.session

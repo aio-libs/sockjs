@@ -1,18 +1,14 @@
 import os
-import sys
-import logging
-import multiprocessing # atexit exception
 from setuptools import setup, find_packages
 
-version='2.0'
+version = '2.0'
 
 install_requires = ['setuptools',
-                    'pyramid >= 1.4',
-                    'gtulip',
-                    'gunicorn',
-                    ]
+                    'tulip',
+                    'pyramid >= 1.4']
 
 tests_require = install_requires + ['nose']
+
 
 def read(f):
     return open(os.path.join(os.path.dirname(__file__), f)).read().strip()

@@ -1,8 +1,6 @@
 import random
 import logging
 import hashlib
-from datetime import datetime, timedelta
-from pyramid.response import Response
 from pyramid.exceptions import ConfigurationError
 from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
 
@@ -36,7 +34,7 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
         cfg.registry.__sockjs_managers__ = {}
 
     if name in cfg.registry.__sockjs_managers__:
-        raise ConfigurationError("SockJS '%s' route already registered"%name)
+        raise ConfigurationError("SockJS '%s' route already registered" % name)
 
     cfg.registry.__sockjs_managers__[name] = session_manager
 
@@ -48,38 +46,38 @@ def add_sockjs_route(cfg, name='', prefix='/__sockjs__',
     if prefix.endswith('/'):
         prefix = prefix[:-1]
 
-    route_name = 'sockjs-url-%s-greeting'%name
+    route_name = 'sockjs-url-%s-greeting' % name
     cfg.add_route(route_name, prefix)
     cfg.add_view(route_name=route_name, view=sockjs.greeting,
                  permission=permission, decorator=decorator)
 
-    route_name = 'sockjs-url-%s'%name
-    cfg.add_route(route_name, '%s/'%prefix)
+    route_name = 'sockjs-url-%s' % name
+    cfg.add_route(route_name, '%s/' % prefix)
     cfg.add_view(route_name=route_name, view=sockjs.greeting,
                  permission=permission, decorator=decorator)
 
-    route_name = 'sockjs-%s'%name
-    cfg.add_route(route_name, '%s/{server}/{session}/{transport}'%prefix)
+    route_name = 'sockjs-%s' % name
+    cfg.add_route(route_name, '%s/{server}/{session}/{transport}' % prefix)
     cfg.add_view(route_name=route_name, view=sockjs.handler,
                  permission=permission, decorator=decorator)
 
-    route_name = 'sockjs-websocket-%s'%name
-    cfg.add_route(route_name, '%s/websocket'%prefix)
+    route_name = 'sockjs-websocket-%s' % name
+    cfg.add_route(route_name, '%s/websocket' % prefix)
     cfg.add_view(route_name=route_name, view=sockjs.websocket,
                  permission=permission, decorator=decorator)
 
-    route_name = 'sockjs-info-%s'%name
-    cfg.add_route(route_name, '%s/info'%prefix)
+    route_name = 'sockjs-info-%s' % name
+    cfg.add_route(route_name, '%s/info' % prefix)
     cfg.add_view(route_name=route_name, view=sockjs.info,
                  permission=permission, decorator=decorator)
 
-    route_name = 'sockjs-iframe-%s'%name
-    cfg.add_route(route_name, '%s/iframe.html'%prefix)
+    route_name = 'sockjs-iframe-%s' % name
+    cfg.add_route(route_name, '%s/iframe.html' % prefix)
     cfg.add_view(route_name=route_name, view=sockjs.iframe,
                  permission=permission, decorator=decorator)
 
-    route_name = 'sockjs-iframe-ver-%s'%name
-    cfg.add_route(route_name, '%s/iframe{version}.html'%prefix)
+    route_name = 'sockjs-iframe-ver-%s' % name
+    cfg.add_route(route_name, '%s/iframe{version}.html' % prefix)
     cfg.add_view(route_name=route_name, view=sockjs.iframe,
                  permission=permission, decorator=decorator)
 
@@ -95,10 +93,10 @@ class SockJSRoute(object):
                  per_user=True):
         self.name = name
         self.session_manager = session_manager
-        self.disable_transports = dict((k,1) for k in disable_transports)
+        self.disable_transports = dict((k, 1) for k in disable_transports)
         self.cookie_needed = cookie_needed
         self.per_user = per_user
-        self.iframe_html = (IFRAME_HTML%sockjs_cdn).encode('utf-8')
+        self.iframe_html = (IFRAME_HTML % sockjs_cdn).encode('utf-8')
         self.iframe_html_hxd = hashlib.md5(self.iframe_html).hexdigest()
 
     def handler(self, request):
@@ -135,7 +133,7 @@ class SockJSRoute(object):
             return transport(session, request)
         except Exception as exc:
             session.release()
-            log.exception('Exception in transport: %s'%tid)
+            log.exception('Exception in transport: %s' % tid)
             return HTTPBadRequest(str(exc))
 
     def websocket(self, request):
@@ -157,14 +155,15 @@ class SockJSRoute(object):
             return RawWebSocketTransport(session, request)
         except Exception as exc:
             session.release()
-            log.exception('Exception in transport: %s'%tid)
+            log.exception('Exception in transport: %s' % tid)
             return HTTPBadRequest(str(exc))
 
     def info(self, request):
         response = request.response
         response.content_type = 'application/json; charset=UTF-8'
         response.headerlist.append(
-            ('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'))
+            ('Cache-Control',
+             'no-store, no-cache, must-revalidate, max-age=0'))
         response.headerlist.extend(cors_headers(request.environ))
 
         if request.method == 'OPTIONS':

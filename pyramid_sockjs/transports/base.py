@@ -3,7 +3,6 @@ from pyramid.interfaces import IResponse
 
 
 @implementer(IResponse)
-
 class Transport:
 
     wait = None

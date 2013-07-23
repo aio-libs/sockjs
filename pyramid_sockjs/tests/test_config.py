@@ -54,24 +54,24 @@ class AddSockJSRouteTestCase(BaseTestCase):
         name = ''
         self.config.add_sockjs_route()
 
-        self.assertIn('sockjs-%s'%name, self._routes)
-        self.assertIn('sockjs-info-%s'%name, self._routes)
-        self.assertIn('sockjs-iframe-%s'%name, self._routes)
-        self.assertIn('sockjs-iframe-ver-%s'%name, self._routes)
+        self.assertIn('sockjs-%s' % name, self._routes)
+        self.assertIn('sockjs-info-%s' % name, self._routes)
+        self.assertIn('sockjs-iframe-%s' % name, self._routes)
+        self.assertIn('sockjs-iframe-ver-%s' % name, self._routes)
 
-        self.assertIn(self._routes['sockjs-%s'%name],
+        self.assertIn(self._routes['sockjs-%s' % name],
                       '/__sockjs__/{server}/{session}/{transport}')
-        self.assertIn(self._routes['sockjs-info-%s'%name],
+        self.assertIn(self._routes['sockjs-info-%s' % name],
                       '/__sockjs__/info')
-        self.assertIn(self._routes['sockjs-iframe-%s'%name],
+        self.assertIn(self._routes['sockjs-iframe-%s' % name],
                       '/__sockjs__/iframe.html')
-        self.assertIn(self._routes['sockjs-iframe-ver-%s'%name],
+        self.assertIn(self._routes['sockjs-iframe-ver-%s' % name],
                       '/__sockjs__/iframe{version}.html')
 
-        self.assertIn('sockjs-%s'%name, self._views)
-        self.assertIn('sockjs-info-%s'%name, self._views)
-        self.assertIn('sockjs-iframe-%s'%name, self._views)
-        self.assertIn('sockjs-iframe-ver-%s'%name, self._views)
+        self.assertIn('sockjs-%s' % name, self._views)
+        self.assertIn('sockjs-info-%s' % name, self._views)
+        self.assertIn('sockjs-iframe-%s' % name, self._views)
+        self.assertIn('sockjs-iframe-ver-%s' % name, self._views)
 
     def test_permission_decorator(self):
         name = ''
@@ -83,10 +83,10 @@ class AddSockJSRouteTestCase(BaseTestCase):
 
         val = (permission, decorator)
 
-        self.assertEqual(val, self._views_info['sockjs-%s'%name])
-        self.assertEqual(val, self._views_info['sockjs-info-%s'%name])
-        self.assertEqual(val, self._views_info['sockjs-iframe-%s'%name])
-        self.assertEqual(val, self._views_info['sockjs-iframe-ver-%s'%name])
+        self.assertEqual(val, self._views_info['sockjs-%s' % name])
+        self.assertEqual(val, self._views_info['sockjs-info-%s' % name])
+        self.assertEqual(val, self._views_info['sockjs-iframe-%s' % name])
+        self.assertEqual(val, self._views_info['sockjs-iframe-ver-%s' % name])
 
     def test_config_error(self):
         self.config.add_sockjs_route('route')
@@ -97,15 +97,15 @@ class AddSockJSRouteTestCase(BaseTestCase):
         name = 'chat-service'
         self.config.add_sockjs_route(name)
 
-        self.assertIn('sockjs-%s'%name, self._routes)
-        self.assertIn('sockjs-info-%s'%name, self._routes)
-        self.assertIn('sockjs-iframe-%s'%name, self._routes)
-        self.assertIn('sockjs-iframe-ver-%s'%name, self._routes)
+        self.assertIn('sockjs-%s' % name, self._routes)
+        self.assertIn('sockjs-info-%s' % name, self._routes)
+        self.assertIn('sockjs-iframe-%s' % name, self._routes)
+        self.assertIn('sockjs-iframe-ver-%s' % name, self._routes)
 
-        self.assertIn('sockjs-%s'%name, self._views)
-        self.assertIn('sockjs-info-%s'%name, self._views)
-        self.assertIn('sockjs-iframe-%s'%name, self._views)
-        self.assertIn('sockjs-iframe-ver-%s'%name, self._views)
+        self.assertIn('sockjs-%s' % name, self._views)
+        self.assertIn('sockjs-info-%s' % name, self._views)
+        self.assertIn('sockjs-iframe-%s' % name, self._views)
+        self.assertIn('sockjs-iframe-ver-%s' % name, self._views)
 
     def test_custom_prefix(self):
         name = ''
@@ -113,13 +113,13 @@ class AddSockJSRouteTestCase(BaseTestCase):
 
         self.config.add_sockjs_route(name, prefix=prefix)
 
-        self.assertIn(self._routes['sockjs-%s'%name],
+        self.assertIn(self._routes['sockjs-%s' % name],
                       '/__chat__/{server}/{session}/{transport}')
-        self.assertIn(self._routes['sockjs-info-%s'%name],
+        self.assertIn(self._routes['sockjs-info-%s' % name],
                       '/__chat__/info')
-        self.assertIn(self._routes['sockjs-iframe-%s'%name],
+        self.assertIn(self._routes['sockjs-iframe-%s' % name],
                       '/__chat__/iframe.html')
-        self.assertIn(self._routes['sockjs-iframe-ver-%s'%name],
+        self.assertIn(self._routes['sockjs-iframe-ver-%s' % name],
                       '/__chat__/iframe{version}.html')
 
     def test_session_manager_name(self):
@@ -135,7 +135,6 @@ class AddSockJSRouteTestCase(BaseTestCase):
             pyramid_sockjs.SessionManager)
 
     def test_get_session_manager_default(self):
-        import pyramid_sockjs
         self.config.add_sockjs_route()
 
         request = Request(self._environ)
@@ -171,8 +170,6 @@ class AddSockJSRouteTestCase(BaseTestCase):
             KeyError, request.get_sockjs_manager, 'test')
 
     def test_get_session_manager_name(self):
-        import pyramid_sockjs
-
         name = 'example'
         self.config.add_sockjs_route(name)
 
@@ -191,8 +188,6 @@ class AddSockJSRouteTestCase(BaseTestCase):
         self.assertIs(self.registry.__sockjs_managers__[name], sm)
 
     def test_get_session_manager_name_internal(self):
-        import pyramid_sockjs
-
         name = 'example'
         self.config.add_sockjs_route(name)
 
@@ -242,8 +237,6 @@ class AddSockJSRouteTestCase(BaseTestCase):
 class SessionManagerRouteUrlTestCase(BaseTestCase):
 
     def test_session_manager_route_url(self):
-        import pyramid_sockjs
-
         name = 'example'
         self.config.add_sockjs_route(name, prefix='/chat-service')
         self.config.commit()

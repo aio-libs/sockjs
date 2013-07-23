@@ -1,4 +1,3 @@
-import gevent
 from datetime import datetime, timedelta
 
 from base import BaseTestCase
@@ -114,7 +113,7 @@ class SessionTestCase(BaseTestCase):
         self.assertTrue(session.expired)
 
     def test_send(self):
-        from pyramid_sockjs import Session, protocol
+        from pyramid_sockjs import Session
         session = Session('id')
         session.manager = _SM()
 
@@ -122,7 +121,7 @@ class SessionTestCase(BaseTestCase):
         self.assertEqual(session.queue.get(), ['message'])
 
     def test_send_string(self):
-        from pyramid_sockjs import Session, protocol
+        from pyramid_sockjs import Session
         session = Session('id')
         session.manager = _SM()
 
@@ -130,7 +129,7 @@ class SessionTestCase(BaseTestCase):
         self.assertEqual(session.queue.get(), 'message')
 
     def test_send_tick(self):
-        from pyramid_sockjs import Session, protocol
+        from pyramid_sockjs import Session
         session = Session('id')
         session.manager = _SM()
 
@@ -187,6 +186,7 @@ class SessionTestCase(BaseTestCase):
 
     def test_open_on_open_exception(self):
         from pyramid_sockjs import Session, STATE_OPEN
+
         class TestSession(Session):
             def on_open(self):
                 raise Exception()
@@ -223,6 +223,7 @@ class SessionTestCase(BaseTestCase):
 
     def test_message_on_message_exception(self):
         from pyramid_sockjs import Session
+
         class TestSession(Session):
             def on_message(self, msg):
                 raise Exception()
@@ -233,7 +234,7 @@ class SessionTestCase(BaseTestCase):
         err = None
         try:
             session.message('message')
-        except Exception as exc: # pragma: no cover
+        except Exception as exc:
             err = exc
 
         self.assertIsNone(err)
@@ -250,6 +251,7 @@ class SessionTestCase(BaseTestCase):
         from pyramid_sockjs import Session
 
         closing = []
+
         class TestSession(Session):
             def on_close(self):
                 closing.append(True)
@@ -261,6 +263,7 @@ class SessionTestCase(BaseTestCase):
 
     def test_close_on_message_exception(self):
         from pyramid_sockjs import Session
+
         class TestSession(Session):
             def on_close(self):
                 raise Exception()
@@ -271,7 +274,7 @@ class SessionTestCase(BaseTestCase):
         err = None
         try:
             session.close()
-        except Exception as exc: # pragma: no cover
+        except Exception as exc:
             err = exc
 
         self.assertIsNone(err)
@@ -288,6 +291,7 @@ class SessionTestCase(BaseTestCase):
         from pyramid_sockjs import Session
 
         closed = []
+
         class TestSession(Session):
             def on_closed(self):
                 closed.append(True)
@@ -299,6 +303,7 @@ class SessionTestCase(BaseTestCase):
 
     def test_closed_on_message_exception(self):
         from pyramid_sockjs import Session, STATE_CLOSED
+
         class TestSession(Session):
             def on_closed(self):
                 raise Exception()
@@ -309,7 +314,7 @@ class SessionTestCase(BaseTestCase):
         err = None
         try:
             session.closed()
-        except Exception as exc: # pragma: no cover
+        except Exception as exc:
             err = exc
 
         self.assertIsNone(err)
@@ -324,7 +329,7 @@ class GcThreadTestCase(BaseTestCase):
         self.gc_executed = False
 
         def gc(s):
-            self.gc_executed = True # pragma: no cover
+            self.gc_executed = True
 
         from pyramid_sockjs.session import SessionManager
 
@@ -519,7 +524,7 @@ class SessionManagerTestCase(BaseTestCase):
         session = Session('id')
         sm._add(session)
 
-        s = sm.acquire(session)
+        sm.acquire(session)
 
         self.assertRaises(KeyError, sm.acquire, session)
 

@@ -44,7 +44,7 @@ class InteractiveShell(Session):
             self.shell_worker.start()
 
     def write(self, data):
-        print data,
+        print(data)
 
     def on_open(self):
         self.shell = code.InteractiveInterpreter(

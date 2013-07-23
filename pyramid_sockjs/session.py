@@ -1,11 +1,9 @@
 import tulip
 import logging
 import collections
-from heapq import heappush, heappop
 from datetime import datetime, timedelta
-from pyramid.compat import string_types
-from pyramid_sockjs.protocol import encode, decode, message_frame, close_frame
-from pyramid_sockjs.protocol import OPEN, CLOSE, MESSAGE, HEARTBEAT, FRAMES
+from pyramid_sockjs.protocol import message_frame, close_frame
+from pyramid_sockjs.protocol import OPEN, CLOSE, MESSAGE, HEARTBEAT
 from pyramid_sockjs.exceptions import SessionIsAcquired
 
 log = logging.getLogger('pyramid_sockjs')
@@ -159,9 +157,9 @@ class Session(object):
                 yield from self._waiter
 
         # cleanup HB
-        hb = None
-        while self._queue and (self._queue[0][0] == HEARTBEAT):
-            hb = self._queue.popleft()
+        #hb = None
+        #while self._queue and (self._queue[0][0] == HEARTBEAT):
+        #    hb = self._queue.popleft()
 
         # join message frames
         messages = []
@@ -230,15 +228,14 @@ _marker = object()
 
 
 class SessionManager(dict):
-    """ A basic session manager """
+    """A basic session manager."""
 
-    _hb_cb = None
-    started = False
+    _hb_timer = None  # heartbeat event loop timer
 
     def __init__(self, name, registry, session=Session,
                  heartbeat=7.0, timeout=timedelta(seconds=10)):
         self.name = name
-        self.route_name = 'sockjs-url-%s'%name
+        self.route_name = 'sockjs-url-%s' % name
         self.registry = registry
         self.factory = session
         self.acquired = {}
@@ -250,16 +247,22 @@ class SessionManager(dict):
     def route_url(self, request):
         return request.route_url(self.route_name)
 
+    @property
+    def started(self):
+        return self._hb_timer is not None
+
     def start(self):
-        if not self.started:
-            self.started = True
-            el = tulip.get_event_loop()
-            self._hb_cb = el.call_repeatedly(self.heartbeat, self._heartbeat)
+        if not self._hb_timer:
+            loop = tulip.get_event_loop()
+            self._hb_timer = loop.call_later(
+                self.heartbeat, self._heartbeat, loop)
 
     def stop(self):
-        if self._hb_cb: self._hb_cb.cancel()
+        if self._hb_timer:
+            self._hb_timer.cancel()
+            self._hb_timer = None
 
-    def _heartbeat(self):
+    def _heartbeat(self, loop):
         sessions = self.sessions
 
         if sessions:
@@ -287,6 +290,9 @@ class SessionManager(dict):
                     session.heartbeat(expires)
 
                 idx += 1
+
+        self._hb_timer = loop.call_later(
+            self.heartbeat, self._heartbeat, loop)
 
     def on_session_gc(self, session):
         return session.on_remove()

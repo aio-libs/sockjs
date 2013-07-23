@@ -1,7 +1,5 @@
-""" raw websocket transport """
-import hashlib
+"""raw websocket transport."""
 import logging
-import struct
 import tulip
 from zope.interface import implementer
 from pyramid.interfaces import IResponse
@@ -12,7 +10,6 @@ from .wsproto import init_websocket
 
 
 @implementer(IResponse)
-
 class RawWebSocketTransport:
 
     def __init__(self, session, request):
@@ -59,7 +56,7 @@ class RawWebSocketTransport:
         # init websocket protocol
         try:
             status, headers, self.proto = init_websocket(request)
-        except HTTPException as error: 
+        except HTTPException as error:
             return error(environ, start_response)
 
         # send handshake headers
@@ -68,6 +65,7 @@ class RawWebSocketTransport:
 
         self.session.acquire(request)
 
+        self.proto.send(b'hello')
         yield from tulip.wait(
             (self.send(), self.receive()), return_when=tulip.FIRST_COMPLETED)
 

@@ -1,4 +1,5 @@
-""" Exceptions """
+"""Exceptions"""
+
 
 class SockjsException(Exception):
     """ Base sockjs exception """

@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import sys
 from pyramid_sockjs.session import Session
 
 

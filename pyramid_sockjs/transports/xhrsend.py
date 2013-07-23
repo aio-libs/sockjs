@@ -7,7 +7,6 @@ from .utils import session_cookie, cors_headers, cache_headers
 
 
 @implementer(IResponse)
-
 class XHRSendTransport:
 
     def __init__(self, session, request):
@@ -25,8 +24,8 @@ class XHRSendTransport:
             headers = list(
                 (("Access-Control-Allow-Methods", "OPTIONS, POST"),
                  ('Content-Type', 'application/javascript; charset=UTF-8')) +
-                session_cookie(request) + 
-                cors_headers(environ) + 
+                session_cookie(request) +
+                cors_headers(environ) +
                 cache_headers())
             start_response('204 No Content', headers)
             return (b'',)

@@ -1,8 +1,5 @@
-import time
 import hashlib
-from email import utils
 from datetime import datetime
-from pyramid.compat import string_types
 
 _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -14,8 +11,8 @@ _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
 # Fastest
 try:
     import ujson as json
-    kwargs = {} # pragma: no cover
-except ImportError: # pragma: no cover
+    kwargs = {}  # pragma: no cover
+except ImportError:  # pragma: no cover
     def dthandler(obj):
         if isinstance(obj, datetime):
             now = obj.timetuple()
@@ -36,9 +33,9 @@ except ImportError: # pragma: no cover
 # Frames
 # ------
 
-OPEN      = b"o"
-CLOSE     = b"c"
-MESSAGE   = b"a"
+OPEN = b"o"
+CLOSE = b"c"
+MESSAGE = b"a"
 HEARTBEAT = b"h"
 
 
@@ -66,17 +63,22 @@ IFRAME_MD5 = hashlib.md5(IFRAME_HTML.encode()).hexdigest()
 
 decode = json.loads
 
+
 def encode(data):
     return json.dumps(data, **kwargs).encode()
+
 
 def close_frame(code, reason):
     return CLOSE + b'[' + str(code).encode() + b',' + encode(reason) + b']'
 
+
 def message_frame(message):
     return MESSAGE + encode([message])
 
+
 def heartbeat_frame():
     return 'h'
+
 
 FRAMES = {
     CLOSE: close_frame,

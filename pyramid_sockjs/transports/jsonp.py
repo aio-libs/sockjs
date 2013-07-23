@@ -1,18 +1,14 @@
 """ jsonp transport """
 import tulip
 from urllib.parse import unquote_plus
-from pyramid.compat import url_unquote
 from pyramid.response import Response
-from pyramid.httpexceptions import HTTPBadRequest, HTTPServerError
+from pyramid.httpexceptions import HTTPServerError
 
-from pyramid_sockjs import STATE_NEW
-from pyramid_sockjs import STATE_OPEN
-from pyramid_sockjs import STATE_CLOSING
 from pyramid_sockjs import STATE_CLOSED
-from pyramid_sockjs.protocol import OPEN, CLOSE
-from pyramid_sockjs.protocol import encode, decode, close_frame, message_frame
+from pyramid_sockjs.protocol import CLOSE
+from pyramid_sockjs.protocol import encode, decode, close_frame
 
-from .utils import session_cookie, cors_headers
+from .utils import session_cookie
 
 
 class JSONPolling(Response):
@@ -26,15 +22,14 @@ class JSONPolling(Response):
 
         self.headers['Content-Type'] = 'application/javascript; charset=UTF-8'
         self.headerlist.append(
-            ('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'))
+            ('Cache-Control',
+             'no-store, no-cache, must-revalidate, max-age=0'))
         self.headerlist.extend(session_cookie(request))
 
     def __call__(self, environ, start_response):
         session = self.session
         request = self.request
-
         meth = request.method
-        response = request.response
 
         if meth == "GET":
             callback = request.GET.get('c', None)
@@ -46,7 +41,8 @@ class JSONPolling(Response):
             if session.state == STATE_CLOSED:
                 message = close_frame(3000, b'Go away!')
                 body = b''.join((
-                    callback.encode('utf-8'), b'(', encode(message), b');\r\n'))
+                    callback.encode('utf-8'),
+                    b'(', encode(message), b');\r\n'))
                 self.headers['Content-Length'] = str(len(body))
 
                 write = start_response('200 Ok', self._abs_headerlist(environ))
@@ -55,7 +51,7 @@ class JSONPolling(Response):
             # get session
             try:
                 session.acquire(request, False)
-            except: # should use specific exception
+            except:  # should use specific exception
                 #write(close_frame(2010, b"Another connection still open"))
                 err = HTTPServerError(b"Another connection still open")
                 return err(environ, start_response)
@@ -114,6 +110,6 @@ class JSONPolling(Response):
             write(body)
 
         else:
-            raise Exception("No support for such method: %s"%meth)
+            raise Exception("No support for such method: %s" % meth)
 
         return (b'',)

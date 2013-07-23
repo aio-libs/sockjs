@@ -2,7 +2,7 @@ from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
 
 from pyramid_sockjs import protocol
 
-from base import BaseTestCase, SocketMock
+from base import BaseTestCase
 
 
 class BaseSockjs(BaseTestCase):
@@ -130,7 +130,7 @@ class TestSockJSRoute(BaseSockjs):
 
         self.request.matchdict = {
             'transport': 'xhr', 'session': 'session', 'server': '000'}
-        res = route.handler(self.request)
+        route.handler(self.request)
         self.assertIn('wsgi.sockjs_session', self.request.environ)
 
         from pyramid_sockjs.session import Session
@@ -139,6 +139,7 @@ class TestSockJSRoute(BaseSockjs):
 
     def test_fail_transport(self):
         from pyramid_sockjs.transports import handlers
+
         def fail(session, request):
             raise Exception('Error')
 
@@ -155,6 +156,7 @@ class TestSockJSRoute(BaseSockjs):
 
     def test_release_session_for_failed_transport(self):
         from pyramid_sockjs.transports import handlers
+
         def fail(session, request):
             session.acquire()
             raise Exception('Error')
@@ -165,7 +167,7 @@ class TestSockJSRoute(BaseSockjs):
 
         self.request.matchdict = {
             'transport': 'test', 'session': 'session', 'server': '000'}
-        res = route.handler(self.request)
+        route.handler(self.request)
 
         session = route.session_manager[(None, 'session')]
         self.assertFalse(route.session_manager.is_acquired(session))
@@ -184,6 +186,7 @@ class TestWebSocketRoute(BaseSockjs):
         self.orig = handlers['websocket']
 
         self.init = []
+
         def websocket(session, request):
             self.init.append(True)
 
@@ -191,6 +194,7 @@ class TestWebSocketRoute(BaseSockjs):
 
         # init
         self.raise_init = False
+
         def init_websocket(request):
             if self.raise_init:
                 return HTTPNotFound('error')

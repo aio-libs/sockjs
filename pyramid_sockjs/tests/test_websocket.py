@@ -1,7 +1,6 @@
 from pyramid.testing import DummyRequest
 from pyramid.response import Response
-from pyramid.httpexceptions import \
-     HTTPNotFound, HTTPBadRequest, HTTPMethodNotAllowed
+from pyramid.httpexceptions import HTTPBadRequest
 
 from base import BaseTestCase, SocketMock
 
@@ -101,7 +100,7 @@ class WebSoscketHandshake(BaseTestCase):
                      'HTTP_CONNECTION': 'keep-alive, upgrade',
                      'HTTP_SEC_WEBSOCKET_VERSION': '8',
                      'SERVER_PROTOCOL': 'HTTP/1.1',
-                     'HTTP_SEC_WEBSOCKET_KEY': None,})
+                     'HTTP_SEC_WEBSOCKET_KEY': None})
         request.method = 'GET'
 
         res = init_websocket(request)
@@ -144,7 +143,7 @@ class WebSoscketHandshake(BaseTestCase):
         orig = websocket.WebSocketHybi
         websocket.WebSocketHybi = WS
         try:
-            ws = init_websocket(request)
+            init_websocket(request)
         finally:
             websocket.WebSocketHybi = orig
 

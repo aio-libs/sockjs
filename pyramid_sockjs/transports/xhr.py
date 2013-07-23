@@ -9,8 +9,8 @@ from .utils import session_cookie, cors_headers, cache_headers
 
 
 class XHRTransport(Transport):
-    """ Long polling derivative transports, 
-        used for XHRPolling and JSONPolling. """
+    """Long polling derivative transports,
+    used for XHRPolling and JSONPolling."""
 
     timing = 5.0
 
@@ -21,7 +21,9 @@ class XHRTransport(Transport):
             headers = list(chain(
                 (('Content-Type', 'application/javascript; charset=UTF-8'),
                  ("Access-Control-Allow-Methods", "OPTIONS, POST")),
-                session_cookie(request),cors_headers(environ),cache_headers()))
+                session_cookie(request),
+                cors_headers(environ),
+                cache_headers()))
             start_response('204 No Content', headers)
             return (b'',)
 
@@ -42,15 +44,15 @@ class XHRTransport(Transport):
                 message = close_frame(
                     2010, b"Another connection still open")+b'\n'
             else:
-                self.wait = tulip.Task(
-                    tulip.wait((session.wait(),), self.timing))
+                self.wait = tulip.Task(session.wait())
+                tulip.get_event_loop().call_later(
+                    self.timing, self.wait.cancel)
 
-                done, pending = yield from self.wait
-                if done:
-                    tp, message = done.pop().result()
+                try:
+                    tp, message = yield from self.wait
                     if tp == CLOSE:
                         session.closed()
-                else:
+                except tulip.CancelledError:
                     message = b'a[]'
 
                 session.release()
@@ -59,7 +61,7 @@ class XHRTransport(Transport):
         headers = list(chain(
             (('Content-Type', 'application/javascript; charset=UTF-8'),
              ('Content-Length', str(len(message))),
-             ('Cache-Control', 
+             ('Cache-Control',
               'no-store, no-cache, must-revalidate, max-age=0')),
             session_cookie(request), cors_headers(environ)))
 

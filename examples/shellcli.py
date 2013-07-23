@@ -4,6 +4,12 @@ import code
 import json
 import Queue
 import signal
+try:
+    import readline
+    readline  # pyflakes
+except ImportError:
+    pass
+
 
 class ConnectionClosedException(Exception):
     pass
@@ -16,9 +22,11 @@ class WebSocket8Client(object):
         self.queue = queue
 
         from ws4py.client.threadedclient import WebSocketClient
+
         class IntWebSocketClient(WebSocketClient):
             def received_message(self, m):
                 queue.put_nowait(json.loads(str(m)))
+
             def read_from_connection(self, amount):
                 try:
                     r = super(
@@ -62,21 +70,21 @@ class InteractiveConsole(code.InteractiveConsole):
 
         self.host = host
         self.count = 0
-        print 'Connecting...'
+        print('Connecting...')
         self.ws = WebSocket8Client(host)
 
         r = self.ws.recv()
         if r is not None:
-            print r['out'],
+            print(r['out'],)
 
     def runsource(self, source, filename='<input>'):
         try:
             if source:
                 return self.runsource_ws(source, filename)
         except ConnectionClosedException:
-            print "Interactive shell has been disconnected. reconnecting..."
+            print("Interactive shell has been disconnected. reconnecting...")
             self.ws = WebSocket8Client(self.host)
-            self.ws.recv() # read welcome msg
+            self.ws.recv()  # read welcome msg
             return self.runsource_ws(source, filename)
 
     def runsource_ws(self, source, filename='<input>'):
@@ -90,7 +98,7 @@ class InteractiveConsole(code.InteractiveConsole):
             r = self.ws.recv()
             if r is not None:
                 if not r['more'] and r['out']:
-                    print r['out'],
+                    print(r['out'],)
                 if r['complete']:
                     return r['more']
             else:
@@ -121,17 +129,12 @@ def shell():
     signal.signal(signal.SIGINT, process_shutdown)
     signal.signal(signal.SIGTERM, process_shutdown)
 
-    try:
-        import readline
-    except ImportError:
-        pass
-
     host = sys.argv[1]
     if not host.endswith('/websocket'):
         if host.endswith('/'):
-            host = '%swebsocket'%host
+            host = '%swebsocket' % host
         else:
-            host = '%s/websocket'%host
+            host = '%s/websocket' % host
 
     console = InteractiveConsole(host)
     console.interact('')

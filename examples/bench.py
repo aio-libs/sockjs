@@ -8,7 +8,7 @@ class EchoSession(Session):
 
     @classmethod
     def dump_stats(self):
-        print 'Clients: %d' % (len(self.clients))
+        print('Clients: %d' % len(self.clients))
 
 
 if __name__ == '__main__':

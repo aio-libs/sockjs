@@ -1,5 +1,4 @@
 import tulip
-from webob.cookies import Morsel
 from pyramid_sockjs import STATE_CLOSED
 from pyramid_sockjs.protocol import CLOSE, close_frame
 from pyramid_sockjs.exceptions import SessionIsAcquired
@@ -10,22 +9,24 @@ from .utils import session_cookie, cors_headers, cache_headers
 
 class XHRStreamingTransport(Transport):
 
-    maxsize = 131072 # 128K bytes
-    open_seq = b'h' *  2048 + b'\n'
+    maxsize = 131072  # 128K bytes
+    open_seq = b'h' * 2048 + b'\n'
 
     def __init__(self, session, request):
         super(XHRStreamingTransport, self).__init__(session, request)
 
         if request.method not in ('GET', 'POST', 'OPTIONS'):
-            raise Exception("No support for such method: %s"%meth)
+            raise Exception("No support for such method: %s" % request.meth)
 
     def __call__(self, environ, start_response):
         request = self.request
         headers = list(
             (('Connection', 'close'),
              ('Content-Type', 'application/javascript; charset=UTF-8'),
-             ('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-         ) + session_cookie(request) + cors_headers(environ))
+             ('Cache-Control',
+              'no-store, no-cache, must-revalidate, max-age=0')) +
+            session_cookie(request) + cors_headers(environ)
+        )
 
         if request.method == 'OPTIONS':
             headers.append(
@@ -53,18 +54,20 @@ class XHRStreamingTransport(Transport):
             try:
                 session.acquire(self.request)
             except SessionIsAcquired:
-                write(close_frame(2010, b"Another connection still open")+b'\n')
+                write(close_frame(
+                    2010, b"Another connection still open") + b'\n')
             else:
                 # message loop
                 size = 0
 
                 while size < self.maxsize:
-                    self.wait = tulip.Task(tulip.wait((session.wait(),)))
+                    self.wait = tulip.Task(session.wait())
                     try:
-                        tp, message = (yield from self.wait)[0].pop().result()
+                        tp, message = yield from self.wait
                     except tulip.CancelledError:
                         session.close()
                         session.closed()
+                        break
                     else:
                         write(message+b'\n')
 

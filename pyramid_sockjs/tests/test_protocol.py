@@ -34,10 +34,10 @@ class TestProtocol(TestCase):
         from pyramid_sockjs import protocol
 
         msg = protocol.message_frame(['msg1', 'msg2'])
-        self.assertEqual(msg, 'a%s'%protocol.encode(['msg1', 'msg2']))
+        self.assertEqual(msg, 'a%s' % protocol.encode(['msg1', 'msg2']))
 
     def test_message_frame_endline(self):
         from pyramid_sockjs import protocol
 
         msg = protocol.message_frame(['msg1', 'msg2'], '\n')
-        self.assertEqual(msg, 'a%s\n'%protocol.encode(['msg1', 'msg2']))
+        self.assertEqual(msg, 'a%s\n' % protocol.encode(['msg1', 'msg2']))
