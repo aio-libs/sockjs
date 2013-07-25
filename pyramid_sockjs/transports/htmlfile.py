@@ -58,11 +58,9 @@ class HTMLFileTransport(Transport):
         else:
             size = 0
             while size < self.maxsize:
-                self.wait = tulip.Task(tulip.wait((session.wait(),)))
                 try:
-                    tp, msg = (yield from self.wait)[0].pop().result()
+                    tp, msg = yield from session.wait()
                 except tulip.CancelledError:
-                    session.close()
                     session.closed()
                 else:
                     write(b''.join(

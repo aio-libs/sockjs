@@ -56,9 +56,9 @@ class JSONPolling(Response):
                 err = HTTPServerError(b"Another connection still open")
                 return err(environ, start_response)
 
-            self.wait = tulip.Task(tulip.wait((session.wait(),), self.timing))
+            waiter = tulip.wait((session.wait(),), timeout=self.timing)
             try:
-                done, pending = yield from self.wait
+                done, pending = yield from waiter
                 if done:
                     tp, message = done.pop().result()
                     if tp == CLOSE:
@@ -66,7 +66,6 @@ class JSONPolling(Response):
                 else:
                     message = b'a[]'
             except tulip.CancelledError:
-                session.close()
                 session.closed()
                 message = b''
 

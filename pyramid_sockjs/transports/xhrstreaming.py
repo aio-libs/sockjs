@@ -16,7 +16,7 @@ class XHRStreamingTransport(Transport):
         super(XHRStreamingTransport, self).__init__(session, request)
 
         if request.method not in ('GET', 'POST', 'OPTIONS'):
-            raise Exception("No support for such method: %s" % request.meth)
+            raise Exception("No support for such method: %s" % request.method)
 
     def __call__(self, environ, start_response):
         request = self.request
@@ -43,11 +43,11 @@ class XHRStreamingTransport(Transport):
 
         # session was interrupted
         if session.interrupted:
-            write(close_frame(1002, b"Connection interrupted")+b'\n')
+            write(close_frame(1002, b"Connection interrupted") + b'\n')
 
         # session is closed
         elif session.state == STATE_CLOSED:
-            write(close_frame(3000, b'Go away!')+b'\n')
+            write(close_frame(3000, b'Go away!') + b'\n')
 
         else:
             # acquire session
@@ -61,11 +61,9 @@ class XHRStreamingTransport(Transport):
                 size = 0
 
                 while size < self.maxsize:
-                    self.wait = tulip.Task(session.wait())
                     try:
-                        tp, message = yield from self.wait
+                        tp, message = yield from session.wait()
                     except tulip.CancelledError:
-                        session.close()
                         session.closed()
                         break
                     else:

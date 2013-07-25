@@ -6,8 +6,6 @@ from pyramid.interfaces import IResponse
 from pyramid.httpexceptions import HTTPException
 from pyramid_sockjs.protocol import CLOSE, MESSAGE, decode
 
-from .wsproto import init_websocket
-
 
 @implementer(IResponse)
 class RawWebSocketTransport:

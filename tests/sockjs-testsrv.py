@@ -1,7 +1,5 @@
-from gtulip import TulipWorker
-from gunicorn.app.pasterapp import paste_server
-
 from pyramid.config import Configurator
+from pyramid_sockjs.paster import tulip_server_runner
 from pyramid_sockjs.session import Session, SessionManager
 from pyramid_sockjs.transports.eventsource import EventsourceTransport
 from pyramid_sockjs.transports.htmlfile import HTMLFileTransport
@@ -47,4 +45,4 @@ if __name__ == '__main__':
 
     app = config.make_wsgi_app()
 
-    paste_server(app, port=8081, worker_class=TulipWorker, workers=1)
+    tulip_server_runner(app, {}, **{'host': '127.0.0.1', 'port': '8081'})

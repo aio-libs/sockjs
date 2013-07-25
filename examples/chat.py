@@ -1,4 +1,5 @@
-# -*- coding: utf-8 -*-
+from pyramid.config import Configurator
+from pyramid_sockjs.paster import tulip_server_runner
 from pyramid_sockjs.session import Session
 
 
@@ -10,15 +11,12 @@ class ChatSession(Session):
     def on_message(self, message):
         self.manager.broadcast(message)
 
-    def on_close(self):
+    def on_closed(self):
         self.manager.broadcast("Someone left.")
 
 
 if __name__ == '__main__':
-    """ Simple sockjs chat """
-    from pyramid.config import Configurator
-    from pyramid_sockjs.server import tulip_server_runner
-
+    """Simple sockjs chat."""
     config = Configurator()
     config.include('pyramid_sockjs')
 

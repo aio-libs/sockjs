@@ -28,14 +28,15 @@ def session_cookie(request):
 
 
 td365 = timedelta(days=365)
-td365seconds = int((td365.microseconds +
-                    (td365.seconds + td365.days*24*3600) * 10**6) / 10**6)
+td365seconds = str(
+    int((td365.microseconds +
+         (td365.seconds + td365.days*24*3600) * 10**6) / 10**6))
 
 
 def cache_headers():
     d = datetime.now() + td365
     return (
         ('Access-Control-Max-Age', td365seconds),
-        ('Cache-Control', 'max-age=%d, public' % td365seconds),
+        ('Cache-Control', 'max-age=%s, public' % td365seconds),
         ('Expires', d.strftime('%a, %d %b %Y %H:%M:%S')),
     )

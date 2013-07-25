@@ -44,16 +44,18 @@ class XHRTransport(Transport):
                 message = close_frame(
                     2010, b"Another connection still open")+b'\n'
             else:
-                self.wait = tulip.Task(session.wait())
-                tulip.get_event_loop().call_later(
-                    self.timing, self.wait.cancel)
+                waiter = tulip.Task(session.wait())
+                timer = tulip.get_event_loop().call_later(
+                    self.timing, waiter.cancel)
 
                 try:
-                    tp, message = yield from self.wait
+                    tp, message = yield from waiter
                     if tp == CLOSE:
                         session.closed()
                 except tulip.CancelledError:
                     message = b'a[]'
+                finally:
+                    timer.cancel()
 
                 session.release()
                 message = message + b'\n'

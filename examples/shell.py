@@ -1,9 +1,8 @@
-""" interactive shell """
+"""interactive shell"""
 import sys
 import code
 import gevent
 from gevent.queue import Queue
-from pprint import pprint
 from StringIO import StringIO
 from pyramid_sockjs import Session, json
 

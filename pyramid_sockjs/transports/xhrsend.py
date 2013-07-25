@@ -30,7 +30,7 @@ class XHRSendTransport:
             start_response('204 No Content', headers)
             return (b'',)
 
-        data = request.body_file.read()
+        data = environ['wsgi.input'].read()
         if not data:
             err = HTTPServerError("Payload expected.")
             return err(environ, start_response)

@@ -1,7 +1,7 @@
 import os
 from setuptools import setup, find_packages
 
-version = '2.0'
+version = '2.0dev1'
 
 install_requires = ['setuptools',
                     'tulip',
@@ -37,4 +37,8 @@ setup(name='pyramid_sockjs',
       test_suite = 'nose.collector',
       include_package_data = True,
       zip_safe = False,
-      )
+      entry_points = {
+          'paste.server_runner': [
+              'server = pyramid_sockjs.paster:tulip_server_runner',
+          ],
+      })

@@ -1,7 +1,9 @@
 """ iframe-eventsource transport """
 import tulip
 from itertools import chain
+from pyramid_sockjs import STATE_CLOSED
 from pyramid_sockjs.protocol import CLOSE, close_frame
+from pyramid_sockjs.exceptions import SessionIsAcquired
 
 from .base import Transport
 from .utils import session_cookie
@@ -24,30 +26,39 @@ class EventsourceTransport(Transport):
 
         # get session
         session = self.session
-        try:
-            session.acquire(self.request)
-        except:  # should use specific exception
-            message = close_frame(2010, b"Another connection still open")
-            write(b''.join((b'data: ', message, b'\r\n\r\n')))
-            return (b'',)
 
-        size = 0
+        # session was interrupted
+        if session.interrupted:
+            write(close_frame(1002, b"Connection interrupted") + b'\n')
 
-        while size < self.maxsize:
-            self.wait = tulip.Task(tulip.wait((session.wait(),)))
+        # session is closed
+        elif session.state == STATE_CLOSED:
+            write(close_frame(3000, b'Go away!') + b'\n')
+
+        else:
             try:
-                tp, message = (yield from self.wait)[0].pop().result()
-            except tulip.CancelledError:
-                session.close()
-                session.closed()
-            else:
+                session.acquire(self.request)
+            except SessionIsAcquired:
+                message = close_frame(2010, b"Another connection still open")
                 write(b''.join((b'data: ', message, b'\r\n\r\n')))
+                return (b'',)
+            else:
+                size = 0
 
-                if tp == CLOSE:
-                    session.closed()
-                    break
+                while size < self.maxsize:
+                    try:
+                        tp, message = yield from session.wait()
+                    except tulip.CancelledError:
+                        session.closed()
+                        break
+                    else:
+                        write(b''.join((b'data: ', message, b'\r\n\r\n')))
 
-                size += len(message)
+                        if tp == CLOSE:
+                            session.closed()
+                            break
 
-        session.release()
+                        size += len(message)
+
+                session.release()
         return ()

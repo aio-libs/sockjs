@@ -37,7 +37,7 @@ project = 'pyramid_sockjs'
 # other places throughout the built documents.
 #
 # The short X.Y version.
-version = '0.1dev'
+version = '2.0dev1'
 # The full version, including alpha/beta/rc tags.
 release = version
 
@@ -161,8 +161,8 @@ htmlhelp_basename = 'atemplatedoc'
 # (source start file, target name, title,
 #  author, document class [howto/manual]).
 latex_documents = [
-  ('index', 'atemplate.tex', 'Pyramid SockJS documentation',
-   'Developers', 'manual'),
+    ('index', 'atemplate.tex', 'Pyramid SockJS documentation',
+     'Developers', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the
