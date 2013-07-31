@@ -45,4 +45,5 @@ if __name__ == '__main__':
 
     app = config.make_wsgi_app()
 
-    tulip_server_runner(app, {}, **{'host': '127.0.0.1', 'port': '8081'})
+    tulip_server_runner(
+        app, {}, **{'host': '127.0.0.1', 'port': '8081', 'keep-alive': '5.0'})

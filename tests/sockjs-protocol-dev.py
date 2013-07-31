@@ -14,6 +14,7 @@ guarantee that SockJS client will work flawlessly, end-to-end tests
 using real browsers are always required.
 """
 import os
+import random
 import time
 import json
 import re
@@ -257,7 +258,7 @@ class InfoTest(Test):
     #
     # But more importantly, the call to this url is used to measure
     # the roundtrip time between the client and the server. So, please,
-    # do respond to this url in a timely fashin.
+    # do respond to this url in a timely fashion.
     def test_basic(self):
         r = GET(base_url + '/info')
         self.assertEqual(r.status, 200)
@@ -340,8 +341,10 @@ class SessionURLs(Test):
 
     # The server must accept any value in `server` and `session` fields.
     def test_anyValue(self):
-        self.verify('/a/a')
-        for session_part in ['/_/_', '/1/1', '/abcdefgh_i-j%20/abcdefg_i-j%20']:
+        # add some randomness, so that test could be rerun immediately.
+        r = '%s' % random.randint(0, 1024)
+        self.verify('/a/a' + r)
+        for session_part in ['/_/_' + r, '/1/' + r, '/abcdefgh_i-j%20/abcdefg_i-j%20'+ r]:
             self.verify(session_part)
 
     # To test session URLs we're going to use `xhr-polling` transport
@@ -553,6 +556,9 @@ class WebsocketHixie76(Test):
         self.assertEqual(ws.recv(), u'o')
         # Server must ignore empty messages.
         ws.send(u'')
+        # Server must also ignore frames with no messages.
+        ws.send(u'[]')
+
         ws.send(u'["a"]')
         self.assertEqual(ws.recv(), u'a["a"]')
         ws.close()
@@ -833,6 +839,26 @@ class XhrPolling(Test):
         self.verify_cors(r)
         self.assertFalse(r['Access-Control-Allow-Headers'])
 
+    # The client must be able to send frames containint no messages to
+    # the server.  This is used as a heartbeat mechanism - client may
+    # voluntairly send frames with no messages once in a while.
+    def test_sending_empty_frame(self):
+        url = base_url + '/000/' + str(uuid.uuid4())
+        r = POST(url + '/xhr')
+        self.assertEqual(r.status, 200)
+        self.assertEqual(r.body, 'o\n')
+
+        # Sending empty frames with no data must allowed.
+        r = POST(url + '/xhr_send', body='[]')
+        self.assertEqual(r.status, 204)
+
+        r = POST(url + '/xhr_send', body='["a"]')
+        self.assertEqual(r.status, 204)
+
+        r = POST(url + '/xhr')
+        self.assertEqual(r.body, 'a["a"]\n')
+        self.assertEqual(r.status, 200)
+
 
 # XhrStreaming: `/*/*/xhr_streaming`
 # ----------------------------------
@@ -903,7 +929,7 @@ class EventSource(Test):
         self.assertEqual(r.status, 200)
         self.verify_content_type(r, 'text/event-stream;charset=UTF-8')
         # As EventSource is requested using GET we must be very
-        # carefull not to allow it being cached.
+        # careful not to allow it being cached.
         self.verify_not_cached(r)
 
         # The transport must first send a new line prelude, due to a
@@ -1010,6 +1036,15 @@ class HtmlFile(Test):
         self.assertEqual(r.status, 500)
         self.assertTrue('"callback" parameter required' in r.body)
 
+    # Supplying invalid characters to callback parameter is invalid
+    # and must result in a 500 errors. Invalid characters are any
+    # matching the following regexp: `[^a-zA-Z0-9-_.]`
+    def test_invalid_callback(self):
+        for callback in ['%20', '*', 'abc(', 'abc%28']:
+            r = GET(base_url + '/a/a/htmlfile?c=' + callback)
+            self.assertEqual(r.status, 500)
+            self.assertTrue('invalid "callback" parameter' in r.body)
+
     def test_response_limit(self):
         # Single streaming request should be closed after enough data
         # was delivered (by default 128KiB, but 4KiB for test server).
@@ -1041,7 +1076,7 @@ class JsonPolling(Test):
         self.assertEqual(r.status, 200)
         self.verify_content_type(r, 'application/javascript;charset=UTF-8')
         # As JsonPolling is requested using GET we must be very
-        # carefull not to allow it being cached.
+        # careful not to allow it being cached.
         self.verify_not_cached(r)
 
         self.assertEqual(r.body, 'callback("o");\r\n')
@@ -1065,6 +1100,15 @@ class JsonPolling(Test):
         r = GET(base_url + '/a/a/jsonp')
         self.assertEqual(r.status, 500)
         self.assertTrue('"callback" parameter required' in r.body)
+
+    # Supplying invalid characters to callback parameter is invalid
+    # and must result in a 500 errors. Invalid characters are any
+    # matching the following regexp: `[^a-zA-Z0-9-_.]`
+    def test_invalid_callback(self):
+        for callback in ['%20', '*', 'abc(', 'abc%28']:
+            r = GET(base_url + '/a/a/jsonp?c=' + callback)
+            self.assertEqual(r.status, 500)
+            self.assertTrue('invalid "callback" parameter' in r.body)
 
     # The server must behave when invalid json data is sent or when no
     # json data is sent at all.
@@ -1121,6 +1165,25 @@ class JsonPolling(Test):
         r = GET(url + '/jsonp?c=x')
         self.assertEqual(r.body, 'x("c[3000,\\"Go away!\\"]");\r\n')
 
+    def test_sending_empty_frame(self):
+        url = base_url + '/000/' + str(uuid.uuid4())
+        r = GET(url + '/jsonp?c=x')
+        self.assertEqual(r.body, 'x("o");\r\n')
+
+        # Sending frames containing no messages must be allowed.
+        r = POST(url + '/jsonp_send', body='d=%5B%5D',
+                 headers={'Content-Type': 'application/x-www-form-urlencoded'})
+        self.assertEqual(r.body, 'ok')
+
+        r = POST(url + '/jsonp_send', body='d=%5B%22x%22%5D',
+                 headers={'Content-Type': 'application/x-www-form-urlencoded'})
+        self.assertEqual(r.body, 'ok')
+
+        r = GET(url + '/jsonp?c=x')
+        self.assertEqual(r.status, 200)
+        self.assertEqual(r.body, 'x("a[\\"x\\"]");\r\n')
+
+
 # JSESSIONID cookie
 # -----------------
 #
@@ -1129,6 +1192,10 @@ class JsonPolling(Test):
 # see `JSESSIONID` cookie. User of a sockjs server must be able to
 # opt-in for this functionality - and set this cookie for all the
 # session urls.
+#
+# Detailed explanation of this functionality is available [in this
+# thread on SockJS mailing
+# list](https://groups.google.com/group/sockjs/msg/ef0c508bb774a9ac).
 #
 class JsessionidCookie(Test):
     # Verify if info has cookie_needed set.
@@ -1222,8 +1289,9 @@ class RawWebsocket(Test):
 
     def test_close(self):
         ws = WebSocket8Client(close_base_url + '/websocket')
-        with self.assertRaises(ws.ConnectionClosedException):
+        with self.assertRaises(ws.ConnectionClosedException) as ce:
             ws.recv()
+        self.assertEqual(ce.exception.reason, "Go away!")
         ws.close()
 
 
@@ -1448,6 +1516,7 @@ class Http10(Test):
             connection = r.headers.get('connection', '').lower()
             if connection in ['close', '']:
                 # Connection-close behaviour is default in http 1.0
+                print 'XXX'
                 self.assertTrue(c.closed())
             else:
                 self.assertEqual(connection, 'keep-alive')

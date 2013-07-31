@@ -1,6 +1,8 @@
 """ iframe-htmlfile transport """
+import re
 import tulip
 from itertools import chain
+from pyramid.httpexceptions import HTTPServerError
 from pyramid_sockjs.protocol import CLOSE, close_frame, encode
 from pyramid_sockjs.exceptions import SessionIsAcquired
 
@@ -28,6 +30,7 @@ PRELUDE2 = b""";
 class HTMLFileTransport(Transport):
 
     maxsize = 131072  # 128K bytes
+    check_callback = re.compile('^[a-zA-Z0-9_\.]+$')
 
     def __call__(self, environ, start_response):
         session = self.session
@@ -42,8 +45,16 @@ class HTMLFileTransport(Transport):
 
         callback = request.GET.get('c', None)
         if callback is None:
-            start_response('500 Internal Server Error', headers)
-            return (b'"callback" parameter required',)
+            session.closed()
+            err = HTTPServerError('"callback" parameter required')
+            return err(environ, start_response)
+
+            #start_response('500 Internal Server Error', headers)
+            #return (b'"callback" parameter required',)
+        elif not self.check_callback.match(callback):
+            session.closed()
+            err = HTTPServerError('invalid "callback" parameter')
+            return err(environ, start_response)
 
         write = start_response('200 Ok', headers)
         write(b''.join(

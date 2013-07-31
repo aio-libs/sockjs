@@ -1,9 +1,11 @@
 """raw websocket transport."""
-import logging
 import tulip
+import tulip.http
+from tulip.http import websocket
+
 from zope.interface import implementer
 from pyramid.interfaces import IResponse
-from pyramid.httpexceptions import HTTPException
+from pyramid.httpexceptions import HTTPClientError
 from pyramid_sockjs.protocol import CLOSE, MESSAGE, decode
 
 
@@ -16,33 +18,30 @@ class RawWebSocketTransport:
 
     @tulip.coroutine
     def send(self):
-        ws = self.proto
+        writer = self.writer
         session = self.session
 
         while True:
             tp, message = yield from session.wait()
             if tp == MESSAGE:
-                ws.send(decode(message[2:-1]).encode('utf-8'))
+                writer.send(decode(message[2:-1])['data'].encode('utf-8'))
             elif tp == CLOSE:
-                ws.close()
-                session.closed()
+                try:
+                    writer.close(message='Go away!')
+                finally:
+                    session.closed()
                 break
 
     @tulip.coroutine
     def receive(self):
-        ws = self.proto
+        read = self.reader.read
         session = self.session
 
         while True:
-            try:
-                message = yield from ws.receive()
-            except Exception as err:
-                logging.exception(err)
-                break
+            message = yield from read()
 
             if message == '':
                 continue
-
             if message is None:
                 break
 
@@ -51,24 +50,35 @@ class RawWebSocketTransport:
     def __call__(self, environ, start_response):
         request = self.request
 
+        # WebSocket accepts only GET
+        if request.method != 'GET':
+            start_response('405 Method Not Allowed', (('Allow', 'GET'),))
+            return ()
+
+        headers = tuple((key.upper(), request.headers[key])
+                        for key in websocket.WS_HDRS if key in request.headers)
+
         # init websocket protocol
         try:
-            status, headers, self.proto = init_websocket(request)
-        except HTTPException as error:
-            return error(environ, start_response)
+            status, headers, parser, self.writer = websocket.do_handshake(
+                request.method, headers, environ['tulip.writer'])
+        except tulip.http.BadRequestException as error:
+            httperr = HTTPClientError(headers=error.headers)
+            httperr.text = error.message
+            return httperr(environ, start_response)
 
         # send handshake headers
-        write = start_response(status, headers)
-        write(b'')
+        start_response('101 Switching Protocols', headers)
 
         self.session.acquire(request)
 
-        self.proto.send(b'hello')
-        yield from tulip.wait(
-            (self.send(), self.receive()), return_when=tulip.FIRST_COMPLETED)
+        self.reader = request.environ['tulip.reader'].set_parser(parser)
+        try:
+            yield from tulip.wait(
+                (self.send(), self.receive()),
+                return_when=tulip.FIRST_COMPLETED)
+        except tulip.CancelledError:
+            self.session.interrupt()
 
         self.session.closed()
-
-        # ugly hack
-        environ['tulip.closed'] = True
         return ()

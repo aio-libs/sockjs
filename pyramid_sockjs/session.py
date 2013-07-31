@@ -65,6 +65,8 @@ class Session(object):
 
         if self.state == STATE_OPEN:
             result.append('connected')
+        elif self.state == STATE_CLOSED:
+            result.append('closed')
         else:
             result.append('disconnected')
 
@@ -134,8 +136,8 @@ class Session(object):
         log.info('session closed: %s', self.id)
         self.state = STATE_CLOSED
         self._queue.clear()
-        self.release()
         self.expire()
+        self.release()
         try:
             self.on_closed()
         except:
@@ -356,8 +358,8 @@ class SessionManager(dict):
             if session.state != STATE_CLOSED:
                 session.closed()
 
-        self.clear()
         self.sessions.clear()
+        super(SessionManager, self).clear()
 
     def broadcast(self, message):
         frame = message_frame(message)

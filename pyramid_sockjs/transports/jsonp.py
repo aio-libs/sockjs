@@ -1,4 +1,5 @@
 """ jsonp transport """
+import re
 import tulip
 from urllib.parse import unquote_plus
 from pyramid.response import Response
@@ -14,6 +15,7 @@ from .utils import session_cookie
 class JSONPolling(Response):
 
     timing = 5.0
+    check_callback = re.compile('^[a-zA-Z0-9_\.]+$')
 
     def __init__(self, session, request):
         self.__dict__.update(request.response.__dict__)
@@ -34,8 +36,12 @@ class JSONPolling(Response):
         if meth == "GET":
             callback = request.GET.get('c', None)
             if callback is None:
-                session.release()
+                session.closed()
                 err = HTTPServerError('"callback" parameter required')
+                return err(environ, start_response)
+            elif not self.check_callback.match(callback):
+                session.closed()
+                err = HTTPServerError('invalid "callback" parameter')
                 return err(environ, start_response)
 
             if session.state == STATE_CLOSED:
@@ -66,15 +72,17 @@ class JSONPolling(Response):
                 else:
                     message = b'a[]'
             except tulip.CancelledError:
+                session.interrupt()
                 session.closed()
                 message = b''
+            else:
+                session.release()
 
             body = b''.join((
                 callback.encode('utf-8'), b'(', encode(message), b');\r\n'))
             self.headers['Content-Length'] = str(len(body))
 
             write = start_response(self.status, self._abs_headerlist(environ))
-            session.release()
             return (body,)
 
         elif meth == "POST":

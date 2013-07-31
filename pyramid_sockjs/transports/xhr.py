@@ -31,33 +31,35 @@ class XHRTransport(Transport):
 
         # session was interrupted
         if session.interrupted:
-            message = close_frame(1002, b"Connection interrupted")+b'\n'
+            message = close_frame(1002, b"Connection interrupted") + b'\n'
 
         # session closed
         elif session.state == STATE_CLOSED:
-            message = close_frame(3000, b'Go away!')+b'\n'
+            message = close_frame(3000, b'Go away!') + b'\n'
 
         else:
             try:
                 session.acquire(request, False)
             except SessionIsAcquired:
                 message = close_frame(
-                    2010, b"Another connection still open")+b'\n'
+                    2010, b"Another connection still open") + b'\n'
             else:
-                waiter = tulip.Task(session.wait())
-                timer = tulip.get_event_loop().call_later(
-                    self.timing, waiter.cancel)
-
+                message = b''
                 try:
-                    tp, message = yield from waiter
-                    if tp == CLOSE:
-                        session.closed()
+                    done, pending = yield from tulip.wait(
+                        (session.wait(),), timeout=self.timing)
+                    if done:
+                        tp, message = done.pop().result()
+                        if tp == CLOSE:
+                            session.closed()
+                    else:
+                        message = b'a[]'
                 except tulip.CancelledError:
-                    message = b'a[]'
+                    session.interrupt()
+                    session.closed()
                 finally:
-                    timer.cancel()
+                    session.release()
 
-                session.release()
                 message = message + b'\n'
 
         headers = list(chain(

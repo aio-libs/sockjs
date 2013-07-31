@@ -1,5 +1,4 @@
 """websocket transport"""
-import logging
 import tulip
 import tulip.http
 from tulip.http import websocket
@@ -30,7 +29,7 @@ class WebSocketTransport:
 
             if tp == CLOSE:
                 try:
-                    writer.close()
+                    writer.close(message='Go away!')
                 finally:
                     session.closed()
                 break
@@ -41,12 +40,7 @@ class WebSocketTransport:
         session = self.session
 
         while True:
-            try:
-                message = yield from read()
-            except Exception as err:
-                logging.exception(err)
-                break
-
+            message = yield from read()
             if message is None:
                 break
             elif message.data == '':
@@ -65,15 +59,22 @@ class WebSocketTransport:
     @tulip.coroutine
     def __call__(self, environ, start_response):
         request = self.request
+
+        # WebSocket accepts only GET
+        if request.method != 'GET':
+            start_response('405 Method Not Allowed', (('Allow', 'GET'),))
+            return ()
+
         headers = tuple((key.upper(), request.headers[key])
                         for key in websocket.WS_HDRS if key in request.headers)
 
         # init websocket protocol
         try:
             status, headers, parser, self.writer = websocket.do_handshake(
-                headers, environ['tulip.writer'])
+                request.method, headers, environ['tulip.writer'])
         except tulip.http.BadRequestException as error:
             httperr = HTTPClientError(headers=error.headers)
+            httperr.text = error.message
             return httperr(environ, start_response)
 
         # send handshake headers
@@ -90,8 +91,12 @@ class WebSocketTransport:
 
         self.reader = request.environ['tulip.reader'].set_parser(parser)
 
-        yield from tulip.wait(
-            (self.send(), self.receive()), return_when=tulip.FIRST_COMPLETED)
+        try:
+            yield from tulip.wait(
+                (self.send(), self.receive()),
+                return_when=tulip.FIRST_COMPLETED)
+        except tulip.CancelledError:
+            self.session.interrupt()
 
         self.session.closed()
         return ()

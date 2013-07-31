@@ -21,7 +21,7 @@ class XHRStreamingTransport(Transport):
     def __call__(self, environ, start_response):
         request = self.request
         headers = list(
-            (('Connection', 'close'),
+            (('Connection', request.headers.get('connection', 'close')),
              ('Content-Type', 'application/javascript; charset=UTF-8'),
              ('Cache-Control',
               'no-store, no-cache, must-revalidate, max-age=0')) +
@@ -64,6 +64,7 @@ class XHRStreamingTransport(Transport):
                     try:
                         tp, message = yield from session.wait()
                     except tulip.CancelledError:
+                        session.interrupt()
                         session.closed()
                         break
                     else:
