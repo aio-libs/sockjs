@@ -83,7 +83,7 @@ To run chat example use following command::
 Supported transports
 --------------------
 
-  and `hybi-10 <http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10>`_)
+* websocket `hybi-10 <http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10>`_)
 * `xhr-streaming <https://secure.wikimedia.org/wikipedia/en/wiki/XMLHttpRequest#Cross-domain_requests>`_
 * `xhr-polling <https://secure.wikimedia.org/wikipedia/en/wiki/XMLHttpRequest#Cross-domain_requests>`_
 * `iframe-xhr-polling <https://developer.mozilla.org/en/DOM/window.postMessage>`_
@@ -95,7 +95,7 @@ Supported transports
 
 
 Not supported transports
---------------------
+------------------------
   * websocket (`hixie-76 <http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76>`_
 
 
@@ -114,9 +114,10 @@ Examples
 
 You can find several `examples` in the aiosockjs repository at github.
 
-https://github.com/fafhrd91/aiosockjs/tree/master/examples
+https://github.com/aio-libs/aiosockjs/tree/master/examples
+
 
 License
 -------
 
-aiosockjs is offered under the MIT license.
+aiosockjs is offered under the Apache 2 license.

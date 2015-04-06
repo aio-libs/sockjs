@@ -67,7 +67,6 @@ class WebSocketTransport(Transport):
 
             while True:
                 msg = yield from ws.receive()
-                print('========', msg)
                 
                 if msg.tp == web.MsgType.text:
                     data = msg.data
