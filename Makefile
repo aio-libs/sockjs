@@ -1,6 +1,6 @@
 # Some simple testing tasks (sorry, UNIX only).
 
-PYTHON=python3
+PYTHON=python3.4
 PIP=pip
 NOSE=nosetests
 FLAGS=

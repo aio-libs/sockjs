@@ -1,5 +1,13 @@
+import collections
 import hashlib
 from datetime import datetime
+
+
+STATE_NEW = 0
+STATE_OPEN = 1
+STATE_CLOSING = 2
+STATE_CLOSED = 3
+
 
 _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -33,10 +41,10 @@ except ImportError:  # pragma: no cover
 # Frames
 # ------
 
-OPEN = b"o"
-CLOSE = b"c"
-MESSAGE = b"a"
-HEARTBEAT = b"h"
+FRAME_OPEN = b"o"
+FRAME_CLOSE = b"c"
+FRAME_MESSAGE = b"a"
+FRAME_HEARTBEAT = b"h"
 
 
 # ------------------
@@ -62,6 +70,7 @@ IFRAME_HTML = """<!DOCTYPE html>
 IFRAME_MD5 = hashlib.md5(IFRAME_HTML.encode()).hexdigest()
 
 decode = json.loads
+ENCODING = 'utf-8'
 
 
 def encode(data):
@@ -69,11 +78,15 @@ def encode(data):
 
 
 def close_frame(code, reason):
-    return CLOSE + b'[' + str(code).encode() + b',' + encode(reason) + b']'
+    return FRAME_CLOSE + b'[' + str(code).encode() + b',' + encode(reason) + b']'
 
 
 def message_frame(message):
-    return MESSAGE + encode([message])
+    return FRAME_MESSAGE + json.dumps([message], **kwargs).encode(ENCODING)
+
+
+def messages_frame(messages):
+    return FRAME_MESSAGE + json.dumps(messages, **kwargs).encode(ENCODING)
 
 
 def heartbeat_frame():
@@ -81,7 +94,23 @@ def heartbeat_frame():
 
 
 FRAMES = {
-    CLOSE: close_frame,
-    MESSAGE: message_frame,
-    HEARTBEAT: heartbeat_frame,
+    FRAME_CLOSE: close_frame,
+    FRAME_MESSAGE: message_frame,
+    FRAME_HEARTBEAT: heartbeat_frame,
 }
+
+
+# Handler messages
+# ---------------------
+
+MSG_OPEN = 1
+MSG_MESSAGE = 2
+MSG_CLOSE = 3
+MSG_CLOSED = 4
+
+
+SockjsMessage = collections.namedtuple('SockjsMessage', ['tp', 'data'])
+
+OpenMessage = SockjsMessage(MSG_OPEN, None)
+CloseMessage = SockjsMessage(MSG_CLOSE, None)
+ClosedMessage = SockjsMessage(MSG_CLOSED, None)

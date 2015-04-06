@@ -2,7 +2,8 @@
 <html>
 <head>
   <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
-  <script src="http://cdn.sockjs.org/sockjs-0.3.4.min.js"></script>
+  <script src="//cdn.jsdelivr.net/sockjs/1.0.0beta12/sockjs.min.js"></script>
+s
   <script>
     $(function() {
       var conn = null;
@@ -20,7 +21,7 @@
             return $(this).attr('id');
         }).get();
 
-        conn = new SockJS('http://' + window.location.host + '/__sockjs__', transports, {debug: true});
+        conn = new SockJS('http://' + window.location.host + '/sockjs/', transports, {debug: true});
 
         log('Connecting...');
 

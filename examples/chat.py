@@ -1,30 +1,43 @@
-from pyramid.config import Configurator
-from pyramid_sockjs.paster import tulip_server_runner
-from pyramid_sockjs.session import Session
+import asyncio
+import os
+import logging
+from aiohttp import web
+
+import sockjs
+
+CHAT_FILE = open(
+    os.path.join(os.path.dirname(__file__), 'chat.html'), 'rb').read()
 
 
-class ChatSession(Session):
+def chatSession(msg, session):
+    if msg.tp == sockjs.MSG_OPEN:
+        yield from session.manager.broadcast("Someone joined.")
+    elif msg.tp == sockjs.MSG_MESSAGE:
+        yield from session.manager.broadcast(msg.data)
+    elif msg.tp == sockjs.MSG_CLOSED:
+        yield from session.manager.broadcast("Someone left.")
 
-    def on_open(self):
-        self.manager.broadcast("Someone joined.")
 
-    def on_message(self, message):
-        self.manager.broadcast(message)
-
-    def on_closed(self):
-        self.manager.broadcast("Someone left.")
+def index(request):
+    return web.Response(body=CHAT_FILE, content_type='text/html')
 
 
 if __name__ == '__main__':
     """Simple sockjs chat."""
-    config = Configurator()
-    config.include('pyramid_sockjs')
+    loop = asyncio.get_event_loop()
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(asctime)s %(levelname)s %(message)s')
 
-    config.add_sockjs_route(prefix='/__sockjs__', session=ChatSession)
+    app = web.Application(loop=loop)
+    app.router.add_route('GET', '/', index)
+    sockjs.add_endpoint(app, chatSession, prefix='/sockjs/')
 
-    config.add_route('root', '/')
-    config.add_view(route_name='root', renderer='__main__:chat.pt')
-
-    app = config.make_wsgi_app()
-
-    tulip_server_runner(app, {}, **{'host': '127.0.0.1', 'port': '8080'})
+    handler = app.make_handler()
+    srv = loop.run_until_complete(
+        loop.create_server(handler, '127.0.0.1', 8080))
+    print("Server started at http://127.0.0.1:8080")
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        srv.close()
+        loop.run_until_complete(handler.finish_connections())

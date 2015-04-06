@@ -1,49 +1,61 @@
-from pyramid.config import Configurator
-from pyramid_sockjs.paster import tulip_server_runner
-from pyramid_sockjs.session import Session, SessionManager
-from pyramid_sockjs.transports.eventsource import EventsourceTransport
-from pyramid_sockjs.transports.htmlfile import HTMLFileTransport
-from pyramid_sockjs.transports.xhrstreaming import XHRStreamingTransport
+import asyncio
+import logging
+from aiohttp import web
+
+import sockjs
+from sockjs.session import Session, SessionManager
+from sockjs.transports.eventsource import EventsourceTransport
+from sockjs.transports.htmlfile import HTMLFileTransport
+from sockjs.transports.xhrstreaming import XHRStreamingTransport
 
 
-class EchoSession(Session):
+@asyncio.coroutine
+def echoSession(msg, session):
+    if msg.tp == sockjs.MSG_MESSAGE:
+        yield from session.send(msg.data)
 
-    def on_message(self, message):
-        self.send(message)
+@asyncio.coroutine
+def closeSessionHander(msg, session):
+    if msg.tp == sockjs.MSG_OPEN:
+        yield from session.close()
 
-
-class CloseSession(Session):
-
-    def on_open(self):
-        self.close()
-
-
-class BroadcastSession(Session):
-
-    def on_message(self, msg):
-        self.manager.broadcast(msg)
+@asyncio.coroutine
+def broadcastSession(msg, session):
+    if msg.tp == sockjs.MSG_OPEN:
+        yield from session.manager.broadcast(msg.data)
 
 
 if __name__ == '__main__':
     """ Sockjs tests server """
+    loop = asyncio.get_event_loop()
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(asctime)s %(levelname)s %(message)s')
 
     HTMLFileTransport.maxsize = 4096
     EventsourceTransport.maxsize = 4096
     XHRStreamingTransport.maxsize = 4096
 
-    config = Configurator()
-    config.include('pyramid_sockjs')
-
-    config.add_sockjs_route('echo', '/echo', EchoSession)
-    config.add_sockjs_route('close', '/close', CloseSession)
-    config.add_sockjs_route('broadcast', '/broadcast', BroadcastSession)
-    config.add_sockjs_route(
-        'wsoff', '/disabled_websocket_echo', EchoSession,
+    app = web.Application(loop=loop)
+    
+    sockjs.add_endpoint(
+        app, echoSession, name='echo', prefix='/echo')
+    sockjs.add_endpoint(
+        app, closeSessionHander, name='close', prefix='/close')
+    sockjs.add_endpoint(
+        app, broadcastSession, name='broadcast', prefix='/broadcast')
+    sockjs.add_endpoint(
+        app, echoSession, name='wsoff', prefix='/disabled_websocket_echo',
         disable_transports=('websocket',))
-    config.add_sockjs_route(
-        'cookie', '/cookie_needed_echo', EchoSession, cookie_needed=True)
+    sockjs.add_endpoint(
+        app, echoSession, name='cookie', prefix='/cookie_needed_echo',
+        cookie_needed=True)
 
-    app = config.make_wsgi_app()
-
-    tulip_server_runner(
-        app, {}, **{'host': '127.0.0.1', 'port': '8081', 'keep-alive': '5.0'})
+    handler = app.make_handler()
+    srv = loop.run_until_complete(
+        loop.create_server(handler, '127.0.0.1', 8081))
+    print("Server started at http://127.0.0.1:8081")
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        srv.close()
+        loop.run_until_complete(handler.finish_connections())

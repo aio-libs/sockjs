@@ -1,4 +1,5 @@
-# pyramid_sockjs transports
+# sockjs transports
+
 from .jsonp import JSONPolling
 from .websocket import WebSocketTransport
 from .htmlfile import HTMLFileTransport
