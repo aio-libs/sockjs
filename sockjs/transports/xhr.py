@@ -24,9 +24,9 @@ class XHRTransport(Transport):
     def send_open(self):
         self.waiter.set_result(FRAME_OPEN)
         yield from self.manager.release(self.session)
-    
+
     def send_message(self, message):
-        self.waiter.set_result(messages_frame(msg))
+        self.waiter.set_result(messages_frame(message))
         yield from self.manager.release(self.session)
 
     def send_messages(self, messages):

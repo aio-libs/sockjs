@@ -12,7 +12,7 @@ class XHRStreamingTransport(StreamingTransport):
 
     maxsize = 131072  # 128K bytes
     open_seq = b'h' * 2048 + b'\n'
-    
+
     def process(self):
         request = self.request
         headers = list(
@@ -48,14 +48,15 @@ class XHRStreamingTransport(StreamingTransport):
         # session is closed
         elif self.session.state == STATE_CLOSED:
             resp.write(close_frame(3000, b'Go away!') + b'\n')
-            
+
         else:
             # acquire session
             try:
                 yield from self.manager.acquire(self.session, self)
             except SessionIsAcquired:
                 resp.write(
-                    close_frame(2010, b"Another connection still open") + b'\n')
+                    close_frame(2010,
+                                b"Another connection still open") + b'\n')
             else:
                 try:
                     yield from self.waiter

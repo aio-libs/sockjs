@@ -19,7 +19,7 @@ class EventsourceTransport(StreamingTransport):
         if self.size > self.maxsize:
             yield from self.manager.release(self.session)
             self.waiter.set_result(True)
-    
+
     def process(self):
         headers = list(
             ((hdrs.CONTENT_TYPE, 'text/event-stream; charset=UTF-8'),

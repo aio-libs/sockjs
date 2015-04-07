@@ -1,8 +1,6 @@
 """raw websocket transport."""
 import asyncio
-from aiohttp import hdrs, web, errors
-
-from sockjs.protocol import decode
+from aiohttp import web
 
 from .base import Transport
 
@@ -12,7 +10,7 @@ class RawWebSocketTransport(Transport):
     @asyncio.coroutine
     def send_open(self):
         pass
-        
+
     @asyncio.coroutine
     def send_message(self, msg):
         self.ws.send_str(msg)
