@@ -78,7 +78,7 @@ def encode(data):
 
 
 def close_frame(code, reason):
-    return FRAME_CLOSE + b'[' + str(code).encode() + b',' + encode(reason) + b']'
+    return FRAME_CLOSE+b'['+str(code).encode()+b','+encode(reason)+b']'
 
 
 def message_frame(message):
