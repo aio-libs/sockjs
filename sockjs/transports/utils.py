@@ -12,7 +12,7 @@ def cors_headers(headers, nocreds=False):
     ac_headers = headers.get(hdrs.ACCESS_CONTROL_REQUEST_HEADERS)
     if ac_headers:
         cors += ((hdrs.ACCESS_CONTROL_ALLOW_HEADERS, ac_headers),)
-    
+
     if origin != '*':
         return cors + ((hdrs.ACCESS_CONTROL_ALLOW_CREDENTIALS, 'true'),)
     else:

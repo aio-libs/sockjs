@@ -25,7 +25,7 @@ def add_endpoint(app, handler, *, name='', prefix='/sockjs',
                  cookie_needed=True):
 
     router = app.router
-    
+
     # set session manager
     if manager is None:
         manager = SessionManager(name, app, handler)
@@ -77,7 +77,7 @@ def add_endpoint(app, handler, *, name='', prefix='/sockjs',
         hdrs.METH_GET, '%s/iframe{version}.html' % prefix, route.iframe)
 
     # start session gc
-    #cfg.action('sockjs:gc:%s'%name,
+    # cfg.action('sockjs:gc:%s'%name,
     #           session_manager.start, order=999999+1)
 
 
@@ -155,7 +155,7 @@ class SockJSRoute:
         resp = web.Response(
             content_type='application/json; charset=UTF-8')
         resp.headers[hdrs.CACHE_CONTROL] = (
-             'no-store, no-cache, must-revalidate, max-age=0')
+            'no-store, no-cache, must-revalidate, max-age=0')
         resp.headers.extend(cors_headers(request))
 
         info = {'entropy': random.randint(1, 2147483647),
@@ -169,13 +169,13 @@ class SockJSRoute:
         resp = web.Response(
             status=204, content_type='application/json; charset=UTF-8')
         resp.headers[hdrs.CACHE_CONTROL] = (
-             'no-store, no-cache, must-revalidate, max-age=0')
+            'no-store, no-cache, must-revalidate, max-age=0')
         resp.headers[hdrs.ACCESS_CONTROL_ALLOW_METHODS] = "OPTIONS, GET"
         resp.headers.extend(cors_headers(request.headers))
         resp.headers.extend(cache_headers())
         resp.headers.extend(session_cookie(request))
         return resp
-    
+
     def iframe(self, request):
         cached = request.headers.get(hdrs.IF_NONE_MATCH)
         if cached:

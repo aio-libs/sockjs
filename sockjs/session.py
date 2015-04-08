@@ -29,7 +29,7 @@ class Session(object):
 
     ``registry``: Pyramid component registry
 
-    ``acquierd``: Acquired state, indicates that transport is using session
+    ``acquired``: Acquired state, indicates that transport is using session
 
     ``timeout``: Session timeout
 
@@ -46,7 +46,8 @@ class Session(object):
 
     _heartbeat = False
 
-    def __init__(self, id, handler, timeout=timedelta(seconds=10), debug=False):
+    def __init__(self, id, handler,
+                 timeout=timedelta(seconds=10), debug=False):
         self.id = id
         self.handler = handler
         self.expired = False
@@ -209,7 +210,7 @@ class Session(object):
             self._messages_blobs.append(blob)
         else:
             yield from self.transport.send_message_blob(blob)
-            
+
     @asyncio.coroutine
     def close(self, code=3000, reason='Go away!'):
         """close session"""
@@ -252,10 +253,10 @@ class SessionManager(dict):
         return self._hb_timer is not None
 
     def start(self):
-        #if not self._hb_timer:
-        #    loop = tulip.get_event_loop()
-        #    self._hb_timer = loop.call_later(
-        #        self.heartbeat, self._heartbeat, loop)
+        # if not self._hb_timer:
+        #     loop = tulip.get_event_loop()
+        #     self._hb_timer = loop.call_later(
+        #         self.heartbeat, self._heartbeat, loop)
         pass
 
     def stop(self):

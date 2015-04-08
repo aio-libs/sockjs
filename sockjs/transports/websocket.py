@@ -2,7 +2,7 @@
 import asyncio
 from aiohttp import web
 from sockjs.protocol import STATE_CLOSING, STATE_CLOSED, FRAME_OPEN, FRAME_CLOSE
-from sockjs.protocol import decode, close_frame, message_frame
+from sockjs.protocol import decode, close_frame, message_frame, messages_frame
 
 from .base import Transport
 
@@ -14,9 +14,9 @@ class WebSocketTransport(Transport):
         self.ws.send_str('o')
 
     @asyncio.coroutine
-    def send_message(self, msg):
+    def send_message(self, messsage):
         print('send msg')
-        self.ws.send_bytes(message_frame(msg))
+        self.ws.send_bytes(message_frame(messsage))
 
     @asyncio.coroutine
     def send_messages(self, messages):
@@ -66,12 +66,12 @@ class WebSocketTransport(Transport):
 
             while True:
                 msg = yield from ws.receive()
-                
+
                 if msg.tp == web.MsgType.text:
                     data = msg.data
                     if not data:
                         continue
-                
+
                     if data.startswith('['):
                         data = data[1:-1]
 
@@ -92,5 +92,5 @@ class WebSocketTransport(Transport):
                     break
 
             yield from self.manager.release(self.session)
-                
+
         return ws

@@ -2,7 +2,7 @@
 import asyncio
 import re
 
-from aiohttp import web, hdrs
+from aiohttp import web
 from sockjs.protocol import STATE_CLOSING, FRAME_CLOSE, close_frame, encode
 from sockjs.exceptions import SessionIsAcquired
 
