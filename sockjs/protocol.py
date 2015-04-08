@@ -2,6 +2,7 @@ import collections
 import hashlib
 from datetime import datetime
 
+ENCODING = 'utf-8'
 
 STATE_NEW = 0
 STATE_OPEN = 1
@@ -41,10 +42,10 @@ except ImportError:  # pragma: no cover
 # Frames
 # ------
 
-FRAME_OPEN = b"o"
-FRAME_CLOSE = b"c"
-FRAME_MESSAGE = b"a"
-FRAME_HEARTBEAT = b"h"
+FRAME_OPEN = 'o'
+FRAME_CLOSE = 'c'
+FRAME_MESSAGE = 'a'
+FRAME_HEARTBEAT = 'h'
 
 
 # ------------------
@@ -73,20 +74,20 @@ decode = json.loads
 ENCODING = 'utf-8'
 
 
-def encode(data):
-    return json.dumps(data, **kwargs).encode()
+def dumps(data):
+    return json.dumps(data, **kwargs)
 
 
 def close_frame(code, reason):
-    return FRAME_CLOSE+b'['+str(code).encode()+b','+encode(reason)+b']'
+    return FRAME_CLOSE + json.dumps([code,reason], **kwargs)
 
 
 def message_frame(message):
-    return FRAME_MESSAGE + json.dumps([message], **kwargs).encode(ENCODING)
+    return FRAME_MESSAGE + json.dumps([message], **kwargs)
 
 
 def messages_frame(messages):
-    return FRAME_MESSAGE + json.dumps(messages, **kwargs).encode(ENCODING)
+    return FRAME_MESSAGE + json.dumps(messages, **kwargs)
 
 
 def heartbeat_frame():

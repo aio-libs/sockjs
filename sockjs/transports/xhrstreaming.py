@@ -1,6 +1,6 @@
 import asyncio
 from aiohttp import web, hdrs, errors
-from sockjs.protocol import STATE_CLOSING, STATE_CLOSED
+from sockjs.protocol import ENCODING, STATE_CLOSING, STATE_CLOSED
 from sockjs.protocol import FRAME_CLOSE, FRAME_OPEN, close_frame, messages_frame
 from sockjs.exceptions import SessionIsAcquired
 
@@ -38,25 +38,28 @@ class XHRStreamingTransport(StreamingTransport):
 
         # session was interrupted
         if self.session.interrupted:
-            resp.write(close_frame(1002, b"Connection interrupted") + b'\n')
+            msg = '%s\n' % close_frame(1002, "Connection interrupted")
+            resp.write(msg.encode(ENCODING))
 
         # session is closing
         elif self.session.state == STATE_CLOSING:
             yield from self.session._remote_closed()
-            resp.write(close_frame(3000, b'Go away!') + b'\n')
+            msg = '%s\n' % close_frame(3000, 'Go away!')
+            resp.write(msg.encode(ENCODING))
 
         # session is closed
         elif self.session.state == STATE_CLOSED:
-            resp.write(close_frame(3000, b'Go away!') + b'\n')
+            msg = '%s\n' % close_frame(3000, 'Go away!')
+            resp.write(msg.encode(ENCODING))
 
         else:
             # acquire session
             try:
                 yield from self.manager.acquire(self.session, self)
             except SessionIsAcquired:
-                resp.write(
-                    close_frame(2010,
-                                b"Another connection still open") + b'\n')
+                msg = '%s\n' % close_frame(
+                    2010, "Another connection still open")
+                resp.write(msg.encode(ENCODING))
             else:
                 try:
                     yield from self.waiter

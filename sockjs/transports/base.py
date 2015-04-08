@@ -1,7 +1,7 @@
 import asyncio
 
-from sockjs.protocol import FRAME_OPEN
-from sockjs.protocol import FRAME_CLOSE, close_frame, messages_frame
+from sockjs.protocol import ENCODING, FRAME_OPEN, FRAME_CLOSE
+from sockjs.protocol import close_frame, messages_frame
 
 
 class Transport:
@@ -26,25 +26,25 @@ class StreamingTransport(Transport):
         self.response = None
 
     def send_open(self):
-        return self.send_blob(FRAME_OPEN)
+        return self.send_text(FRAME_OPEN)
 
     def send_message(self, message):
-        return self.send_blob(messages_frame([message]))
+        return self.send_text(messages_frame([message]))
 
     def send_messages(self, messages):
-        return self.send_blob(messages_frame(messages))
+        return self.send_text(messages_frame(messages))
 
-    def send_message_blob(self, blob):
-        return self.send_blob(blob)
+    def send_message_frame(self, frame):
+        return self.send_text(frame)
 
     @asyncio.coroutine
     def send_close(self, code, reason):
-        yield from self.send_blob(close_frame(code, reason))
+        yield from self.send_text(close_frame(code, reason))
         yield from self.session._remote_closed()
 
     @asyncio.coroutine
-    def send_blob(self, blob):
-        blob = blob + b'\n'
+    def send_text(self, text):
+        blob = (text + '\n').encode(ENCODING)
         yield from self.response.write(blob)
 
         self.size += len(blob)

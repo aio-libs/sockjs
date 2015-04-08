@@ -5,8 +5,8 @@ from urllib.parse import unquote_plus
 
 from aiohttp import web, hdrs
 
-from sockjs.protocol import FRAME_OPEN, FRAME_CLOSE, STATE_CLOSING
-from sockjs.protocol import encode, decode, close_frame, messages_frame
+from sockjs.protocol import ENCODING, FRAME_OPEN, FRAME_CLOSE, STATE_CLOSING
+from sockjs.protocol import dumps, decode, close_frame, messages_frame
 from sockjs.exceptions import SessionIsAcquired
 
 from .base import Transport
@@ -35,8 +35,8 @@ class JSONPolling(Transport):
         self.waiter.set_result(messages_frame(messages))
         yield from self.manager.release(self.session)
 
-    def send_message_blob(self, blob):
-        self.waiter.set_result(blob)
+    def send_message_frame(self, frame):
+        self.waiter.set_result(frame)
         yield from self.manager.release(self.session)
         
     @asyncio.coroutine
@@ -62,13 +62,10 @@ class JSONPolling(Transport):
                 return web.HTTPBadRequest(body=b'invalid "callback" parameter')
 
             if session.state == STATE_CLOSING:
-                message = close_frame(3000, b'Go away!')
-                body = b''.join((
-                    callback.encode('utf-8'),
-                    b'(', encode(message), b');\r\n'))
-
+                message = close_frame(3000, 'Go away!')
+                text = '%s(%s);\r\n' % (callback, dumps(message))
                 return web.Response(
-                    body=body,
+                    text=text,
                     content_type='application/javascript; charset=UTF-8',
                     headers=(
                         (hdrs.CACHE_CONTROL,
@@ -88,13 +85,13 @@ class JSONPolling(Transport):
                     yield from self.manager.acquire(session, self)
                 except SessionIsAcquired:
                     message = close_frame(
-                        2010, b"Another connection still open")
+                        2010, "Another connection still open")
                 else:
                     try:
                         message = yield from asyncio.wait_for(
                             self.waiter, timeout=self.timing, loop=self.loop)
                     except TimeoutError:
-                        message = b'a[]'
+                        message = 'a[]'
 
                 headers = list(
                     ((hdrs.CONTENT_TYPE,
@@ -104,9 +101,8 @@ class JSONPolling(Transport):
                     session_cookie(request) +
                     cors_headers(request.headers))
 
-                body = b''.join((
-                    callback.encode('utf-8'), b'(', encode(message), b');\r\n'))
-                return web.Response(headers=headers, body=body)
+                text = '%s(%s);\r\n' % (callback, dumps(message))
+                return web.Response(headers=headers, text=text)
 
         elif request.method == hdrs.METH_POST:
             data = yield from request.read()

@@ -11,27 +11,29 @@ class WebSocketTransport(Transport):
 
     @asyncio.coroutine
     def send_open(self):
-        self.ws.send_str('o')
+        self.ws.send_str(FRAME_OPEN)
 
     @asyncio.coroutine
     def send_message(self, messsage):
         print('send msg')
-        self.ws.send_bytes(message_frame(messsage))
+        self.ws.send_str(message_frame(messsage))
 
     @asyncio.coroutine
     def send_messages(self, messages):
         print('send msgs')
-        self.ws.send_bytes(messages_frame(messages))
+        self.ws.send_str(messages_frame(messages))
+
+    @asyncio.coroutine
+    def send_message_frame(self, blob):
+        self.ws.send_str(blob)
 
     @asyncio.coroutine
     def send_heartbeat(self):
-        print('send heartbeat')
-        self.ws.send_bytes(b'h')
+        self.ws.send_str(FRAME_HEARTBEAT)
 
     @asyncio.coroutine
     def send_close(self, code, reason):
-        print('send heartbeat', code, reason)
-        self.ws.send_bytes(close_frame(code, reason))
+        self.ws.send_str(close_frame(code, reason))
 
         try:
             yield from self.ws.close(message=reason)
@@ -39,21 +41,17 @@ class WebSocketTransport(Transport):
             yield from self.session._remote_closed()
 
     @asyncio.coroutine
-    def send_message_blob(self, blob):
-        self.ws.send_bytes(blob)
-
-    @asyncio.coroutine
     def process(self):
         # start websocket connection
-        ws = self.ws = web.WebSocketResponse(autoclose=False)
+        ws = self.ws = web.WebSocketResponse()
         ws.start(self.request)
 
         # session was interrupted
         if self.session.interrupted:
-            self.ws.send_bytes(close_frame(1002, b"Connection interrupted"))
+            self.ws.send_str(close_frame(1002, 'Connection interrupted'))
 
         elif self.session.state == STATE_CLOSED:
-            self.ws.send_bytes(close_frame(3000, b'Go away!'))
+            self.ws.send_str(close_frame(3000, 'Go away!'))
 
         else:
             try:
@@ -61,7 +59,7 @@ class WebSocketTransport(Transport):
             except:  # should use specific exception
                 yield from self.send_open()
                 yield from self.send_close(
-                    2010, b"Another connection still open")
+                    2010, "Another connection still open")
                 return ws
 
             while True:

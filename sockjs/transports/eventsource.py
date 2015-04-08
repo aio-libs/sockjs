@@ -1,18 +1,18 @@
 """ iframe-eventsource transport """
 import asyncio
 from aiohttp import web, hdrs
-from sockjs.protocol import STATE_CLOSING, close_frame
+from sockjs.protocol import ENCODING, STATE_CLOSING, close_frame
 from sockjs.exceptions import SessionIsAcquired
 
+from .base import StreamingTransport
 from .utils import session_cookie
-from .xhrstreaming import StreamingTransport
 
 
 class EventsourceTransport(StreamingTransport):
 
     @asyncio.coroutine
-    def send_blob(self, blob):
-        blob = b''.join((b'data: ', blob, b'\r\n\r\n'))
+    def send_text(self, text):
+        blob = ''.join(('data: ', text, '\r\n\r\n')).encode(ENCODING)
         yield from self.response.write(blob)
 
         self.size += len(blob)

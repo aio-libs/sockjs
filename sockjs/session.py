@@ -57,8 +57,9 @@ class Session(object):
         self._hits = 0
         self._heartbeats = 0
         self._debug = debug
+
         self._messages = []
-        self._messages_blobs = []
+        self._frames = []
 
     def __str__(self):
         result = ['id=%r' % (self.id,)]
@@ -113,9 +114,9 @@ class Session(object):
                 yield from self.transport.send_messages(self._messages)
                 self._messages.clear()
 
-            while self._messages_blobs:
-                yield from self.transport.send_message_blob(
-                    self._messages_blobs.pop(0))
+            while self._frames:
+                yield from self.transport.send_message_frame(
+                    self._frames.pop(0))
 
     def _release(self):
         self.acquired = False
@@ -197,19 +198,19 @@ class Session(object):
         else:
             yield from self.transport.send_message(msg)
 
-    def send_blob(self, blob):
+    def send_frame(self, frm):
         """ send message to client """
         if self._debug:
-            log.info('outgoing message: %s, %s', self.id, str(msg)[:200])
+            log.info('outgoing message: %s, %s', self.id, frm[:200])
 
         if self.state != STATE_OPEN:
             return
 
         self._tick()
         if self.transport is None:
-            self._messages_blobs.append(blob)
+            self._frames.append(frm)
         else:
-            yield from self.transport.send_message_blob(blob)
+            yield from self.transport.send_message_frame(frm)
 
     @asyncio.coroutine
     def close(self, code=3000, reason='Go away!'):
@@ -365,7 +366,7 @@ class SessionManager(dict):
 
         for session in self.values():
             if not session.expired:
-                yield from session.send_blob(blob)
+                yield from session.send_frame(blob)
 
     def __del__(self):
         self.clear()

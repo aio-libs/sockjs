@@ -3,7 +3,8 @@ import asyncio
 import re
 
 from aiohttp import web
-from sockjs.protocol import STATE_CLOSING, FRAME_CLOSE, close_frame, encode
+from sockjs.protocol import close_frame, dumps
+from sockjs.protocol import ENCODING, STATE_CLOSING, FRAME_CLOSE
 from sockjs.exceptions import SessionIsAcquired
 
 from .base import StreamingTransport
@@ -33,8 +34,9 @@ class HTMLFileTransport(StreamingTransport):
     check_callback = re.compile('^[a-zA-Z0-9_\.]+$')
 
     @asyncio.coroutine
-    def send_blob(self, blob):
-        blob = b''.join((b'<script>\np(', encode(blob), b');\n</script>\r\n'))
+    def send_text(self, text):
+        blob = (
+            '<script>\np(%s);\n</script>\r\n' % dumps(text)).encode(ENCODING)
         yield from self.response.write(blob)
 
         self.size += len(blob)
