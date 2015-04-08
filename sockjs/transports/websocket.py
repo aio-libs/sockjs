@@ -11,8 +11,7 @@ class WebSocketTransport(Transport):
 
     @asyncio.coroutine
     def send_open(self):
-        print('send open', FRAME_OPEN)
-        #self.ws.send_bytes(FRAME_OPEN+b'\n')
+        self.ws.send_str('o')
 
     @asyncio.coroutine
     def send_message(self, msg):
@@ -46,7 +45,7 @@ class WebSocketTransport(Transport):
     @asyncio.coroutine
     def process(self):
         # start websocket connection
-        ws = self.ws = web.WebSocketResponse()
+        ws = self.ws = web.WebSocketResponse(autoclose=False)
         ws.start(self.request)
 
         # session was interrupted
