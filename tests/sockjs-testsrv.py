@@ -3,7 +3,6 @@ import logging
 from aiohttp import web
 
 import sockjs
-from sockjs.session import Session, SessionManager
 from sockjs.transports.eventsource import EventsourceTransport
 from sockjs.transports.htmlfile import HTMLFileTransport
 from sockjs.transports.xhrstreaming import XHRStreamingTransport
@@ -14,10 +13,12 @@ def echoSession(msg, session):
     if msg.tp == sockjs.MSG_MESSAGE:
         yield from session.send(msg.data)
 
+
 @asyncio.coroutine
 def closeSessionHander(msg, session):
     if msg.tp == sockjs.MSG_OPEN:
         yield from session.close()
+
 
 @asyncio.coroutine
 def broadcastSession(msg, session):
@@ -36,7 +37,7 @@ if __name__ == '__main__':
     XHRStreamingTransport.maxsize = 4096
 
     app = web.Application(loop=loop)
-    
+
     sockjs.add_endpoint(
         app, echoSession, name='echo', prefix='/echo')
     sockjs.add_endpoint(

@@ -348,7 +348,7 @@ class GcThreadTestCase(BaseTestCase):
         sm = SessionManager('sm', self.registry, gc_cycle=0.1)
         sm.start()
         sm.stop()
-        #self.assertTrue(self.gc_executed)
+        # self.assertTrue(self.gc_executed)
 
 
 class SessionManagerTestCase(BaseTestCase):

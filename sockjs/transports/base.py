@@ -1,6 +1,6 @@
 import asyncio
 
-from sockjs.protocol import ENCODING, FRAME_OPEN, FRAME_CLOSE
+from sockjs.protocol import ENCODING, FRAME_OPEN
 from sockjs.protocol import close_frame, messages_frame
 
 

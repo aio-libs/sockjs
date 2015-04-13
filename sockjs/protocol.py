@@ -70,7 +70,7 @@ IFRAME_HTML = """<!DOCTYPE html>
 
 IFRAME_MD5 = hashlib.md5(IFRAME_HTML.encode()).hexdigest()
 
-decode = json.loads
+loads = json.loads
 ENCODING = 'utf-8'
 
 
@@ -79,7 +79,7 @@ def dumps(data):
 
 
 def close_frame(code, reason):
-    return FRAME_CLOSE + json.dumps([code,reason], **kwargs)
+    return FRAME_CLOSE + json.dumps([code, reason], **kwargs)
 
 
 def message_frame(message):
@@ -88,17 +88,6 @@ def message_frame(message):
 
 def messages_frame(messages):
     return FRAME_MESSAGE + json.dumps(messages, **kwargs)
-
-
-def heartbeat_frame():
-    return 'h'
-
-
-FRAMES = {
-    FRAME_CLOSE: close_frame,
-    FRAME_MESSAGE: message_frame,
-    FRAME_HEARTBEAT: heartbeat_frame,
-}
 
 
 # Handler messages

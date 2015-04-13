@@ -2,7 +2,6 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 
-from sockjs import protocol
 from sockjs.protocol import STATE_NEW
 from sockjs.protocol import STATE_OPEN
 from sockjs.protocol import STATE_CLOSING
@@ -10,9 +9,7 @@ from sockjs.protocol import STATE_CLOSED
 from sockjs.exceptions import SessionIsAcquired
 
 from sockjs.protocol import MSG_CLOSE, MSG_MESSAGE, message_frame
-
-from sockjs.protocol import SockjsMessage
-from sockjs.protocol import OpenMessage, CloseMessage, ClosedMessage
+from sockjs.protocol import SockjsMessage, OpenMessage, ClosedMessage
 
 
 log = logging.getLogger('sockjs')

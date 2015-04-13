@@ -1,11 +1,10 @@
 import asyncio
 from aiohttp import web, hdrs, errors
-from sockjs.protocol import ENCODING, STATE_CLOSING, STATE_CLOSED
-from sockjs.protocol import FRAME_CLOSE, FRAME_OPEN, close_frame, messages_frame
-from sockjs.exceptions import SessionIsAcquired
 
 from .base import StreamingTransport
 from .utils import session_cookie, cors_headers, cache_headers
+from ..exceptions import SessionIsAcquired
+from ..protocol import close_frame, ENCODING, STATE_CLOSING, STATE_CLOSED
 
 
 class XHRStreamingTransport(StreamingTransport):
@@ -16,8 +15,7 @@ class XHRStreamingTransport(StreamingTransport):
     def process(self):
         request = self.request
         headers = list(
-            (#(hdrs.CONNECTION, request.headers.get(hdrs.CONNECTION, 'close')),
-             (hdrs.CONNECTION, 'close'),
+            ((hdrs.CONNECTION, request.headers.get(hdrs.CONNECTION, 'close')),
              (hdrs.CONTENT_TYPE,
               'application/javascript; charset=UTF-8'),
              (hdrs.CACHE_CONTROL,

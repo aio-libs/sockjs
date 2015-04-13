@@ -1,10 +1,10 @@
 """websocket transport"""
 import asyncio
 from aiohttp import web
-from sockjs.protocol import STATE_CLOSING, STATE_CLOSED, FRAME_OPEN, FRAME_CLOSE
-from sockjs.protocol import decode, close_frame, message_frame, messages_frame
 
 from .base import Transport
+from ..protocol import STATE_CLOSED, FRAME_OPEN, FRAME_HEARTBEAT
+from ..protocol import loads, close_frame, message_frame, messages_frame
 
 
 class WebSocketTransport(Transport):
@@ -15,12 +15,10 @@ class WebSocketTransport(Transport):
 
     @asyncio.coroutine
     def send_message(self, messsage):
-        print('send msg')
         self.ws.send_str(message_frame(messsage))
 
     @asyncio.coroutine
     def send_messages(self, messages):
-        print('send msgs')
         self.ws.send_str(messages_frame(messages))
 
     @asyncio.coroutine
@@ -74,7 +72,7 @@ class WebSocketTransport(Transport):
                         data = data[1:-1]
 
                     try:
-                        text = decode(data)
+                        text = loads(data)
                     except Exception as exc:
                         yield from self.session._remote_close(exc)
                         yield from self.session._remote_closed()

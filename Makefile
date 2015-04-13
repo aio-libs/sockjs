@@ -1,22 +1,27 @@
 # Some simple testing tasks (sorry, UNIX only).
 
-PYTHON=python3.4
-PIP=pip
-NOSE=nosetests
 FLAGS=
 
-test:
-	$(NOSE) -s $(FLAGS)
 
-vtest:
-	$(NOSE) -s -v $(FLAGS)
+flake:
+#	python setup.py check -rms
+	flake8 sockjs tests examples
 
-testloop:
-	while sleep 1; do $(PYTHON) runtests.py $(FLAGS); done
+develop:
+	python setup.py develop
 
-cov cover coverage:
-	$(NOSE) -s --with-cover --cover-html --cover-html-dir ../coverage $(FLAGS)
-	echo "open file://`pwd`/coverage/index.html"
+test: flake develop
+	nosetests -s $(FLAGS) ./tests/
+
+vtest: flake develop
+	nosetests -s -v $(FLAGS) ./tests/
+
+cov cover coverage: flake develop
+	@coverage erase
+	@coverage run -m nose -s $(FLAGS) tests
+	@coverage report
+	@coverage html
+	@echo "open file://`pwd`/coverage/index.html"
 
 clean:
 	rm -rf `find . -name __pycache__`
@@ -29,5 +34,13 @@ clean:
 	rm -f `find . -type f -name '*.rej' `
 	rm -f .coverage
 	rm -rf coverage
+	rm -rf build
+	rm -rf cover
+	make -C docs clean
+	python setup.py clean
 
-.PHONY: all test vtest testloop cov clean
+doc:
+	make -C docs html
+	@echo "open file://`pwd`/docs/_build/html/index.html"
+
+.PHONY: all build venv flake test vtest testloop cov clean doc

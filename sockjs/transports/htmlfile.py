@@ -1,11 +1,10 @@
 """ iframe-htmlfile transport """
 import asyncio
 import re
-
 from aiohttp import web
-from sockjs.protocol import close_frame, dumps
-from sockjs.protocol import ENCODING, STATE_CLOSING, FRAME_CLOSE
-from sockjs.exceptions import SessionIsAcquired
+
+from ..exceptions import SessionIsAcquired
+from ..protocol import close_frame, dumps, ENCODING, STATE_CLOSING
 
 from .base import StreamingTransport
 from .utils import session_cookie, cors_headers

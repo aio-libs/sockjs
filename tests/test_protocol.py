@@ -5,7 +5,7 @@ from base import TestCase
 class TestProtocol(TestCase):
 
     def test_encode(self):
-        from pyramid_sockjs import protocol
+        from sockjs import protocol
 
         self.assertEqual(
             protocol.encode({}), json.dumps({}).encode('utf-8'))
@@ -15,7 +15,7 @@ class TestProtocol(TestCase):
             protocol.encode('"test"'), json.dumps('"test"').encode('utf-8'))
 
     def test_decode(self):
-        from pyramid_sockjs import protocol
+        from sockjs import protocol
 
         self.assertEqual(protocol.decode(json.dumps({})), {})
         self.assertEqual(protocol.decode(json.dumps(['test'])), ['test'])
@@ -28,7 +28,7 @@ class TestProtocol(TestCase):
         self.assertEqual(msg, b'c[1000,"Internal error"]')
 
     def test_message_frame(self):
-        from pyramid_sockjs import protocol
+        from sockjs import protocol
 
         msg = protocol.message_frame(['msg1', 'msg2'])
         self.assertEqual(

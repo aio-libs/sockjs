@@ -1,6 +1,6 @@
 from aiohttp import web, hdrs
-from sockjs.protocol import decode
 
+from ..protocol import loads
 from .base import Transport
 from .utils import session_cookie, cors_headers, cache_headers
 
@@ -17,7 +17,8 @@ class XHRSendTransport(Transport):
         if self.request.method == hdrs.METH_OPTIONS:
             headers = list(
                 ((hdrs.ACCESS_CONTROL_ALLOW_METHODS, "OPTIONS, POST"),
-                 (hdrs.CONTENT_TYPE, 'application/javascript; charset=UTF-8')) +
+                 (hdrs.CONTENT_TYPE, 'application/javascript; charset=UTF-8'))
+                +
                 session_cookie(request) +
                 cors_headers(request.headers) +
                 cache_headers())
@@ -28,7 +29,7 @@ class XHRSendTransport(Transport):
             return web.HTTPBadRequest(text="Payload expected.")
 
         try:
-            messages = decode(data)
+            messages = loads(data)
         except:
             return web.HTTPBadRequest(text="Broken JSON encoding.")
 

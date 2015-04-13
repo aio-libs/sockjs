@@ -5,8 +5,8 @@ from urllib.parse import unquote_plus
 
 from aiohttp import web, hdrs
 
-from sockjs.protocol import ENCODING, FRAME_OPEN, FRAME_CLOSE, STATE_CLOSING
-from sockjs.protocol import dumps, decode, close_frame, messages_frame
+from sockjs.protocol import ENCODING, FRAME_OPEN, STATE_CLOSING
+from sockjs.protocol import dumps, loads, close_frame, messages_frame
 from sockjs.exceptions import SessionIsAcquired
 
 from .base import Transport
@@ -28,7 +28,7 @@ class JSONPolling(Transport):
         yield from self.manager.release(self.session)
 
     def send_message(self, message):
-        self.waiter.set_result(messages_frame(msg))
+        self.waiter.set_result(messages_frame(message))
         yield from self.manager.release(self.session)
 
     def send_messages(self, messages):
@@ -38,7 +38,7 @@ class JSONPolling(Transport):
     def send_message_frame(self, frame):
         self.waiter.set_result(frame)
         yield from self.manager.release(self.session)
-        
+
     @asyncio.coroutine
     def send_close(self, code, reason):
         self.waiter.set_result(close_frame(code, reason))
@@ -55,11 +55,13 @@ class JSONPolling(Transport):
             callback = request.GET.get('c')
             if not callback:
                 yield from self.session._remote_closed()
-                return web.HTTPBadRequest(body=b'"callback" parameter required')
+                return web.HTTPBadRequest(
+                    body=b'"callback" parameter required')
 
             elif not self.check_callback.match(callback):
                 yield from self.session._remote_closed()
-                return web.HTTPBadRequest(body=b'invalid "callback" parameter')
+                return web.HTTPBadRequest(
+                    body=b'invalid "callback" parameter')
 
             if session.state == STATE_CLOSING:
                 message = close_frame(3000, 'Go away!')
@@ -112,13 +114,13 @@ class JSONPolling(Transport):
                 if not data.startswith(b'd='):
                     return web.HTTPBadRequest(body=b"Payload expected.")
 
-                data = unquote_plus(data[2:].decode('utf-8'))
+                data = unquote_plus(data[2:].decode(ENCODING))
 
             if not data:
                 return web.HTTPBadRequest(body=b"Payload expected.")
 
             try:
-                messages = decode(data)
+                messages = loads(data)
             except:
                 return web.HTTPBadRequest(body=b'Broken JSON encoding.')
 
@@ -129,7 +131,7 @@ class JSONPolling(Transport):
                           'text/plain; charset=UTF-8'),
                          (hdrs.CACHE_CONTROL,
                           'no-store, no-cache, must-revalidate, max-age=0')) +
-                         session_cookie(request))
+                session_cookie(request))
 
         else:
             return web.HTTPBadRequest("No support for such method: %s" % meth)
