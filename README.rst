@@ -8,7 +8,7 @@ based on `aiohttp <https://github.com/KeepSafe/aiohttp/>`_
 `aiosockjs` is a `SockJS <http://sockjs.org>`_ integration for 
 `aiohttp <https://github.com/KeepSafe/aiohttp/>`_.  SockJS interface is implemented as a 
 `aiohttp route. Its possible to create any number of different sockjs routes, ie 
-`/__sockjs__/*` or `/mycustom-sockjs/*`. You can provide different session implementation 
+`/sockjs/*` or `/mycustom-sockjs/*`. You can provide different session implementation 
 and management for each sockjs route.
 
 Simple aiohttp web server is required::
@@ -25,7 +25,7 @@ Example of sockjs route::
    def main(global_settings, **settings):
        app = web.Application(loop=loop)
        app.router.add_route('GET', '/', index)
-       sockjs.add_endpoint(app, prefix='/sockjs/', handler=chatSession)
+       sockjs.add_endpoint(app, prefix='/sockjs', handler=chatSession)
 
        handler = app.make_handler()
        srv = loop.run_until_complete(
@@ -40,9 +40,9 @@ Example of sockjs route::
 
 Client side code::
 
-  <script src="http://cdn.sockjs.org/sockjs-0.3.4.min.js"></script>
+  <script src="//cdn.jsdelivr.net/sockjs/0.3.4/sockjs.min.js"></script>
   <script>
-      var sock = new SockJS('http://localhost:8080/__sockjs__');
+      var sock = new SockJS('http://localhost:8080/sockjs');
 
       sock.onopen = function() {
         console.log('open');
@@ -57,8 +57,8 @@ Client side code::
       };
   </script>
 
-.. image :: https://secure.travis-ci.org/aio-libs/aiosockjs.png
-  :target:  https://secure.travis-ci.org/aio-libs/aiosockjs
+.. image :: https://secure.travis-ci.org/aio-libs/sockjs.png
+  :target:  https://secure.travis-ci.org/aio-libs/sockjs
 
 
 Installation
@@ -71,8 +71,8 @@ Installation
 
 3. Clone aiosockjs from github and then install::
 
-    $ git clone https://github.com/aio-libs/aiosockjs.git
-    $ cd aiosockjs
+    $ git clone https://github.com/aio-libs/sockjs.git
+    $ cd sockjs
     $ ../sockjs/bin/python setup.py develop
 
 To run chat example use following command::
@@ -83,7 +83,7 @@ To run chat example use following command::
 Supported transports
 --------------------
 
-* websocket `hybi-10 <http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10>`_)
+* websocket `hybi-10 <http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10>`_
 * `xhr-streaming <https://secure.wikimedia.org/wikipedia/en/wiki/XMLHttpRequest#Cross-domain_requests>`_
 * `xhr-polling <https://secure.wikimedia.org/wikipedia/en/wiki/XMLHttpRequest#Cross-domain_requests>`_
 * `iframe-xhr-polling <https://developer.mozilla.org/en/DOM/window.postMessage>`_
@@ -96,7 +96,7 @@ Supported transports
 
 Not supported transports
 ------------------------
-  * websocket (`hixie-76 <http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76>`_
+  * websocket `hixie-76 <http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76>`_
 
 
 Requirements
@@ -114,7 +114,7 @@ Examples
 
 You can find several `examples` in the aiosockjs repository at github.
 
-https://github.com/aio-libs/aiosockjs/tree/master/examples
+https://github.com/aio-libs/sockjs/tree/master/examples
 
 
 License
