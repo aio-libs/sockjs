@@ -1,10 +1,7 @@
-import asyncio
-from aiohttp import web, hdrs, errors
+from aiohttp import web, hdrs
 
 from .base import StreamingTransport
 from .utils import session_cookie, cors_headers, cache_headers
-from ..exceptions import SessionIsAcquired
-from ..protocol import close_frame, ENCODING, STATE_CLOSING, STATE_CLOSED
 
 
 class XHRStreamingTransport(StreamingTransport):
@@ -31,40 +28,11 @@ class XHRStreamingTransport(StreamingTransport):
 
         # open sequence (sockjs protocol)
         resp = self.response = web.StreamResponse(headers=headers)
+        resp.force_close()
         resp.start(request)
         resp.write(self.open_seq)
 
-        # session was interrupted
-        if self.session.interrupted:
-            msg = '%s\n' % close_frame(1002, "Connection interrupted")
-            resp.write(msg.encode(ENCODING))
-
-        # session is closing
-        elif self.session.state == STATE_CLOSING:
-            yield from self.session._remote_closed()
-            msg = '%s\n' % close_frame(3000, 'Go away!')
-            resp.write(msg.encode(ENCODING))
-
-        # session is closed
-        elif self.session.state == STATE_CLOSED:
-            msg = '%s\n' % close_frame(3000, 'Go away!')
-            resp.write(msg.encode(ENCODING))
-
-        else:
-            # acquire session
-            try:
-                yield from self.manager.acquire(self.session, self)
-            except SessionIsAcquired:
-                msg = '%s\n' % close_frame(
-                    2010, "Another connection still open")
-                resp.write(msg.encode(ENCODING))
-            else:
-                try:
-                    yield from self.waiter
-                except asyncio.CancelledError:
-                    yield from self.session._remote_close(
-                        exc=errors.ClientDisconnectedError)
-                    yield from self.session._remote_closed()
-                    raise
+        # event loop
+        yield from self.handle_session()
 
         return resp

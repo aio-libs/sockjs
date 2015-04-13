@@ -45,6 +45,7 @@ except ImportError:  # pragma: no cover
 FRAME_OPEN = 'o'
 FRAME_CLOSE = 'c'
 FRAME_MESSAGE = 'a'
+FRAME_MESSAGE_BLOB = 'a1'
 FRAME_HEARTBEAT = 'h'
 
 

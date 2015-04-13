@@ -11,19 +11,19 @@ from sockjs.transports.xhrstreaming import XHRStreamingTransport
 @asyncio.coroutine
 def echoSession(msg, session):
     if msg.tp == sockjs.MSG_MESSAGE:
-        yield from session.send(msg.data)
+        session.send(msg.data)
 
 
 @asyncio.coroutine
 def closeSessionHander(msg, session):
     if msg.tp == sockjs.MSG_OPEN:
-        yield from session.close()
+        session.close()
 
 
 @asyncio.coroutine
 def broadcastSession(msg, session):
     if msg.tp == sockjs.MSG_OPEN:
-        yield from session.manager.broadcast(msg.data)
+        session.manager.broadcast(msg.data)
 
 
 if __name__ == '__main__':

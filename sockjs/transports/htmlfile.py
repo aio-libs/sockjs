@@ -1,11 +1,8 @@
 """ iframe-htmlfile transport """
-import asyncio
 import re
 from aiohttp import web
 
-from ..exceptions import SessionIsAcquired
-from ..protocol import close_frame, dumps, ENCODING, STATE_CLOSING
-
+from ..protocol import dumps, ENCODING
 from .base import StreamingTransport
 from .utils import session_cookie, cors_headers
 
@@ -32,19 +29,18 @@ class HTMLFileTransport(StreamingTransport):
     maxsize = 131072  # 128K bytes
     check_callback = re.compile('^[a-zA-Z0-9_\.]+$')
 
-    @asyncio.coroutine
-    def send_text(self, text):
+    def send(self, text):
         blob = (
             '<script>\np(%s);\n</script>\r\n' % dumps(text)).encode(ENCODING)
-        yield from self.response.write(blob)
+        self.response.write(blob)
 
         self.size += len(blob)
         if self.size > self.maxsize:
-            yield from self.manager.release(self.session)
-            self.waiter.set_result(True)
+            return True
+        else:
+            return False
 
     def process(self):
-        session = self.session
         request = self.request
 
         headers = list(
@@ -70,23 +66,7 @@ class HTMLFileTransport(StreamingTransport):
         resp.write(b''.join(
             (PRELUDE1, callback.encode('utf-8'), PRELUDE2, b' '*1024)))
 
-        # session was interrupted
-        if session.interrupted:
-            self.send_blob(close_frame(1002, b"Connection interrupted"))
-
-        # session is closed
-        elif session.state == STATE_CLOSING:
-            yield from self.session._remote_closed()
-            self.send_blob(close_frame(3000, b'Go away!'))
-
-        else:
-            # acquire session
-            try:
-                yield from self.manager.acquire(self.session, self)
-            except SessionIsAcquired:
-                yield from self.send_blob(
-                    close_frame(2010, b"Another connection still open"))
-            else:
-                yield from self.waiter
+        # handle session
+        yield from self.handle_session()
 
         return resp

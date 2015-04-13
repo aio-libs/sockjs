@@ -11,11 +11,11 @@ CHAT_FILE = open(
 
 def chatSession(msg, session):
     if msg.tp == sockjs.MSG_OPEN:
-        yield from session.manager.broadcast("Someone joined.")
+        session.manager.broadcast("Someone joined.")
     elif msg.tp == sockjs.MSG_MESSAGE:
-        yield from session.manager.broadcast(msg.data)
+        session.manager.broadcast(msg.data)
     elif msg.tp == sockjs.MSG_CLOSED:
-        yield from session.manager.broadcast("Someone left.")
+        session.manager.broadcast("Someone left.")
 
 
 def index(request):

@@ -1,49 +1,24 @@
 """jsonp transport"""
-import asyncio
 import re
 from urllib.parse import unquote_plus
 
 from aiohttp import web, hdrs
 
-from sockjs.protocol import ENCODING, FRAME_OPEN, STATE_CLOSING
-from sockjs.protocol import dumps, loads, close_frame, messages_frame
-from sockjs.exceptions import SessionIsAcquired
-
-from .base import Transport
+from .base import StreamingTransport
 from .utils import session_cookie, cors_headers
+from ..protocol import dumps, loads, ENCODING
 
 
-class JSONPolling(Transport):
+class JSONPolling(StreamingTransport):
 
-    timing = 5.0
+    timeout = 5.0
     check_callback = re.compile('^[a-zA-Z0-9_\.]+$')
+    callback = ''
 
-    def __init__(self, manager, session, request):
-        super().__init__(manager, session, request)
-
-        self.waiter = asyncio.Future(loop=self.loop)
-
-    def send_open(self):
-        self.waiter.set_result(FRAME_OPEN)
-        yield from self.manager.release(self.session)
-
-    def send_message(self, message):
-        self.waiter.set_result(messages_frame(message))
-        yield from self.manager.release(self.session)
-
-    def send_messages(self, messages):
-        self.waiter.set_result(messages_frame(messages))
-        yield from self.manager.release(self.session)
-
-    def send_message_frame(self, frame):
-        self.waiter.set_result(frame)
-        yield from self.manager.release(self.session)
-
-    @asyncio.coroutine
-    def send_close(self, code, reason):
-        self.waiter.set_result(close_frame(code, reason))
-        yield from self.session._remote_closed()
-        yield from self.manager.release(self.session)
+    def send(self, text):
+        blob = ('%s(%s);\r\n' % (self.callback, dumps(text))).encode(ENCODING)
+        self.response.write(blob)
+        return True
 
     def process(self):
         session = self.session
@@ -52,7 +27,7 @@ class JSONPolling(Transport):
 
         if request.method == hdrs.METH_GET:
 
-            callback = request.GET.get('c')
+            callback = self.callback = request.GET.get('c')
             if not callback:
                 yield from self.session._remote_closed()
                 return web.HTTPBadRequest(
@@ -63,48 +38,19 @@ class JSONPolling(Transport):
                 return web.HTTPBadRequest(
                     body=b'invalid "callback" parameter')
 
-            if session.state == STATE_CLOSING:
-                message = close_frame(3000, 'Go away!')
-                text = '%s(%s);\r\n' % (callback, dumps(message))
-                return web.Response(
-                    text=text,
-                    content_type='application/javascript; charset=UTF-8',
-                    headers=(
-                        (hdrs.CACHE_CONTROL,
-                         'no-store, no-cache, must-revalidate, max-age=0'),))
+            headers = list(
+                ((hdrs.CONTENT_TYPE,
+                  'application/javascript; charset=UTF-8'),
+                 (hdrs.CACHE_CONTROL,
+                  'no-store, no-cache, must-revalidate, max-age=0')) +
+                session_cookie(request) +
+                cors_headers(request.headers))
 
-            # session was interrupted
-            if session.interrupted:
-                message = close_frame(1002, b"Connection interrupted")
+            resp = self.response = web.StreamResponse(headers=headers)
+            resp.start(request)
 
-            # session closed
-            elif session.state == STATE_CLOSING:
-                yield from session._remote_closed()
-                message = close_frame(3000, b'Go away!')
-
-            else:
-                try:
-                    yield from self.manager.acquire(session, self)
-                except SessionIsAcquired:
-                    message = close_frame(
-                        2010, "Another connection still open")
-                else:
-                    try:
-                        message = yield from asyncio.wait_for(
-                            self.waiter, timeout=self.timing, loop=self.loop)
-                    except TimeoutError:
-                        message = 'a[]'
-
-                headers = list(
-                    ((hdrs.CONTENT_TYPE,
-                      'application/javascript; charset=UTF-8'),
-                     (hdrs.CACHE_CONTROL,
-                      'no-store, no-cache, must-revalidate, max-age=0')) +
-                    session_cookie(request) +
-                    cors_headers(request.headers))
-
-                text = '%s(%s);\r\n' % (callback, dumps(message))
-                return web.Response(headers=headers, text=text)
+            yield from self.handle_session()
+            return resp
 
         elif request.method == hdrs.METH_POST:
             data = yield from request.read()

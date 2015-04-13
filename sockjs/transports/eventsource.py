@@ -1,8 +1,6 @@
 """ iframe-eventsource transport """
-import asyncio
 from aiohttp import web, hdrs
-from sockjs.protocol import ENCODING, STATE_CLOSING, close_frame
-from sockjs.exceptions import SessionIsAcquired
+from sockjs.protocol import ENCODING
 
 from .base import StreamingTransport
 from .utils import session_cookie
@@ -10,15 +8,15 @@ from .utils import session_cookie
 
 class EventsourceTransport(StreamingTransport):
 
-    @asyncio.coroutine
-    def send_text(self, text):
+    def send(self, text):
         blob = ''.join(('data: ', text, '\r\n\r\n')).encode(ENCODING)
-        yield from self.response.write(blob)
+        self.response.write(blob)
 
         self.size += len(blob)
         if self.size > self.maxsize:
-            yield from self.manager.release(self.session)
-            self.waiter.set_result(True)
+            return True
+        else:
+            return False
 
     def process(self):
         headers = list(
@@ -32,26 +30,7 @@ class EventsourceTransport(StreamingTransport):
         resp.start(self.request)
         resp.write(b'\r\n')
 
-        # get session
-        session = self.session
-
-        # session was interrupted
-        if session.interrupted:
-            self.send_blob(close_frame(1002, b"Connection interrupted"))
-
-        # session is closed
-        elif session.state == STATE_CLOSING:
-            yield from self.session._remote_closed()
-            self.send_blob(close_frame(3000, b'Go away!'))
-
-        else:
-            # acquire session
-            try:
-                yield from self.manager.acquire(self.session, self)
-            except SessionIsAcquired:
-                yield from self.send_blob(
-                    close_frame(2010, b"Another connection still open"))
-            else:
-                yield from self.waiter
+        # handle session
+        yield from self.handle_session()
 
         return resp

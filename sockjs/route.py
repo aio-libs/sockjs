@@ -2,6 +2,7 @@ import asyncio
 import random
 import logging
 import hashlib
+import inspect
 from aiohttp import web, hdrs
 
 from sockjs.session import SessionManager
@@ -24,11 +25,16 @@ def add_endpoint(app, handler, *, name='', prefix='/sockjs',
                  sockjs_cdn='http://cdn.sockjs.org/sockjs-0.3.4.min.js',
                  cookie_needed=True):
 
+    assert callable(handler), handler
+    if (not asyncio.iscoroutinefunction(handler) and
+            not inspect.isgeneratorfunction(handler)):
+        handler = asyncio.coroutine(handler)
+
     router = app.router
 
     # set session manager
     if manager is None:
-        manager = SessionManager(name, app, handler)
+        manager = SessionManager(name, app, handler, app.loop)
 
     if manager.name != name:
         raise ValueError(
@@ -67,13 +73,13 @@ def add_endpoint(app, handler, *, name='', prefix='/sockjs',
         hdrs.METH_GET, '%s/websocket' % prefix,
         route.websocket, name=route_name)
 
-    route_name = 'sockjs-info-%s' % name
     router.add_route(
         hdrs.METH_GET, '%s/info' % prefix,
-        route.info, name=route_name)
+        route.info, name='sockjs-info-%s' % name)
     router.add_route(
         hdrs.METH_OPTIONS,
-        '%s/info' % prefix, route.info_options, name=route_name)
+        '%s/info' % prefix,
+        route.info_options, name='sockjs-info-options-%s' % name)
 
     route_name = 'sockjs-iframe-%s' % name
     router.add_route(

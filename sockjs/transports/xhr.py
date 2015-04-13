@@ -1,92 +1,27 @@
-import asyncio
-from itertools import chain
-from aiohttp import web, hdrs, errors
+from aiohttp import web, hdrs
 
-from sockjs import STATE_CLOSING, STATE_CLOSED
-from sockjs.protocol import ENCODING, FRAME_OPEN, close_frame, messages_frame
-from sockjs.exceptions import SessionIsAcquired
-
-from .base import Transport
+from .base import StreamingTransport
 from .utils import session_cookie, cors_headers, cache_headers
 
 
-class XHRTransport(Transport):
+class XHRTransport(StreamingTransport):
     """Long polling derivative transports,
     used for XHRPolling and JSONPolling."""
 
-    timing = 5.0
-
-    def __init__(self, manager, session, request):
-        super().__init__(manager, session, request)
-
-        self.waiter = asyncio.Future(loop=self.loop)
-
-    def send_open(self):
-        self.waiter.set_result(FRAME_OPEN)
-        yield from self.manager.release(self.session)
-
-    def send_message(self, message):
-        self.waiter.set_result(messages_frame(message))
-        yield from self.manager.release(self.session)
-
-    def send_messages(self, messages):
-        self.waiter.set_result(messages_frame(messages))
-        yield from self.manager.release(self.session)
-
-    def send_message_frame(self, frame):
-        self.waiter.set_result(frame)
-        yield from self.manager.release(self.session)
-
-    @asyncio.coroutine
-    def send_close(self, code, reason):
-        self.waiter.set_result(close_frame(code, reason))
-        yield from self.session._remote_closed()
-        yield from self.manager.release(self.session)
+    timeout = 5.0
+    maxsize = 0
 
     def process(self):
         request = self.request
 
         if request.method == hdrs.METH_OPTIONS:
-            headers = list(chain(
+            headers = list(
                 ((hdrs.CONTENT_TYPE, 'application/javascript; charset=UTF-8'),
-                 (hdrs.ACCESS_CONTROL_ALLOW_METHODS, "OPTIONS, POST")),
-                session_cookie(request),
-                cors_headers(request.headers),
-                cache_headers()))
+                 (hdrs.ACCESS_CONTROL_ALLOW_METHODS, "OPTIONS, POST")) +
+                session_cookie(request) +
+                cors_headers(request.headers) +
+                cache_headers())
             return web.Response(status=204, headers=headers)
-
-        session = self.session
-
-        # session was interrupted
-        if session.interrupted:
-            message = close_frame(1002, b"Connection interrupted") + b'\n'
-
-        # session closed
-        elif session.state == STATE_CLOSING:
-            yield from session._remote_closed()
-            message = '%s\n' % close_frame(3000, 'Go away!')
-
-        elif session.state == STATE_CLOSED:
-            message = '%s\n' % close_frame(3000, b'Go away!')
-
-        else:
-            try:
-                yield from self.manager.acquire(session, self)
-            except SessionIsAcquired:
-                message = '%s\n' % close_frame(
-                    2010, "Another connection still open")
-            else:
-                try:
-                    message = yield from asyncio.wait_for(
-                        self.waiter, timeout=self.timing, loop=self.loop)
-                    message += '\n'
-                except TimeoutError:
-                    message = 'a[]\n'
-                except asyncio.CancelledError:
-                    yield from self.session._remote_close(
-                        exc=errors.ClientDisconnectedError)
-                    yield from self.session._remote_closed()
-                    raise
 
         headers = list(
             ((hdrs.CONTENT_TYPE, 'application/javascript; charset=UTF-8'),
@@ -95,4 +30,8 @@ class XHRTransport(Transport):
             session_cookie(request) +
             cors_headers(request.headers))
 
-        return web.Response(headers=headers, body=message.encode(ENCODING))
+        resp = self.response = web.StreamResponse(headers=headers)
+        resp.start(request)
+
+        yield from self.handle_session()
+        return resp
