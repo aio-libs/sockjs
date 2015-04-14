@@ -1,49 +1,96 @@
-from pyramid.httpexceptions import HTTPNotFound, HTTPBadRequest
+import asyncio
+import unittest
+from unittest import mock
 
-from pyramid_sockjs import protocol
+from aiohttp import web
+from aiohttp import CIMultiDict
+from aiohttp.protocol import RawRequestMessage, HttpVersion11
+from sockjs import session, route, protocol, transports
 
-from base import BaseTestCase
 
+class BaseSockjs(unittest.TestCase):
 
-class BaseSockjs(BaseTestCase):
+    def setUp(self):
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(None)
 
-    def make_one(self):
-        from pyramid_sockjs.route import SockJSRoute
-        from pyramid_sockjs.session import SessionManager
+        self.app = web.Application(loop=self.loop)
 
-        sm = SessionManager('sm', self.registry)
-        return SockJSRoute('sm', sm, 'http:sockjs-cdn', ())
+    def tearDown(self):
+        self.loop.close()
+
+    def make_handler(self, result, coro=True):
+
+        output = result
+
+        def handler(msg, s):
+            output.append(output)
+
+        if coro:
+            return asyncio.coroutine(handler)
+        else:
+            return handler
+
+    def make_route(self, handlers=transports.handlers):
+        handler = self.make_handler([])
+        sm = session.SessionManager('sm', self.app, handler, loop=self.loop)
+        return route.SockJSRoute(
+            'sm', sm, 'http:sockjs-cdn', handlers, (), True)
+
+    def make_request(self, method, path, headers=None, match_info=None):
+        self.app = mock.Mock()
+        if headers is None:
+            headers = CIMultiDict(
+                {'HOST': 'server.example.com',
+                 'UPGRADE': 'websocket',
+                 'CONNECTION': 'Upgrade',
+                 'SEC-WEBSOCKET-KEY': 'dGhlIHNhbXBsZSBub25jZQ==',
+                 'ORIGIN': 'http://example.com',
+                 'SEC-WEBSOCKET-PROTOCOL': 'chat, superchat',
+                 'SEC-WEBSOCKET-VERSION': '13'})
+        message = RawRequestMessage(method, path, HttpVersion11, headers,
+                                    False, False)
+        self.payload = mock.Mock()
+        self.transport = mock.Mock()
+        self.reader = mock.Mock()
+        self.writer = mock.Mock()
+        self.app.loop = self.loop
+        req = web.Request(self.app, message, self.payload,
+                          self.transport, self.reader, self.writer)
+        req._match_info = match_info
+        return req
 
 
 class TestSockJSRoute(BaseSockjs):
 
     def test_info(self):
-        route = self.make_one()
+        route = self.make_route()
+        request = self.make_request('GET', '/sm/')
 
-        response = route.info(self.request)
-        info = protocol.decode(response.body)
+        response = route.info(request)
+        info = protocol.loads(response.body)
 
         self.assertTrue(info['websocket'])
         self.assertTrue(info['cookie_needed'])
 
     def test_info_entropy(self):
-        route = self.make_one()
+        route = self.make_route()
+        request = self.make_request('GET', '/sm/')
 
-        response = route.info(self.request)
-        entropy1 = protocol.decode(response.body)['entropy']
+        response = route.info(request)
+        entropy1 = protocol.loads(response.body)['entropy']
 
-        response = route.info(self.request)
-        entropy2 = protocol.decode(response.body)['entropy']
+        response = route.info(request)
+        entropy2 = protocol.loads(response.body)['entropy']
 
         self.assertFalse(entropy1 == entropy2)
 
     def test_info_options(self):
-        route = self.make_one()
+        route = self.make_route()
+        request = self.make_request('OPTIONS', '/sm/')
+        response = route.info_options(request)
 
-        self.request.method = 'OPTIONS'
-        response = route.info(self.request)
-
-        self.assertEqual(response.status, '204 No Content')
+        self.assertEqual(response.status, 204)
 
         headers = response.headers
         self.assertIn('Access-Control-Max-Age', headers)
@@ -54,15 +101,17 @@ class TestSockJSRoute(BaseSockjs):
         self.assertIn('access-control-allow-origin', headers)
 
     def test_greeting(self):
-        route = self.make_one()
+        route = self.make_route()
+        request = self.make_request('GET', '/sm/')
+        response = route.greeting(request)
 
-        response = route.greeting(self.request)
-        self.assertEqual(response.body, 'Welcome to SockJS!\n')
+        self.assertEqual(response.body, b'Welcome to SockJS!\n')
 
     def test_iframe(self):
-        route = self.make_one()
+        route = self.make_route()
+        request = self.make_request('GET', '/sm/')
 
-        response = route.iframe(self.request)
+        response = route.iframe(request)
         text = """<!DOCTYPE html>
 <html>
 <head>
@@ -80,196 +129,140 @@ class TestSockJSRoute(BaseSockjs):
 </body>
 </html>"""
 
-        self.assertEqual(response.body, text)
+        self.assertEqual(response.body.decode('utf-8'), text)
         self.assertIn('ETag', response.headers)
 
     def test_iframe_cache(self):
-        route = self.make_one()
+        route = self.make_route()
+        request = self.make_request(
+            'GET', '/sm/',
+            headers=CIMultiDict({'IF-NONE-MATCH': 'test'}))
+        response = route.iframe(request)
 
-        self.request.environ['HTTP_IF_NONE_MATCH'] = 'test'
-        response = route.iframe(self.request)
-
-        self.assertEqual(response.status, '304 Not Modified')
+        self.assertEqual(response.status, 304)
 
     def test_handler_unknown_transport(self):
-        route = self.make_one()
+        route = self.make_route()
+        request = self.make_request(
+            'GET', '/sm/', match_info={'transport': 'unknown'})
 
-        self.request.matchdict = {'transport': 'unknown'}
-        res = route.handler(self.request)
-        self.assertIsInstance(res, HTTPNotFound)
+        res = self.loop.run_until_complete(route.handler(request))
+        self.assertIsInstance(res, web.HTTPNotFound)
 
     def test_handler_emptry_session(self):
-        route = self.make_one()
-        self.request.matchdict = {'transport': 'websocket', 'session': ''}
-        self.assertIsInstance(route.handler(self.request), HTTPNotFound)
+        route = self.make_route()
+        request = self.make_request(
+            'GET', '/sm/',
+            match_info={'transport': 'websocket', 'session': ''})
+        res = self.loop.run_until_complete(route.handler(request))
+        self.assertIsInstance(res, web.HTTPNotFound)
 
     def test_handler_bad_session_id(self):
-        route = self.make_one()
-
-        self.request.matchdict = {'transport': 'websocket',
-                                  'session': 'test.1', 'server': '000'}
-        self.assertIsInstance(route.handler(self.request), HTTPNotFound)
+        route = self.make_route()
+        request = self.make_request(
+            'GET', '/sm/',
+            match_info={'transport': 'websocket',
+                        'session': 'test.1', 'server': '000'})
+        res = self.loop.run_until_complete(route.handler(request))
+        self.assertIsInstance(res, web.HTTPNotFound)
 
     def test_handler_bad_server_id(self):
-        route = self.make_one()
-
-        self.request.matchdict = {'transport': 'websocket',
-                                  'session': 'test', 'server': 'test.1'}
-        self.assertIsInstance(route.handler(self.request), HTTPNotFound)
+        route = self.make_route()
+        request = self.make_request(
+            'GET', '/sm/',
+            match_info={'transport': 'websocket',
+                        'session': 'test', 'server': 'test.1'})
+        res = self.loop.run_until_complete(route.handler(request))
+        self.assertIsInstance(res, web.HTTPNotFound)
 
     def test_new_session_before_read(self):
-        route = self.make_one()
+        route = self.make_route()
+        request = self.make_request(
+            'GET', '/sm/',
+            match_info={
+                'transport': 'xhr_send', 'session': 's1', 'server': '000'})
+        res = self.loop.run_until_complete(route.handler(request))
+        self.assertIsInstance(res, web.HTTPNotFound)
 
-        self.request.matchdict = {
-            'transport': 'xhr_send', 'session': 'session', 'server': '000'}
-        res = route.handler(self.request)
-        self.assertIsInstance(res, HTTPNotFound)
+    def _test_transport(self):
+        route = self.make_route()
+        request = self.make_request(
+            'GET', '/sm/',
+            match_info={
+                'transport': 'xhr', 'session': 's1', 'server': '000'})
 
-    def test_transport(self):
-        route = self.make_one()
+        params = []
 
-        self.request.matchdict = {
-            'transport': 'xhr', 'session': 'session', 'server': '000'}
-        route.handler(self.request)
-        self.assertIn('wsgi.sockjs_session', self.request.environ)
+        class Transport:
+            def __init__(self, manager, session, request):
+                params.append((manager, session, request))
 
-        from pyramid_sockjs.session import Session
-        self.assertIsInstance(
-            self.request.environ['wsgi.sockjs_session'], Session)
+            def process(self):
+                return web.HTTPOk()
+
+        route = self.make_route(handlers={'test': (True, Transport)})
+        res = self.loop.run_until_complete(route.handler(request))
+        self.assertIsInstance(res, web.HTTPOk)
+        self.assertEqual(
+            params[0], (route.manager, route.manager['s1'], request))
 
     def test_fail_transport(self):
-        from pyramid_sockjs.transports import handlers
+        request = self.make_request(
+            'GET', '/sm/',
+            match_info={
+                'transport': 'test', 'session': 'session', 'server': '000'})
 
-        def fail(session, request):
-            raise Exception('Error')
+        params = []
 
-        handlers['test'] = (True, fail)
+        class Transport:
+            def __init__(self, manager, session, request):
+                params.append((manager, session, request))
 
-        route = self.make_one()
+            def process(self):
+                raise Exception('Error')
 
-        self.request.matchdict = {
-            'transport': 'test', 'session': 'session', 'server': '000'}
-        res = route.handler(self.request)
-        self.assertIsInstance(res, HTTPBadRequest)
-
-        del handlers['test']
+        route = self.make_route(handlers={'test': (True, Transport)})
+        res = self.loop.run_until_complete(route.handler(request))
+        self.assertIsInstance(res, web.HTTPInternalServerError)
 
     def test_release_session_for_failed_transport(self):
-        from pyramid_sockjs.transports import handlers
+        request = self.make_request(
+            'GET', '/sm/',
+            match_info={
+                'transport': 'test', 'session': 's1', 'server': '000'})
 
-        def fail(session, request):
-            session.acquire()
-            raise Exception('Error')
+        class Transport:
+            def __init__(self, manager, session, request):
+                self.manager = manager
+                self.session = session
 
-        handlers['test'] = (True, fail)
+            def process(self):
+                yield from self.manager.acquire(self.session)
+                raise Exception('Error')
 
-        route = self.make_one()
+        route = self.make_route(handlers={'test': (True, Transport)})
+        res = self.loop.run_until_complete(route.handler(request))
+        self.assertIsInstance(res, web.HTTPInternalServerError)
 
-        self.request.matchdict = {
-            'transport': 'test', 'session': 'session', 'server': '000'}
-        route.handler(self.request)
+        s1 = route.manager['s1']
+        self.assertFalse(route.manager.is_acquired(s1))
 
-        session = route.session_manager[(None, 'session')]
-        self.assertFalse(route.session_manager.is_acquired(session))
+    @mock.patch('sockjs.route.RawWebSocketTransport')
+    def test_raw_websocket(self, ws):
+        ws.return_value.process.return_value = asyncio.Future(loop=self.loop)
+        ws.return_value.process.return_value.set_result(web.HTTPOk())
 
-        del handlers['test']
+        route = self.make_route()
+        request = self.make_request(
+            'GET', '/sm/', headers=CIMultiDict({}))
+        res = self.loop.run_until_complete(route.websocket(request))
 
-
-class TestWebSocketRoute(BaseSockjs):
-
-    def setUp(self):
-        super(TestWebSocketRoute, self).setUp()
-
-        # handler
-        from pyramid_sockjs import route
-        from pyramid_sockjs.transports import handlers
-        self.orig = handlers['websocket']
-
-        self.init = []
-
-        def websocket(session, request):
-            self.init.append(True)
-
-        handlers['websocket'] = (True, websocket)
-
-        # init
-        self.raise_init = False
-
-        def init_websocket(request):
-            if self.raise_init:
-                return HTTPNotFound('error')
-
-        self.init_orig = route.init_websocket
-        route.init_websocket = init_websocket
-
-    def tearDown(self):
-        super(TestWebSocketRoute, self).tearDown()
-
-        from pyramid_sockjs import route
-        from pyramid_sockjs.transports import handlers
-
-        handlers['websocket'] = self.orig
-        route.init_websocket = self.init_orig
-
-    def test_websocket_init(self):
-        route = self.make_one()
-
-        self.request.matchdict = {
-            'transport': 'websocket', 'session': 'session', 'server': '000'}
-
-        route.handler(self.request)
-        self.assertTrue(self.init[0])
-
-    def test_websocket_init2(self):
-        route = self.make_one()
-
-        self.request.environ['HTTP_SEC_WEBSOCKET_VERSION'] = '10'
-        self.request.matchdict = {
-            'transport': 'websocket', 'session': 'session', 'server': '000'}
-
-        route.handler(self.request)
-        self.assertTrue(self.init[0])
-
-    def test_websocket_fail_init(self):
-        route = self.make_one()
-
-        self.request.matchdict = {
-            'transport': 'websocket', 'session': 'session', 'server': '000'}
-
-        self.raise_init = True
-        res = route.handler(self.request)
-        self.assertIsInstance(res, HTTPNotFound)
-
-    def test_websocket_old_versions(self):
-        route = self.make_one()
-
-        self.request.environ['HTTP_ORIGIN'] = 'origin'
-        self.request.matchdict = {
-            'transport': 'websocket', 'session': 'session', 'server': '000'}
-
-        res = route.handler(self.request)
-        self.assertIsNone(res)
-
-    def test_raw_websocket_old_versions(self):
-        route = self.make_one()
-
-        self.request.environ['HTTP_ORIGIN'] = 'origin'
-
-        res = route.websocket(self.request)
-        self.assertIsInstance(res, HTTPNotFound)
-
-    def test_raw_websocket(self):
-        from pyramid_sockjs.transports.websocket import WebSocketResponse
-
-        route = self.make_one()
-
-        self.request.environ['wsgi.websocket'] = object()
-        res = route.websocket(self.request)
-        self.assertIsInstance(res, WebSocketResponse)
+        self.assertIsInstance(res, web.HTTPOk)
+        self.assertTrue(ws.called)
+        self.assertTrue(ws.return_value.process.called)
 
     def test_raw_websocket_fail(self):
-        route = self.make_one()
-
-        self.raise_init = True
-        res = route.websocket(self.request)
-        self.assertIsInstance(res, HTTPNotFound)
+        route = self.make_route()
+        request = self.make_request('GET', '/sm/')
+        res = self.loop.run_until_complete(route.websocket(request))
+        self.assertIsInstance(res, web.HTTPNotFound)

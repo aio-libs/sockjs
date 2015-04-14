@@ -1,36 +1,32 @@
 import json
-from base import TestCase
+import unittest
+from sockjs import protocol
 
 
-class TestProtocol(TestCase):
+class TestProtocol(unittest.TestCase):
 
     def test_encode(self):
-        from sockjs import protocol
-
+        self.assertEqual(protocol.dumps({}), json.dumps({}))
         self.assertEqual(
-            protocol.encode({}), json.dumps({}).encode('utf-8'))
+            protocol.dumps(['test']), json.dumps(['test']))
         self.assertEqual(
-            protocol.encode(['test']), json.dumps(['test']).encode('utf-8'))
-        self.assertEqual(
-            protocol.encode('"test"'), json.dumps('"test"').encode('utf-8'))
+            protocol.dumps('"test"'), json.dumps('"test"'))
 
     def test_decode(self):
-        from sockjs import protocol
-
-        self.assertEqual(protocol.decode(json.dumps({})), {})
-        self.assertEqual(protocol.decode(json.dumps(['test'])), ['test'])
-        self.assertEqual(protocol.decode(json.dumps('"test"')), '"test"')
+        self.assertEqual(protocol.loads(json.dumps({})), {})
+        self.assertEqual(protocol.loads(json.dumps(['test'])), ['test'])
+        self.assertEqual(protocol.loads(json.dumps('"test"')), '"test"')
 
     def test_close_frame(self):
-        from pyramid_sockjs import protocol
-
         msg = protocol.close_frame(1000, 'Internal error')
-        self.assertEqual(msg, b'c[1000,"Internal error"]')
+        self.assertEqual(msg, 'c[1000,"Internal error"]')
 
     def test_message_frame(self):
-        from sockjs import protocol
-
-        msg = protocol.message_frame(['msg1', 'msg2'])
+        msg = protocol.message_frame('msg1')
         self.assertEqual(
-            msg.decode('utf-8'),
-            'a[%s]' % protocol.encode(['msg1', 'msg2']).decode('utf-8'))
+            msg, 'a%s' % protocol.dumps(['msg1']))
+
+    def test_messages_frame(self):
+        msg = protocol.messages_frame(['msg1', 'msg2'])
+        self.assertEqual(
+            msg, 'a%s' % protocol.dumps(['msg1', 'msg2']))

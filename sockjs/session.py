@@ -23,26 +23,17 @@ class Session(object):
 
     ``manager``: Session manager that hold this session
 
-    ``request``: Request object
-
-    ``registry``: Pyramid component registry
-
     ``acquired``: Acquired state, indicates that transport is using session
 
     ``timeout``: Session timeout
 
     """
 
-    app = None
     manager = None
     acquired = False
-    timeout = timedelta(seconds=10)
     state = STATE_NEW
     interrupted = False
     exception = None
-    transport = None
-
-    _heartbeat = False
 
     def __init__(self, id, handler, *,
                  timeout=timedelta(seconds=10), loop=None, debug=False):
@@ -55,6 +46,7 @@ class Session(object):
 
         self._hits = 0
         self._heartbeats = 0
+        self._heartbeat_transport = False
         self._debug = debug
         self._waiter = None
         self._queue = collections.deque()
@@ -72,8 +64,8 @@ class Session(object):
         if self.acquired:
             result.append('acquired')
 
-        if len(self._messages):
-            result.append('messages[%s]' % len(self._messages))
+        if len(self._queue):
+            result.append('queue[%s]' % len(self._queue))
         if self._hits:
             result.append('hits=%s' % self._hits)
         if self._heartbeats:
@@ -90,34 +82,38 @@ class Session(object):
             self.expires = datetime.now() + timeout
 
     @asyncio.coroutine
-    def _acquire(self, manager, transport, heartbeat=True):
+    def _acquire(self, manager, heartbeat=True):
         self.acquired = True
         self.manager = manager
-        self.transport = transport
-        self._heartbeat = heartbeat
+        self._heartbeat_transport = heartbeat
 
         self._tick()
         self._hits += 1
 
         if self.state == STATE_NEW:
-            log.info('open session: %s', self.id)
+            log.debug('open session: %s', self.id)
             self.state = STATE_OPEN
             self._feed(FRAME_OPEN, FRAME_OPEN)
             try:
                 yield from self.handler(OpenMessage, self)
-            except:
-                log.exception("Exceptin in .on_open method.")
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                self.state = STATE_CLOSING
+                self.exception = exc
+                self.interrupted = True
+                self._feed(FRAME_CLOSE, (3000, 'Internal error'))
+                log.exception('Exceptin in open session handling.')
 
     def _release(self):
         self.acquired = False
         self.manager = None
-        self.transport = None
-        self._heartbeat = False
+        self._heartbeat_transport = False
 
-    def _heartbeat(self, expires):
+    def _heartbeat(self):
         self.expired = False
-        self.expires = expires
-        self.heartbeats += 1
+        self._tick()
+        self._heartbeats += 1
         if self._heartbeat:
             self._feed(FRAME_HEARTBEAT, FRAME_HEARTBEAT)
 
@@ -158,7 +154,7 @@ class Session(object):
 
     @asyncio.coroutine
     def _remote_close(self, exc=None):
-        """close session"""
+        """close session from remote."""
         if self.state in (STATE_CLOSING, STATE_CLOSED):
             return
 
@@ -170,7 +166,7 @@ class Session(object):
         try:
             yield from self.handler(SockjsMessage(MSG_CLOSE, exc), self)
         except:
-            log.exception("Exceptin in close handler.")
+            log.exception('Exceptin in close handler.')
 
     def _remote_closed(self):
         if self.state == STATE_CLOSED:
@@ -193,23 +189,24 @@ class Session(object):
 
     @asyncio.coroutine
     def _remote_message(self, msg):
-        log.info('incoming message: %s, %s', self.id, msg[:200])
+        log.debug('incoming message: %s, %s', self.id, msg[:200])
         self._tick()
+
         try:
             yield from self.handler(SockjsMessage(MSG_MESSAGE, msg), self)
         except:
-            log.exception("Exceptin in handler method.")
+            log.exception("Exceptin in message handler.")
 
     @asyncio.coroutine
     def _remote_messages(self, messages):
         self._tick()
 
         for msg in messages:
-            log.info('incoming message: %s, %s', self.id, msg[:200])
+            log.debug('incoming message: %s, %s', self.id, msg[:200])
             try:
                 yield from self.handler(SockjsMessage(MSG_MESSAGE, msg), self)
             except:
-                log.exception("Exceptin in handler method.")
+                log.exception("Exceptin in message handler.")
 
     def expire(self):
         """ Manually expire a session. """
@@ -217,6 +214,8 @@ class Session(object):
 
     def send(self, msg):
         """send message to client."""
+        assert isinstance(msg, str), 'String is required'
+
         if self._debug:
             log.info('outgoing message: %s, %s', self.id, str(msg)[:200])
 
@@ -242,9 +241,10 @@ class Session(object):
         if self.state in (STATE_CLOSING, STATE_CLOSED):
             return
 
-        log.info('close session: %s', self.id)
-        self.state = STATE_CLOSING
+        if self._debug:
+            log.debug('close session: %s', self.id)
 
+        self.state = STATE_CLOSING
         self._feed(FRAME_CLOSE, (code, reason))
 
 
@@ -294,7 +294,6 @@ class SessionManager(dict):
 
         if sessions:
             now = datetime.now()
-            expires = now + self.timeout
 
             idx = 0
             while idx < len(sessions):
@@ -314,7 +313,7 @@ class SessionManager(dict):
                     continue
 
                 elif session.acquired:
-                    session.heartbeat(expires)
+                    session.heartbeat()
 
                 idx += 1
 
@@ -342,7 +341,8 @@ class SessionManager(dict):
                 session = self._add(
                     self.factory(
                         id, self.handler,
-                        timeout=self.timeout, loop=self.loop))
+                        timeout=self.timeout,
+                        loop=self.loop, debug=self.debug))
             else:
                 if default is not _marker:
                     return default
@@ -351,38 +351,39 @@ class SessionManager(dict):
         return session
 
     @asyncio.coroutine
-    def acquire(self, session, transport):
-        sid = session.id
+    def acquire(self, s):
+        sid = s.id
 
         if sid in self.acquired:
             raise SessionIsAcquired("Another connection still open")
         if sid not in self:
             raise KeyError("Unknown session")
 
-        yield from session._acquire(self, transport)
+        yield from s._acquire(self)
 
         self.acquired[sid] = True
-        return session
+        return s
 
     def is_acquired(self, session):
         return session.id in self.acquired
 
     @asyncio.coroutine
-    def release(self, session):
-        if session.id in self.acquired:
-            session._release()
-            del self.acquired[session.id]
+    def release(self, s):
+        if s.id in self.acquired:
+            s._release()
+            del self.acquired[s.id]
 
     def active_sessions(self):
         for session in self.values():
             if not session.expired:
                 yield session
 
+    @asyncio.coroutine
     def clear(self):
-        """ Manually expire all sessions in the pool. """
+        """Manually expire all sessions in the pool."""
         for session in list(self.values()):
             if session.state != STATE_CLOSED:
-                session._remote_closed()
+                yield from session._remote_closed()
 
         self.sessions.clear()
         super(SessionManager, self).clear()

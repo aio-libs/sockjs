@@ -38,17 +38,18 @@ def add_endpoint(app, handler, *, name='', prefix='/sockjs',
 
     if manager.name != name:
         raise ValueError(
-            "Session manage must have same name as sockjs route")
+            'Session manage must have same name as sockjs route')
 
     managers = app.setdefault('__sockjs_managers__', {})
     if name in managers:
-        raise ValueError("SockJS '%s' route already registered" % name)
+        raise ValueError('SockJS "%s" route already registered' % name)
 
     managers[name] = manager
 
     # register routes
     route = SockJSRoute(
-        name, manager, sockjs_cdn, disable_transports, cookie_needed)
+        name, manager, sockjs_cdn,
+        handlers, disable_transports, cookie_needed)
 
     if prefix.endswith('/'):
         prefix = prefix[:-1]
@@ -99,9 +100,10 @@ def add_endpoint(app, handler, *, name='', prefix='/sockjs',
 class SockJSRoute:
 
     def __init__(self, name, manager,
-                 sockjs_cdn, disable_transports, cookie_needed=True):
+                 sockjs_cdn, handlers, disable_transports, cookie_needed=True):
         self.name = name
         self.manager = manager
+        self.handlers = handlers
         self.disable_transports = dict((k, 1) for k in disable_transports)
         self.cookie_needed = cookie_needed
         self.iframe_html = (IFRAME_HTML % sockjs_cdn).encode('utf-8')
@@ -113,10 +115,10 @@ class SockJSRoute:
         # lookup transport
         tid = info['transport']
 
-        if tid not in handlers or tid in self.disable_transports:
+        if tid not in self.handlers or tid in self.disable_transports:
             return web.HTTPNotFound()
 
-        create, transport = handlers[tid]
+        create, transport = self.handlers[tid]
 
         # session
         manager = self.manager
@@ -141,21 +143,20 @@ class SockJSRoute:
             return exc
         except Exception as exc:
             log.exception('Exception in transport: %s' % tid)
+            if manager.is_acquired(session):
+                yield from manager.release(session)
             return web.HTTPInternalServerError()
 
     def websocket(self, request):
         # session
-        manager = self.manager
-
         sid = '%0.9d' % random.randint(1, 2147483647)
-
-        session = manager.get(sid, True, request=request)
+        session = self.manager.get(sid, True, request=request)
 
         # websocket
         if hdrs.ORIGIN in request.headers:
             return web.HTTPNotFound()
 
-        transport = RawWebSocketTransport(manager, session, request)
+        transport = RawWebSocketTransport(self.manager, session, request)
         try:
             return (yield from transport.process())
         except asyncio.CancelledError:
@@ -182,7 +183,7 @@ class SockJSRoute:
             status=204, content_type='application/json; charset=UTF-8')
         resp.headers[hdrs.CACHE_CONTROL] = (
             'no-store, no-cache, must-revalidate, max-age=0')
-        resp.headers[hdrs.ACCESS_CONTROL_ALLOW_METHODS] = "OPTIONS, GET"
+        resp.headers[hdrs.ACCESS_CONTROL_ALLOW_METHODS] = 'OPTIONS, GET'
         resp.headers.extend(cors_headers(request.headers))
         resp.headers.extend(cache_headers())
         resp.headers.extend(session_cookie(request))

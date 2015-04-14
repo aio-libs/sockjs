@@ -9,7 +9,6 @@ from ..protocol import STATE_CLOSING, STATE_CLOSED, FRAME_CLOSE, FRAME_MESSAGE
 class Transport:
 
     def __init__(self, manager, session, request):
-        self.ws = None
         self.manager = manager
         self.session = session
         self.request = request
@@ -39,6 +38,8 @@ class StreamingTransport(Transport):
 
     @asyncio.coroutine
     def handle_session(self):
+        assert self.response is None, 'Response is not specified.'
+
         # session was interrupted
         if self.session.interrupted:
             self.send(close_frame(1002, "Connection interrupted"))
