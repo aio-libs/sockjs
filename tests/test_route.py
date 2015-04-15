@@ -81,7 +81,7 @@ class TestSockJSRoute(BaseSockjs):
         entropy1 = protocol.loads(response.body.decode('utf-8'))['entropy']
 
         response = route.info(request)
-        entropy2 = protocol.loads(response.body)['entropy']
+        entropy2 = protocol.loads(response.body.decode('utf-8'))['entropy']
 
         self.assertFalse(entropy1 == entropy2)
 
