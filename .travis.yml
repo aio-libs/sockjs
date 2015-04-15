@@ -1,8 +1,19 @@
 language: python
 python:
-  - 2.6
-  - 2.7
-install: 
-  - pip install https://github.com/downloads/SiteSupport/gevent/gevent-1.0rc1.tar.gz
+  - 3.3
+  - 3.4
+install:
+  - pip install --upgrade setuptools
+  - pip install flake8
+  - pip install docutils
+  - pip install coverage
+  - pip install pygments
+  - pip install git+https://github.com/KeepSafe/aiohttp.git
   - python setup.py develop
+
+script:
+  - flake8 aiohttp examples tests
+  - coverage run --source=sockjs setup.py test
+  - python setup.py check -rm
+
 script: python setup.py test
