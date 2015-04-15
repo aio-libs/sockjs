@@ -1,6 +1,6 @@
 """ iframe-htmlfile transport """
 import re
-from aiohttp import web
+from aiohttp import web, hdrs
 
 from ..protocol import dumps, ENCODING
 from .base import StreamingTransport
@@ -43,14 +43,6 @@ class HTMLFileTransport(StreamingTransport):
     def process(self):
         request = self.request
 
-        headers = list(
-            (('Content-Type', 'text/html; charset=UTF-8'),
-             ('Cache-Control',
-              'no-store, no-cache, must-revalidate, max-age=0'),
-             ("Connection", "close")) +
-            session_cookie(request) +
-            cors_headers(request.headers))
-
         callback = request.GET.get('c', None)
         if callback is None:
             yield from self.session._remote_closed()
@@ -59,6 +51,14 @@ class HTMLFileTransport(StreamingTransport):
         elif not self.check_callback.match(callback):
             yield from self.session._remote_closed()
             return web.HTTPBadRequest(body=b'invalid "callback" parameter')
+
+        headers = list(
+            ((hdrs.CONTENT_TYPE, 'text/html; charset=UTF-8'),
+             (hdrs.CACHE_CONTROL,
+              'no-store, no-cache, must-revalidate, max-age=0'),
+             (hdrs.CONNECTION, 'close')) +
+            session_cookie(request) +
+            cors_headers(request.headers))
 
         # open sequence (sockjs protocol)
         resp = self.response = web.StreamResponse(headers=headers)

@@ -17,7 +17,7 @@ class XHRTransport(StreamingTransport):
         if request.method == hdrs.METH_OPTIONS:
             headers = list(
                 ((hdrs.CONTENT_TYPE, 'application/javascript; charset=UTF-8'),
-                 (hdrs.ACCESS_CONTROL_ALLOW_METHODS, "OPTIONS, POST")) +
+                 (hdrs.ACCESS_CONTROL_ALLOW_METHODS, 'OPTIONS, POST')) +
                 session_cookie(request) +
                 cors_headers(request.headers) +
                 cache_headers())

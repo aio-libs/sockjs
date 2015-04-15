@@ -42,15 +42,11 @@ class StreamingTransport(Transport):
 
         # session was interrupted
         if self.session.interrupted:
-            self.send(close_frame(1002, "Connection interrupted"))
+            self.send(close_frame(1002, 'Connection interrupted'))
 
-        # session is closing
-        elif self.session.state == STATE_CLOSING:
+        # session is closing or closed
+        elif self.session.state in (STATE_CLOSING, STATE_CLOSED):
             yield from self.session._remote_closed()
-            self.send(close_frame(3000, 'Go away!'))
-
-        # session is closed
-        elif self.session.state == STATE_CLOSED:
             self.send(close_frame(3000, 'Go away!'))
 
         else:
@@ -58,7 +54,7 @@ class StreamingTransport(Transport):
             try:
                 yield from self.manager.acquire(self.session, self)
             except SessionIsAcquired:
-                self.send(close_frame(2010, "Another connection still open"))
+                self.send(close_frame(2010, 'Another connection still open'))
             else:
                 try:
                     while True:

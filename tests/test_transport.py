@@ -1,49 +1,13 @@
-import asyncio
-import unittest
 from unittest import mock
-from aiohttp import web, CIMultiDict
-from aiohttp.protocol import RawRequestMessage, HttpVersion11
+from test_base import TestCase
 
+from sockjs import protocol
 from sockjs.transports import base
 
 
-class TransportTestCase(unittest.TestCase):
+class TransportTestCase(TestCase):
 
-    def setUp(self):
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(None)
-
-    def tearDown(self):
-        self.loop.close()
-
-    def make_request(self, method, path, headers=None, match_info=None):
-        self.app = mock.Mock()
-        if headers is None:
-            headers = CIMultiDict(
-                {'HOST': 'server.example.com',
-                 'UPGRADE': 'websocket',
-                 'CONNECTION': 'Upgrade',
-                 'SEC-WEBSOCKET-KEY': 'dGhlIHNhbXBsZSBub25jZQ==',
-                 'ORIGIN': 'http://example.com',
-                 'SEC-WEBSOCKET-PROTOCOL': 'chat, superchat',
-                 'SEC-WEBSOCKET-VERSION': '13'})
-        message = RawRequestMessage(method, path, HttpVersion11, headers,
-                                    False, False)
-        self.payload = mock.Mock()
-        self.transport = mock.Mock()
-        self.reader = mock.Mock()
-        self.writer = mock.Mock()
-        self.app.loop = self.loop
-        req = web.Request(self.app, message, self.payload,
-                          self.transport, self.reader, self.writer)
-        req._match_info = match_info
-        return req
-
-    def make_streaming(self):
-        manager = mock.Mock()
-        session = mock.Mock()
-        request = self.make_request('GET', '/')
-        return base.StreamingTransport(manager, session, request)
+    TRANSPORT_CLASS = base.StreamingTransport
 
     def test_transport_ctor(self):
         manager = object()
@@ -57,7 +21,7 @@ class TransportTestCase(unittest.TestCase):
         self.assertIs(transport.loop, self.loop)
 
     def test_streaming_send(self):
-        trans = self.make_streaming()
+        trans = self.make_transport()
 
         resp = trans.response = mock.Mock()
         stop = trans.send('text data')
@@ -68,3 +32,30 @@ class TransportTestCase(unittest.TestCase):
         trans.maxsize = 1
         stop = trans.send('text data')
         self.assertTrue(stop)
+
+    def test_handle_session_interrupted(self):
+        trans = self.make_transport()
+        trans.session.interrupted = True
+        trans.send = self.make_fut(1)
+        self.loop.run_until_complete(trans.handle_session())
+        trans.send.assert_called_with('c[1002,"Connection interrupted"]')
+
+    def test_handle_session_closing(self):
+        trans = self.make_transport()
+        trans.send = self.make_fut(1)
+        trans.session.interrupted = False
+        trans.session.state = protocol.STATE_CLOSING
+        trans.session._remote_closed = self.make_fut(1)
+        self.loop.run_until_complete(trans.handle_session())
+        trans.session._remote_closed.assert_called_with()
+        trans.send.assert_called_with('c[3000,"Go away!"]')
+
+    def test_handle_session_closed(self):
+        trans = self.make_transport()
+        trans.send = self.make_fut(1)
+        trans.session.interrupted = False
+        trans.session.state = protocol.STATE_CLOSED
+        trans.session._remote_closed = self.make_fut(1)
+        self.loop.run_until_complete(trans.handle_session())
+        trans.session._remote_closed.assert_called_with()
+        trans.send.assert_called_with('c[3000,"Go away!"]')

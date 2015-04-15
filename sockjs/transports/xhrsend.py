@@ -12,11 +12,11 @@ class XHRSendTransport(Transport):
 
         if request.method not in (
                 hdrs.METH_GET, hdrs.METH_POST, hdrs.METH_OPTIONS):
-            return web.HTTPForbidden(text="Method is not allowed")
+            return web.HTTPForbidden(text='Method is not allowed')
 
         if self.request.method == hdrs.METH_OPTIONS:
             headers = list(
-                ((hdrs.ACCESS_CONTROL_ALLOW_METHODS, "OPTIONS, POST"),
+                ((hdrs.ACCESS_CONTROL_ALLOW_METHODS, 'OPTIONS, POST'),
                  (hdrs.CONTENT_TYPE, 'application/javascript; charset=UTF-8'))
                 +
                 session_cookie(request) +
@@ -26,15 +26,14 @@ class XHRSendTransport(Transport):
 
         data = yield from request.read()
         if not data:
-            return web.HTTPBadRequest(text="Payload expected.")
+            return web.HTTPBadRequest(text='Payload expected.')
 
         try:
             messages = loads(data)
         except:
             return web.HTTPBadRequest(text="Broken JSON encoding.")
 
-        for msg in messages:
-            yield from self.session._remote_message(msg)
+        yield from self.session._remote_messages(messages)
 
         headers = list(
             ((hdrs.CONTENT_TYPE, 'text/plain; charset=UTF-8'),

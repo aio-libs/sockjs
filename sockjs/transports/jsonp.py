@@ -55,15 +55,15 @@ class JSONPolling(StreamingTransport):
         elif request.method == hdrs.METH_POST:
             data = yield from request.read()
 
-            ctype = request.headers.get(hdrs.CONTENT_TYPE, '').lower()
+            ctype = request.content_type.lower()
             if ctype == 'application/x-www-form-urlencoded':
                 if not data.startswith(b'd='):
-                    return web.HTTPBadRequest(body=b"Payload expected.")
+                    return web.HTTPBadRequest(body=b'Payload expected.')
 
                 data = unquote_plus(data[2:].decode(ENCODING))
 
             if not data:
-                return web.HTTPBadRequest(body=b"Payload expected.")
+                return web.HTTPBadRequest(body=b'Payload expected.')
 
             try:
                 messages = loads(data)
@@ -80,4 +80,5 @@ class JSONPolling(StreamingTransport):
                 session_cookie(request))
 
         else:
-            return web.HTTPBadRequest("No support for such method: %s" % meth)
+            return web.HTTPBadRequest(
+                text="No support for such method: %s" % meth)

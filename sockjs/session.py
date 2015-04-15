@@ -178,7 +178,7 @@ class Session(object):
         try:
             yield from self.handler(ClosedMessage, self)
         except:
-            log.exception("Exceptin in closed handler.")
+            log.exception('Exceptin in closed handler.')
 
         # notify waiter
         waiter = self._waiter
@@ -195,7 +195,7 @@ class Session(object):
         try:
             yield from self.handler(SockjsMessage(MSG_MESSAGE, msg), self)
         except:
-            log.exception("Exceptin in message handler.")
+            log.exception('Exceptin in message handler.')
 
     @asyncio.coroutine
     def _remote_messages(self, messages):
@@ -206,10 +206,10 @@ class Session(object):
             try:
                 yield from self.handler(SockjsMessage(MSG_MESSAGE, msg), self)
             except:
-                log.exception("Exceptin in message handler.")
+                log.exception('Exceptin in message handler.')
 
     def expire(self):
-        """ Manually expire a session. """
+        """Manually expire a session."""
         self.expired = True
 
     def send(self, msg):
@@ -325,7 +325,7 @@ class SessionManager(dict):
 
     def _add(self, session):
         if session.expired:
-            raise ValueError("Can't add expired session")
+            raise ValueError('Can not add expired session')
 
         session.manager = self
         session.registry = self.app
@@ -355,9 +355,9 @@ class SessionManager(dict):
         sid = s.id
 
         if sid in self.acquired:
-            raise SessionIsAcquired("Another connection still open")
+            raise SessionIsAcquired('Another connection still open')
         if sid not in self:
-            raise KeyError("Unknown session")
+            raise KeyError('Unknown session')
 
         yield from s._acquire(self)
 

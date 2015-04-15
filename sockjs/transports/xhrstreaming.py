@@ -22,7 +22,7 @@ class XHRStreamingTransport(StreamingTransport):
 
         if request.method == hdrs.METH_OPTIONS:
             headers.append(
-                (hdrs.ACCESS_CONTROL_ALLOW_METHODS, "OPTIONS, POST"))
+                (hdrs.ACCESS_CONTROL_ALLOW_METHODS, 'OPTIONS, POST'))
             headers.extend(cache_headers())
             return web.Response(status=204, headers=headers)
 
