@@ -1,6 +1,9 @@
 SockJS server based on Asyncio (PEP 3156)
 =========================================
 
+.. image :: https://secure.travis-ci.org/aio-libs/sockjs.png
+  :target:  https://secure.travis-ci.org/aio-libs/sockjs
+
 `aiosockjs` is a `SockJS <http://sockjs.org>`_ server
 based on `aiohttp <https://github.com/KeepSafe/aiohttp/>`_ 
 `PEP 3156 <http://www.python.org/dev/peps/pep-3156/>`_ asyncio module.
@@ -56,9 +59,6 @@ Client side code::
         console.log('close');
       };
   </script>
-
-.. image :: https://secure.travis-ci.org/aio-libs/sockjs.png
-  :target:  https://secure.travis-ci.org/aio-libs/sockjs
 
 
 Installation
