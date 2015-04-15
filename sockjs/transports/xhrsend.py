@@ -1,6 +1,6 @@
 from aiohttp import web, hdrs
 
-from ..protocol import loads
+from ..protocol import loads, ENCODING
 from .base import Transport
 from .utils import session_cookie, cors_headers, cache_headers
 
@@ -29,7 +29,7 @@ class XHRSendTransport(Transport):
             return web.HTTPBadRequest(text='Payload expected.')
 
         try:
-            messages = loads(data)
+            messages = loads(data.decode(ENCODING))
         except:
             return web.HTTPBadRequest(text="Broken JSON encoding.")
 

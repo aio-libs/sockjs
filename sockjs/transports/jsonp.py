@@ -61,6 +61,8 @@ class JSONPolling(StreamingTransport):
                     return web.HTTPBadRequest(body=b'Payload expected.')
 
                 data = unquote_plus(data[2:].decode(ENCODING))
+            else:
+                data = data.decode(ENCODING)
 
             if not data:
                 return web.HTTPBadRequest(body=b'Payload expected.')

@@ -68,7 +68,7 @@ class TestSockJSRoute(BaseSockjs):
         request = self.make_request('GET', '/sm/')
 
         response = route.info(request)
-        info = protocol.loads(response.body)
+        info = protocol.loads(response.body.decode('utf-8'))
 
         self.assertTrue(info['websocket'])
         self.assertTrue(info['cookie_needed'])
@@ -78,7 +78,7 @@ class TestSockJSRoute(BaseSockjs):
         request = self.make_request('GET', '/sm/')
 
         response = route.info(request)
-        entropy1 = protocol.loads(response.body)['entropy']
+        entropy1 = protocol.loads(response.body.decode('utf-8'))['entropy']
 
         response = route.info(request)
         entropy2 = protocol.loads(response.body)['entropy']
