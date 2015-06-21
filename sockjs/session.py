@@ -168,6 +168,7 @@ class Session(object):
         except:
             log.exception('Exceptin in close handler.')
 
+    @asyncio.coroutine
     def _remote_closed(self):
         if self.state == STATE_CLOSED:
             return
@@ -254,10 +255,11 @@ _marker = object()
 class SessionManager(dict):
     """A basic session manager."""
 
-    _hb_timer = None  # heartbeat event loop timer
+    _hb_handle = None  # heartbeat event loop timer
+    _hb_task = None  # gc task
 
     def __init__(self, name, app, handler, loop,
-                 heartbeat=7.0, timeout=timedelta(seconds=10), debug=False):
+                 heartbeat=15.0, timeout=timedelta(seconds=10), debug=False):
         self.name = name
         self.route_name = 'sockjs-url-%s' % name
         self.app = app
@@ -267,6 +269,7 @@ class SessionManager(dict):
         self.sessions = []
         self.heartbeat = heartbeat
         self.timeout = timeout
+        self.heartbeat = heartbeat
         self.loop = loop
         self.debug = debug
 
@@ -275,21 +278,27 @@ class SessionManager(dict):
 
     @property
     def started(self):
-        return self._hb_timer is not None
+        return self._hb_handle is not None
 
     def start(self):
-        # if not self._hb_timer:
-        #     loop = tulip.get_event_loop()
-        #     self._hb_timer = loop.call_later(
-        #         self.heartbeat, self._heartbeat, loop)
-        pass
+        if not self._hb_handle:
+            self._hb_handle = self.loop.call_later(
+                self.heartbeat, self._heartbeat)
 
     def stop(self):
-        if self._hb_timer:
-            self._hb_timer.cancel()
-            self._hb_timer = None
+        if self._hb_handle is not None:
+            self._hb_handle.cancel()
+            self._hb_handle = None
+        if self._hb_task is not None:
+            self._hb_task.cancel()
+            self._hb_task = None
 
-    def _heartbeat(self, loop):
+    def _heartbeat(self):
+        if self._hb_task is None:
+            self._hb_task = asyncio.async(
+                self._heartbeat_task(), loop=self.loop)
+
+    def _heartbeat_task(self):
         sessions = self.sessions
 
         if sessions:
@@ -301,27 +310,25 @@ class SessionManager(dict):
 
                 if session.expires < now:
                     # Session is to be GC'd immedietely
-                    if not self.on_session_gc(session):
-                        del self[session.id]
-                        del self.sessions[idx]
                     if session.id in self.acquired:
-                        del self.acquired[session.id]
+                        yield from self.release(session)
                     if session.state == STATE_OPEN:
-                        session.close()
+                        yield from session._remote_close()
                     if session.state == STATE_CLOSING:
-                        session.closed()
+                        yield from session._remote_closed()
+
+                    del self[session.id]
+                    del self.sessions[idx]
                     continue
 
                 elif session.acquired:
-                    session.heartbeat()
+                    session._heartbeat()
 
                 idx += 1
 
-        self._hb_timer = loop.call_later(
-            self.heartbeat, self._heartbeat, loop)
-
-    def on_session_gc(self, session):
-        return session.on_remove()
+        self._hb_task = None
+        self._hb_handle = self.loop.call_later(
+            self.heartbeat, self._heartbeat)
 
     def _add(self, session):
         if session.expired:

@@ -93,8 +93,7 @@ def add_endpoint(app, handler, *, name='', prefix='/sockjs',
         '%s/iframe{version}.html' % prefix, route.iframe, name=route_name)
 
     # start session gc
-    # cfg.action('sockjs:gc:%s'%name,
-    #           session_manager.start, order=999999+1)
+    manager.start()
 
 
 class SockJSRoute:

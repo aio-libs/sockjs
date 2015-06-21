@@ -433,36 +433,6 @@ class SessionTestCase(unittest.TestCase):
         self.assertEqual(messages, [])
 
 
-class _GcThreadTestCase:  # (TestCase):
-
-    def setUp(self):
-        #  super(GcThreadTestCase, self).setUp()
-
-        self.gc_executed = False
-
-        def gc(s):
-            self.gc_executed = True
-
-        from pyramid_sockjs.session import SessionManager
-
-        self.gc_origin = SessionManager._gc
-        SessionManager._gc = gc
-
-    def tearDown(self):
-        from pyramid_sockjs.session import SessionManager
-        SessionManager._gc = self.gc_origin
-
-        #  super(GcThreadTestCase, self).tearDown()
-
-    def test_gc_thread(self):
-        from pyramid_sockjs.session import SessionManager
-
-        sm = SessionManager('sm', self.registry, gc_cycle=0.1)
-        sm.start()
-        sm.stop()
-        #  self.assertTrue(self.gc_executed)
-
-
 class SessionManagerTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -502,71 +472,6 @@ class SessionManagerTestCase(unittest.TestCase):
         s, sm = self.make_manager()
         sm._add(s)
         self.assertIn('test', sm)
-
-    def _test_gc_removed(self):
-        Session, sm = self.make_one()
-
-        sm._add(Session('id'))
-        del sm['id']
-
-        self.assertEqual(len(sm.pool), 1)
-        sm._gc()
-
-        self.assertEqual(len(sm.pool), 0)
-
-    def _test_gc_expire(self):
-        from pyramid_sockjs import STATE_CLOSED
-        Session, sm = self.make_one()
-
-        session = Session('id')
-        session.open()
-
-        sm._add(session)
-
-        self.now = session.expires + timedelta(seconds=10)
-
-        sm._gc()
-        self.assertNotIn('id', sm)
-        self.assertTrue(session.expired)
-        self.assertEqual(session.state, STATE_CLOSED)
-
-    def _test_gc_expire_acquired(self):
-        from pyramid_sockjs import STATE_CLOSED
-        Session, sm = self.make_one()
-
-        session = Session('id')
-        session.open()
-
-        sm._add(session)
-        sm.acquired['id'] = session
-
-        self.now = session.expires + timedelta(seconds=10)
-
-        sm._gc()
-        self.assertNotIn('id', sm)
-        self.assertNotIn('id', sm.acquired)
-        self.assertTrue(session.expired)
-        self.assertEqual(session.state, STATE_CLOSED)
-
-    def _test_gc_one_expire(self):
-        Session, sm = self.make_one()
-
-        session1 = Session('id1')
-        session1.open()
-
-        session2 = Session('id2')
-        session2.open()
-
-        sm._add(session1)
-        sm._add(session2)
-
-        self.now = session1.expires + timedelta(seconds=10)
-
-        session2.tick()
-
-        sm._gc()
-        self.assertNotIn('id1', sm)
-        self.assertIn('id2', sm)
 
     def test_add(self):
         s, sm = self.make_manager()
@@ -686,3 +591,77 @@ class SessionManagerTestCase(unittest.TestCase):
         self.assertTrue(s2.expired)
         self.assertEqual(s1.state, protocol.STATE_CLOSED)
         self.assertEqual(s2.state, protocol.STATE_CLOSED)
+
+    def test_heartbeat(self):
+        _, sm = self.make_manager()
+        self.assertFalse(sm.started)
+        self.assertIsNone(sm._hb_task)
+
+        sm.start()
+        self.assertTrue(sm.started)
+        self.assertIsNotNone(sm._hb_handle)
+
+        sm._heartbeat()
+        self.assertIsNotNone(sm._hb_task)
+
+        hb_task = sm._hb_task
+
+        sm.stop()
+        self.assertFalse(sm.started)
+        self.assertIsNone(sm._hb_handle)
+        self.assertIsNone(sm._hb_task)
+        self.assertTrue(hb_task._must_cancel)
+
+    def test_heartbeat_task(self):
+        _, sm = self.make_manager()
+        sm._hb_task = mock.Mock()
+
+        self.loop.run_until_complete(sm._heartbeat_task())
+        self.assertTrue(sm.started)
+        self.assertIsNone(sm._hb_task)
+
+    def test_gc_expire(self):
+        s, sm = self.make_manager()
+
+        sm._add(s)
+        self.loop.run_until_complete(sm.acquire(s))
+        self.loop.run_until_complete(sm.release(s))
+
+        s.expires = datetime.now() - timedelta(seconds=30)
+
+        self.loop.run_until_complete(sm._heartbeat_task())
+        self.assertNotIn(s.id, sm)
+        self.assertTrue(s.expired)
+        self.assertEqual(s.state, protocol.STATE_CLOSED)
+
+    def test_gc_expire_acquired(self):
+        s, sm = self.make_manager()
+
+        sm._add(s)
+        self.loop.run_until_complete(sm.acquire(s))
+
+        s.expires = datetime.now() - timedelta(seconds=30)
+
+        self.loop.run_until_complete(sm._heartbeat_task())
+        self.assertNotIn(s.id, sm)
+        self.assertNotIn(s.id, sm.acquired)
+        self.assertTrue(s.expired)
+        self.assertEqual(s.state, protocol.STATE_CLOSED)
+
+    def test_gc_one_expire(self):
+        _, sm = self.make_manager()
+        s1 = self.make_session('id1')
+        s2 = self.make_session('id2')
+
+        sm._add(s1)
+        sm._add(s2)
+        self.loop.run_until_complete(sm.acquire(s1))
+        self.loop.run_until_complete(sm.acquire(s2))
+        self.loop.run_until_complete(sm.release(s1))
+        self.loop.run_until_complete(sm.release(s2))
+
+        s1.expires = datetime.now() - timedelta(seconds=30)
+
+        self.loop.run_until_complete(sm._heartbeat_task())
+        self.assertNotIn(s1.id, sm)
+        self.assertIn(s2.id, sm)
