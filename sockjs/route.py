@@ -168,7 +168,7 @@ class SockJSRoute:
             content_type='application/json; charset=UTF-8')
         resp.headers[hdrs.CACHE_CONTROL] = (
             'no-store, no-cache, must-revalidate, max-age=0')
-        resp.headers.extend(cors_headers(request))
+        resp.headers.extend(cors_headers(request.headers))
 
         info = {'entropy': random.randint(1, 2147483647),
                 'websocket': 'websocket' not in self.disable_transports,
