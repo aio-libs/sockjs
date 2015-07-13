@@ -70,7 +70,7 @@ class WebSocketTransport(Transport):
 
         else:
             try:
-                yield from self.manager.acquire(self.session, self)
+                yield from self.manager.acquire(self.session)
             except:  # should use specific exception
                 self.ws.send_str(close_frame(3000, 'Go away!'))
                 yield from ws.close()

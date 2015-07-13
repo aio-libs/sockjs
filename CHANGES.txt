@@ -2,6 +2,11 @@
 CHANGES
 =======
 
+0.3.dev
+-------
+
+- Fixed call SessionManager.aquire () - was removed the second, unnecessary argument.
+
 0.2 (07/07/2015)
 ----------------
 

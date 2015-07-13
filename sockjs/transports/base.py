@@ -52,7 +52,7 @@ class StreamingTransport(Transport):
         else:
             # acquire session
             try:
-                yield from self.manager.acquire(self.session, self)
+                yield from self.manager.acquire(self.session)
             except SessionIsAcquired:
                 self.send(close_frame(2010, 'Another connection still open'))
             else:
