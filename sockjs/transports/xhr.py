@@ -1,3 +1,4 @@
+import asyncio
 from aiohttp import web, hdrs
 
 from .base import StreamingTransport
@@ -8,9 +9,9 @@ class XHRTransport(StreamingTransport):
     """Long polling derivative transports,
     used for XHRPolling and JSONPolling."""
 
-    timeout = 5.0
     maxsize = 0
 
+    @asyncio.coroutine
     def process(self):
         request = self.request
 

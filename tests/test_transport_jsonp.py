@@ -14,7 +14,7 @@ class JSONPollingTransportTests(TestCase):
 
         resp = trans.response = mock.Mock()
         stop = trans.send('text data')
-        resp.write.assert_called_with(b'cb("text data");\r\n')
+        resp.write.assert_called_with(b'/**/cb("text data");\r\n')
         self.assertTrue(stop)
 
     def test_process(self):
@@ -29,7 +29,7 @@ class JSONPollingTransportTests(TestCase):
 
         resp = self.loop.run_until_complete(transp.process())
         self.assertTrue(transp.session._remote_closed.called)
-        self.assertEqual(resp.status, 400)
+        self.assertEqual(resp.status, 500)
 
     def test_process_bad_callback(self):
         transp = self.make_transport(query_params={'c': 'calback!!!!'})
@@ -49,7 +49,7 @@ class JSONPollingTransportTests(TestCase):
         transp.request.content_type
         transp.request._content_type = 'application/x-www-form-urlencoded'
         resp = self.loop.run_until_complete(transp.process())
-        self.assertEqual(resp.status, 400)
+        self.assertEqual(resp.status, 500)
 
     def test_process_no_payload(self):
         transp = self.make_transport(method='POST')
@@ -57,13 +57,13 @@ class JSONPollingTransportTests(TestCase):
         transp.request.content_type
         transp.request._content_type = 'application/x-www-form-urlencoded'
         resp = self.loop.run_until_complete(transp.process())
-        self.assertEqual(resp.status, 400)
+        self.assertEqual(resp.status, 500)
 
     def test_process_bad_json(self):
         transp = self.make_transport(method='POST')
         transp.request.read = self.make_fut(b'{]')
         resp = self.loop.run_until_complete(transp.process())
-        self.assertEqual(resp.status, 400)
+        self.assertEqual(resp.status, 500)
 
     def test_process_message(self):
         transp = self.make_transport(method='POST')

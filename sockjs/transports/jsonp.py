@@ -1,4 +1,5 @@
 """jsonp transport"""
+import asyncio
 import re
 from urllib.parse import unquote_plus
 
@@ -11,15 +12,15 @@ from ..protocol import dumps, loads, ENCODING
 
 class JSONPolling(StreamingTransport):
 
-    timeout = 5.0
     check_callback = re.compile('^[a-zA-Z0-9_\.]+$')
     callback = ''
 
     def send(self, text):
-        blob = ('%s(%s);\r\n' % (self.callback, dumps(text))).encode(ENCODING)
+        blob = ('/**/%s(%s);\r\n' % (self.callback, dumps(text))).encode(ENCODING)
         self.response.write(blob)
         return True
 
+    @asyncio.coroutine
     def process(self):
         session = self.session
         request = self.request
@@ -30,7 +31,7 @@ class JSONPolling(StreamingTransport):
             callback = self.callback = request.GET.get('c')
             if not callback:
                 yield from self.session._remote_closed()
-                return web.HTTPBadRequest(
+                return web.HTTPInternalServerError(
                     body=b'"callback" parameter required')
 
             elif not self.check_callback.match(callback):
@@ -58,19 +59,19 @@ class JSONPolling(StreamingTransport):
             ctype = request.content_type.lower()
             if ctype == 'application/x-www-form-urlencoded':
                 if not data.startswith(b'd='):
-                    return web.HTTPBadRequest(body=b'Payload expected.')
+                    return web.HTTPInternalServerError(body=b'Payload expected.')
 
                 data = unquote_plus(data[2:].decode(ENCODING))
             else:
                 data = data.decode(ENCODING)
 
             if not data:
-                return web.HTTPBadRequest(body=b'Payload expected.')
+                return web.HTTPInternalServerError(body=b'Payload expected.')
 
             try:
                 messages = loads(data)
             except:
-                return web.HTTPBadRequest(body=b'Broken JSON encoding.')
+                return web.HTTPInternalServerError(body=b'Broken JSON encoding.')
 
             yield from session._remote_messages(messages)
             return web.Response(

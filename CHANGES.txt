@@ -7,6 +7,7 @@ CHANGES
 
 - Fixed calls of ``SessionManager.aquire()`` - was removed the unnecessary second argument.
 - Fixed the incorrect argument in one call of ``cors_headers()``.
+- Fixed many errors. The code is not perfect, but at least it was working as it should.
 
 0.2 (07/07/2015)
 ----------------

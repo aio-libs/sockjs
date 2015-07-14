@@ -1,3 +1,4 @@
+import asyncio
 from aiohttp import web, hdrs
 
 from .base import StreamingTransport
@@ -9,6 +10,7 @@ class XHRStreamingTransport(StreamingTransport):
     maxsize = 131072  # 128K bytes
     open_seq = b'h' * 2048 + b'\n'
 
+    @asyncio.coroutine
     def process(self):
         request = self.request
         headers = list(

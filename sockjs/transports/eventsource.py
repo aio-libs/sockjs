@@ -1,4 +1,5 @@
 """ iframe-eventsource transport """
+import asyncio
 from aiohttp import web, hdrs
 from sockjs.protocol import ENCODING
 
@@ -18,6 +19,7 @@ class EventsourceTransport(StreamingTransport):
         else:
             return False
 
+    @asyncio.coroutine
     def process(self):
         headers = list(
             ((hdrs.CONTENT_TYPE, 'text/event-stream; charset=UTF-8'),

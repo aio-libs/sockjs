@@ -36,11 +36,11 @@ class HtmlFileTransportTests(TestCase):
 
         resp = self.loop.run_until_complete(transp.process())
         self.assertTrue(transp.session._remote_closed.called)
-        self.assertEqual(resp.status, 400)
+        self.assertEqual(resp.status, 500)
 
     def test_process_bad_callback(self):
         transp = self.make_transport(query_params={'c': 'calback!!!!'})
 
         resp = self.loop.run_until_complete(transp.process())
         self.assertTrue(transp.session._remote_closed.called)
-        self.assertEqual(resp.status, 400)
+        self.assertEqual(resp.status, 500)

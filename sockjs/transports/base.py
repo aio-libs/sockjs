@@ -38,7 +38,7 @@ class StreamingTransport(Transport):
 
     @asyncio.coroutine
     def handle_session(self):
-        assert self.response is None, 'Response is not specified.'
+        assert self.response is not None, 'Response is not specified.'
 
         # session was interrupted
         if self.session.interrupted:
@@ -63,7 +63,7 @@ class StreamingTransport(Transport):
                                 frame, text = yield from asyncio.wait_for(
                                     self.session._wait(),
                                     timeout=self.timeout, loop=self.loop)
-                            except TimeoutError:
+                            except asyncio.futures.TimeoutError:
                                 frame, text = FRAME_MESSAGE, 'a[]'
                         else:
                             frame, text = yield from self.session._wait()

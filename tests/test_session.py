@@ -635,6 +635,9 @@ class SessionManagerTestCase(unittest.TestCase):
         self.assertEqual(s.state, protocol.STATE_CLOSED)
 
     def test_gc_expire_acquired(self):
+        """The acquired session can not be expired. It may be released
+        and closed only as a result of errors when sending a heartbeat message.
+        """
         s, sm = self.make_manager()
 
         sm._add(s)
@@ -642,6 +645,15 @@ class SessionManagerTestCase(unittest.TestCase):
 
         s.expires = datetime.now() - timedelta(seconds=30)
 
+        self.loop.run_until_complete(sm._heartbeat_task())
+        self.assertIn(s.id, sm)
+        self.assertIn(s.id, sm.acquired)
+        self.assertFalse(s.expired)
+        self.assertEqual(s.state, protocol.STATE_OPEN)
+
+        # Simulating the releasing of the session due to an error
+        self.loop.run_until_complete(sm.release(s))
+        s.expires = datetime.now() - timedelta(seconds=30)
         self.loop.run_until_complete(sm._heartbeat_task())
         self.assertNotIn(s.id, sm)
         self.assertNotIn(s.id, sm.acquired)
