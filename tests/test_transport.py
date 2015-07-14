@@ -1,4 +1,5 @@
 from unittest import mock
+from aiohttp import web
 from test_base import TestCase
 
 from sockjs import protocol
@@ -37,6 +38,7 @@ class TransportTestCase(TestCase):
         trans = self.make_transport()
         trans.session.interrupted = True
         trans.send = self.make_fut(1)
+        trans.response = web.StreamResponse()
         self.loop.run_until_complete(trans.handle_session())
         trans.send.assert_called_with('c[1002,"Connection interrupted"]')
 
@@ -46,6 +48,7 @@ class TransportTestCase(TestCase):
         trans.session.interrupted = False
         trans.session.state = protocol.STATE_CLOSING
         trans.session._remote_closed = self.make_fut(1)
+        trans.response = web.StreamResponse()
         self.loop.run_until_complete(trans.handle_session())
         trans.session._remote_closed.assert_called_with()
         trans.send.assert_called_with('c[3000,"Go away!"]')
@@ -56,6 +59,7 @@ class TransportTestCase(TestCase):
         trans.session.interrupted = False
         trans.session.state = protocol.STATE_CLOSED
         trans.session._remote_closed = self.make_fut(1)
+        trans.response = web.StreamResponse()
         self.loop.run_until_complete(trans.handle_session())
         trans.session._remote_closed.assert_called_with()
         trans.send.assert_called_with('c[3000,"Go away!"]')

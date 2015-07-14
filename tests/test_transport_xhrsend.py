@@ -15,13 +15,13 @@ class XHRSendTransportTests(TestCase):
         transp = self.make_transport()
         transp.request.read = self.make_fut(b'')
         resp = self.loop.run_until_complete(transp.process())
-        self.assertEqual(resp.status, 400)
+        self.assertEqual(resp.status, 500)
 
     def test_bad_json(self):
         transp = self.make_transport()
         transp.request.read = self.make_fut(b'{]')
         resp = self.loop.run_until_complete(transp.process())
-        self.assertEqual(resp.status, 400)
+        self.assertEqual(resp.status, 500)
 
     def test_post_message(self):
         transp = self.make_transport()

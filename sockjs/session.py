@@ -259,7 +259,7 @@ class SessionManager(dict):
     _hb_task = None  # gc task
 
     def __init__(self, name, app, handler, loop,
-                 heartbeat=15.0, timeout=timedelta(seconds=10), debug=False):
+                 heartbeat=25.0, timeout=timedelta(seconds=5), debug=False):
         self.name = name
         self.route_name = 'sockjs-url-%s' % name
         self.app = app
@@ -308,7 +308,10 @@ class SessionManager(dict):
             while idx < len(sessions):
                 session = sessions[idx]
 
-                if session.expires < now:
+                if session.acquired:
+                    session._heartbeat()
+
+                elif session.expires < now:
                     # Session is to be GC'd immedietely
                     if session.id in self.acquired:
                         yield from self.release(session)
@@ -320,9 +323,6 @@ class SessionManager(dict):
                     del self[session.id]
                     del self.sessions[idx]
                     continue
-
-                elif session.acquired:
-                    session._heartbeat()
 
                 idx += 1
 

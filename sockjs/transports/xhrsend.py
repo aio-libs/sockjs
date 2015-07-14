@@ -1,3 +1,4 @@
+import asyncio
 from aiohttp import web, hdrs
 
 from ..protocol import loads, ENCODING
@@ -7,6 +8,7 @@ from .utils import session_cookie, cors_headers, cache_headers
 
 class XHRSendTransport(Transport):
 
+    @asyncio.coroutine
     def process(self):
         request = self.request
 
@@ -26,12 +28,12 @@ class XHRSendTransport(Transport):
 
         data = yield from request.read()
         if not data:
-            return web.HTTPBadRequest(text='Payload expected.')
+            return web.HTTPInternalServerError(text='Payload expected.')
 
         try:
             messages = loads(data.decode(ENCODING))
         except:
-            return web.HTTPBadRequest(text="Broken JSON encoding.")
+            return web.HTTPInternalServerError(text="Broken JSON encoding.")
 
         yield from self.session._remote_messages(messages)
 
