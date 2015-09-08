@@ -152,8 +152,8 @@ class SockJSRoute:
         session = self.manager.get(sid, True, request=request)
 
         # websocket
-        if hdrs.ORIGIN in request.headers:
-            return web.HTTPNotFound()
+        # if hdrs.ORIGIN in request.headers:
+        #     return web.HTTPNotFound()
 
         transport = RawWebSocketTransport(self.manager, session, request)
         try:
