@@ -4,7 +4,8 @@ from aiohttp import web
 
 from .base import Transport
 from ..exceptions import SessionIsClosed
-from ..protocol import FRAME_CLOSE, FRAME_MESSAGE, FRAME_MESSAGE_BLOB
+from ..protocol import FRAME_CLOSE, FRAME_MESSAGE, FRAME_MESSAGE_BLOB, \
+    FRAME_HEARTBEAT
 
 
 class RawWebSocketTransport(Transport):
@@ -25,6 +26,8 @@ class RawWebSocketTransport(Transport):
                 if data.startswith('['):
                     data = data[1:-1]
                 ws.send_str(data)
+            elif frame == FRAME_HEARTBEAT:
+                ws.ping()
             elif frame == FRAME_CLOSE:
                 try:
                     yield from ws.close(message='Go away!')
