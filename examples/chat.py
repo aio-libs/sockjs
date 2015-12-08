@@ -9,7 +9,7 @@ CHAT_FILE = open(
     os.path.join(os.path.dirname(__file__), 'chat.html'), 'rb').read()
 
 
-def chatSession(msg, session):
+def chat_msg_handler(msg, session):
     if msg.tp == sockjs.MSG_OPEN:
         session.manager.broadcast("Someone joined.")
     elif msg.tp == sockjs.MSG_MESSAGE:
@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     app = web.Application(loop=loop)
     app.router.add_route('GET', '/', index)
-    sockjs.add_endpoint(app, chatSession, prefix='/sockjs/')
+    sockjs.add_endpoint(app, chat_msg_handler, prefix='/sockjs/')
 
     handler = app.make_handler()
     srv = loop.run_until_complete(
