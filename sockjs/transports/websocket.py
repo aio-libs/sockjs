@@ -2,6 +2,11 @@
 import asyncio
 from aiohttp import web
 
+try:
+    from asyncio import ensure_future
+except ImportError:
+    ensure_future = asyncio.async
+
 from .base import Transport
 from ..exceptions import SessionIsClosed
 from ..protocol import STATE_CLOSED, FRAME_CLOSE
@@ -76,9 +81,9 @@ class WebSocketTransport(Transport):
                 yield from ws.close()
                 return ws
 
-            server = asyncio.ensure_future(
+            server = ensure_future(
                 self.server(ws, self.session), loop=self.loop)
-            client = asyncio.ensure_future(
+            client = ensure_future(
                 self.client(ws, self.session), loop=self.loop)
             try:
                 yield from asyncio.wait(
