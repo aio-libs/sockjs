@@ -49,6 +49,7 @@ class BaseSockjs(unittest.TestCase):
                  'SEC-WEBSOCKET-PROTOCOL': 'chat, superchat',
                  'SEC-WEBSOCKET-VERSION': '13'})
         message = RawRequestMessage(method, path, HttpVersion11, headers,
+                                    [(k.encode('utf-8'), v.encode('utf-8')) for k, v in headers.items()]
                                     False, False)
         self.payload = mock.Mock()
         self.transport = mock.Mock()
