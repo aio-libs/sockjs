@@ -73,7 +73,8 @@ class JSONPolling(StreamingTransport):
             try:
                 messages = loads(data)
             except:
-                return web.HTTPInternalServerError(body=b'Broken JSON encoding.')
+                return web.HTTPInternalServerError(
+                    body=b'Broken JSON encoding.')
 
             yield from session._remote_messages(messages)
             return web.Response(
