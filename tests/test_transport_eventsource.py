@@ -1,7 +1,8 @@
 from unittest import mock
-from test_base import TestCase
 
 from sockjs.transports import eventsource
+
+from test_base import TestCase
 
 
 class EventsourceTransportTests(TestCase):

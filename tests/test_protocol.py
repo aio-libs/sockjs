@@ -1,5 +1,6 @@
 import json
 import unittest
+
 from sockjs import protocol
 
 

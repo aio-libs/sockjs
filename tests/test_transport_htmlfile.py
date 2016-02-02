@@ -1,7 +1,8 @@
 from unittest import mock
-from test_base import TestCase
 
 from sockjs.transports import htmlfile
+
+from test_base import TestCase
 
 
 class HtmlFileTransportTests(TestCase):

@@ -1,5 +1,6 @@
-from test_base import TestCase
 from sockjs.transports import xhrsend
+
+from test_base import TestCase
 
 
 class XHRSendTransportTests(TestCase):

@@ -1,5 +1,6 @@
-from test_base import TestCase
 from sockjs.transports import xhr
+
+from test_base import TestCase
 
 
 class XhrTransportTests(TestCase):
