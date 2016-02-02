@@ -2,6 +2,12 @@
 CHANGES
 =======
 
+0.4 (02/02/2016)
+----------------
+
+- Fixed lost event-loop argument in `sockjs.transports.websocket.WebSocketTransport`
+- Fixed RawRequestMessage. Add raw_header argument (aiohttp 0.21+)
+
 0.3 (08/07/2015)
 ----------------
 
@@ -13,7 +19,6 @@ CHANGES
 ----------------
 
 - Fixed packaging
-
 
 0.1.0 (06/21/2015)
 ------------------
