@@ -3,6 +3,11 @@ import unittest
 from unittest import mock
 from datetime import datetime, timedelta
 
+try:
+    from asyncio import ensure_future
+except ImportError:
+    ensure_future = asyncio.async
+
 from aiohttp import web
 from sockjs import Session, session, protocol
 
@@ -216,7 +221,7 @@ class SessionTestCase(unittest.TestCase):
             yield from asyncio.sleep(0.001, loop=self.loop)
             s._feed(protocol.FRAME_MESSAGE, 'msg1')
 
-        asyncio.async(send(), loop=self.loop)
+        ensure_future(send(), loop=self.loop)
         frame, payload = self.loop.run_until_complete(s._wait())
         self.assertEqual(frame, protocol.FRAME_MESSAGE)
         self.assertEqual(payload, 'a["msg1"]')
