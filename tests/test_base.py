@@ -50,12 +50,19 @@ class TestCase(unittest.TestCase):
                  'ORIGIN': 'http://example.com',
                  'SEC-WEBSOCKET-PROTOCOL': 'chat, superchat',
                  'SEC-WEBSOCKET-VERSION': '13'})
+
+        @asyncio.coroutine
+        def mock_coro(*args, **kwargs):
+            return
+
         message = make_raw_request_message(method, path, headers)
         self.payload = mock.Mock()
         self.transport = mock.Mock()
         self.reader = mock.Mock()
         self.writer = mock.Mock()
         self.app.loop = self.loop
+        # hack for `yield from resp.prepare(self.request)`
+        self.app.on_response_prepare.send = mock_coro
         req = web.Request(self.app, message, self.payload,
                           self.transport, self.reader, self.writer)
         req._match_info = match_info

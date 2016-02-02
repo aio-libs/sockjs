@@ -66,7 +66,7 @@ class HTMLFileTransport(StreamingTransport):
 
         # open sequence (sockjs protocol)
         resp = self.response = web.StreamResponse(headers=headers)
-        resp.start(self.request)
+        yield from resp.prepare(self.request)
         resp.write(b''.join(
             (PRELUDE1, callback.encode('utf-8'), PRELUDE2, b' '*1024)))
 

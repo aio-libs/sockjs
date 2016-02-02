@@ -47,7 +47,7 @@ class RawWebSocketTransport(Transport):
     def process(self):
         # start websocket connection
         ws = self.ws = web.WebSocketResponse()
-        ws.start(self.request)
+        yield from ws.prepare(self.request)
 
         try:
             yield from self.manager.acquire(self.session)
