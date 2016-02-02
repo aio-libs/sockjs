@@ -17,10 +17,11 @@ class XHRSendTransport(Transport):
             return web.HTTPForbidden(text='Method is not allowed')
 
         if self.request.method == hdrs.METH_OPTIONS:
+            base_headers = (
+                (hdrs.ACCESS_CONTROL_ALLOW_METHODS, 'OPTIONS, POST'),
+                (hdrs.CONTENT_TYPE, 'application/javascript; charset=UTF-8'))
             headers = list(
-                ((hdrs.ACCESS_CONTROL_ALLOW_METHODS, 'OPTIONS, POST'),
-                 (hdrs.CONTENT_TYPE, 'application/javascript; charset=UTF-8'))
-                +
+                base_headers +
                 session_cookie(request) +
                 cors_headers(request.headers) +
                 cache_headers())
