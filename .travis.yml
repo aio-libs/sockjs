@@ -12,8 +12,8 @@ install:
   - python setup.py develop
 
 script:
-  - flake8 aiohttp examples tests
+  - flake8 sockjs
   - coverage run --source=sockjs setup.py test
   - python setup.py check -rm
-
-script: python setup.py test
+  - pip uninstall aiohttp && pip install aiohttp
+  - python setup.py test
