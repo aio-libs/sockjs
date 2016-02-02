@@ -16,5 +16,5 @@ script:
   - coverage run --source=sockjs setup.py test
   - coverage report
   - python setup.py check -rm
-  - pip uninstall aiohttp -y && pip install aiohttp
-  - python setup.py test
+  - pip uninstall aiohttp -y && pip install aiohttp && python setup.py test
+  - pip uninstall aiohttp -y && pip install aiohttp==0.18.3 && python setup.py test

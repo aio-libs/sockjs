@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 version = '0.4'
 
-install_requires = ['aiohttp >= 0.18.0']
+install_requires = ['aiohttp >= 0.18.3']
 tests_require = install_requires + ['nose']
 
 
