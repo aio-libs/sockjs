@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     app = web.Application(loop=loop)
     app.router.add_route('GET', '/', index)
-    sockjs.add_endpoint(app, chat_msg_handler, prefix='/sockjs/')
+    sockjs.add_endpoint(app, chat_msg_handler, name='chat', prefix='/sockjs/')
 
     handler = app.make_handler()
     srv = loop.run_until_complete(
