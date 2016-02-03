@@ -1,4 +1,5 @@
 import asyncio
+import json
 import random
 import logging
 import hashlib
@@ -6,7 +7,7 @@ import inspect
 from aiohttp import web, hdrs
 
 from sockjs.session import SessionManager
-from sockjs.protocol import IFRAME_HTML, json
+from sockjs.protocol import IFRAME_HTML
 from sockjs.transports import handlers
 from sockjs.transports.utils import session_cookie
 from sockjs.transports.utils import cors_headers
@@ -20,6 +21,10 @@ def get_manager(name, app):
     return app['__sockjs_managers__'][name]
 
 
+def _gen_endpoint_name():
+    return 'n' + str(random.randint(1000, 9999))
+
+
 def add_endpoint(app, handler, *, name='', prefix='/sockjs',
                  manager=None, disable_transports=(),
                  sockjs_cdn='http://cdn.sockjs.org/sockjs-0.3.4.min.js',
@@ -31,6 +36,9 @@ def add_endpoint(app, handler, *, name='', prefix='/sockjs',
         handler = asyncio.coroutine(handler)
 
     router = app.router
+
+    if not name:
+        name = _gen_endpoint_name()
 
     # set session manager
     if manager is None:
