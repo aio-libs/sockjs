@@ -102,7 +102,7 @@ Not supported transports
 Requirements
 ------------
 
-- Python 3.3
+- Python 3.4
 
 - gunicorn 19.2.0
 
