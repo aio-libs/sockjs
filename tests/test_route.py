@@ -6,10 +6,10 @@ from aiohttp import CIMultiDict
 
 from sockjs import protocol
 
-from test_base import BaseSockjs
+from test_base import BaseSockjsTestCase
 
 
-class TestSockJSRoute(BaseSockjs):
+class TestSockJSRoute(BaseSockjsTestCase):
 
     def test_info(self):
         route = self.make_route()

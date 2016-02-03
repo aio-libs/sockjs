@@ -1,9 +1,9 @@
 from sockjs.transports import xhr
 
-from test_base import TestCase
+from test_base import BaseSockjsTestCase
 
 
-class XhrTransportTests(TestCase):
+class XhrTransportTests(BaseSockjsTestCase):
 
     TRANSPORT_CLASS = xhr.XHRTransport
 

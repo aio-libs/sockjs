@@ -2,10 +2,10 @@ from unittest import mock
 
 from sockjs.transports import htmlfile
 
-from test_base import TestCase
+from test_base import BaseSockjsTestCase
 
 
-class HtmlFileTransportTests(TestCase):
+class HtmlFileTransportTests(BaseSockjsTestCase):
 
     TRANSPORT_CLASS = htmlfile.HTMLFileTransport
 

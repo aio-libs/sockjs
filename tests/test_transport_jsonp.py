@@ -2,10 +2,10 @@ from unittest import mock
 
 from sockjs.transports import jsonp
 
-from test_base import TestCase
+from test_base import BaseSockjsTestCase
 
 
-class JSONPollingTransportTests(TestCase):
+class JSONPollingTransportTests(BaseSockjsTestCase):
 
     TRANSPORT_CLASS = jsonp.JSONPolling
 
