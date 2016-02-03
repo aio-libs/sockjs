@@ -31,7 +31,7 @@ class XHRStreamingTransport(StreamingTransport):
         # open sequence (sockjs protocol)
         resp = self.response = web.StreamResponse(headers=headers)
         resp.force_close()
-        resp.start(request)
+        yield from resp.prepare(request)
         resp.write(self.open_seq)
 
         # event loop

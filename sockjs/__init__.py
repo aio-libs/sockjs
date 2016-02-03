@@ -2,12 +2,6 @@
 
 # Session, SessionManager are not imported
 
-__all__ = (
-    'get_manager', 'add_endpoint', 'Session', 'SessionManager',
-    'SessionIsClosed', 'SessionIsAcquired',
-    'STATE_NEW', 'STATE_OPEN', 'STATE_CLOSING', 'STATE_CLOSED',
-    'MSG_OPEN', 'MSG_MESSAGE', 'MSG_CLOSE', 'MSG_CLOSED',)
-
 from sockjs.session import Session
 from sockjs.session import SessionManager
 from sockjs.exceptions import SessionIsClosed
@@ -24,3 +18,9 @@ from sockjs.protocol import MSG_CLOSE
 from sockjs.protocol import MSG_CLOSED
 
 from sockjs.route import get_manager, add_endpoint
+
+__all__ = (
+    'get_manager', 'add_endpoint', 'Session', 'SessionManager',
+    'SessionIsClosed', 'SessionIsAcquired',
+    'STATE_NEW', 'STATE_OPEN', 'STATE_CLOSING', 'STATE_CLOSED',
+    'MSG_OPEN', 'MSG_MESSAGE', 'MSG_CLOSE', 'MSG_CLOSED',)

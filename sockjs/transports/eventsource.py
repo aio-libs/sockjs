@@ -29,7 +29,7 @@ class EventsourceTransport(StreamingTransport):
 
         # open sequence (sockjs protocol)
         resp = self.response = web.StreamResponse(headers=headers)
-        resp.start(self.request)
+        yield from resp.prepare(self.request)
         resp.write(b'\r\n')
 
         # handle session

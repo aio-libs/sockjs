@@ -2,6 +2,11 @@
 import asyncio
 from aiohttp import web
 
+try:
+    from asyncio import ensure_future
+except ImportError:
+    ensure_future = asyncio.async
+
 from .base import Transport
 from ..exceptions import SessionIsClosed
 from ..protocol import STATE_CLOSED, FRAME_CLOSE
@@ -59,7 +64,7 @@ class WebSocketTransport(Transport):
     def process(self):
         # start websocket connection
         ws = self.ws = web.WebSocketResponse()
-        ws.start(self.request)
+        yield from ws.prepare(self.request)
 
         # session was interrupted
         if self.session.interrupted:
@@ -76,11 +81,14 @@ class WebSocketTransport(Transport):
                 yield from ws.close()
                 return ws
 
-            server = asyncio.async(self.server(ws, self.session))
-            client = asyncio.async(self.client(ws, self.session))
+            server = ensure_future(
+                self.server(ws, self.session), loop=self.loop)
+            client = ensure_future(
+                self.client(ws, self.session), loop=self.loop)
             try:
                 yield from asyncio.wait(
                     (server, client),
+                    loop=self.loop,
                     return_when=asyncio.FIRST_COMPLETED)
             except asyncio.CancelledError:
                 raise

@@ -1,12 +1,16 @@
 from unittest import mock
-from test_base import TestCase
 
-from sockjs.transports import eventsource
+from aiohttp import websocket
+from aiohttp.web_ws import WebSocketResponse
+
+from sockjs.transports import EventsourceTransport, WebSocketTransport
+
+from test_base import BaseSockjsTestCase
 
 
-class EventsourceTransportTests(TestCase):
+class EventsourceTransportTests(BaseSockjsTestCase):
 
-    TRANSPORT_CLASS = eventsource.EventsourceTransport
+    TRANSPORT_CLASS = EventsourceTransport
 
     def test_streaming_send(self):
         trans = self.make_transport()

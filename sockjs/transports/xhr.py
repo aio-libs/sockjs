@@ -32,7 +32,7 @@ class XHRTransport(StreamingTransport):
             cors_headers(request.headers))
 
         resp = self.response = web.StreamResponse(headers=headers)
-        resp.start(request)
+        yield from resp.prepare(request)
 
         yield from self.handle_session()
         return resp

@@ -3,40 +3,17 @@ import unittest
 from unittest import mock
 from datetime import datetime, timedelta
 
-from aiohttp import web
-from sockjs import Session, session, protocol
+
+try:
+    from asyncio import ensure_future
+except ImportError:
+    ensure_future = asyncio.async
+
+from sockjs import Session, SessionIsClosed, protocol, SessionIsAcquired
+from test_base import BaseSockjsTestCase
 
 
-class SessionTestCase(unittest.TestCase):
-
-    def setUp(self):
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(None)
-
-    def tearDown(self):
-        self.loop.close()
-
-    def make_session(self, name='test',
-                     timeout=timedelta(10), handler=None, result=None):
-        if handler is None:
-            handler = self.make_handler(result)
-        return Session(name, handler,
-                       timeout=timeout, loop=self.loop, debug=True)
-
-    def make_handler(self, result, coro=True, exc=False):
-        if result is None:
-            result = []
-        output = result
-
-        def handler(msg, s):
-            if exc:
-                raise ValueError((msg, s))
-            output.append((msg, s))
-
-        if coro:
-            return asyncio.coroutine(handler)
-        else:
-            return handler
+class SessionTestCase(BaseSockjsTestCase):
 
     @mock.patch('sockjs.session.datetime')
     def test_ctor(self, dt):
@@ -216,7 +193,7 @@ class SessionTestCase(unittest.TestCase):
             yield from asyncio.sleep(0.001, loop=self.loop)
             s._feed(protocol.FRAME_MESSAGE, 'msg1')
 
-        asyncio.async(send(), loop=self.loop)
+        ensure_future(send(), loop=self.loop)
         frame, payload = self.loop.run_until_complete(s._wait())
         self.assertEqual(frame, protocol.FRAME_MESSAGE)
         self.assertEqual(payload, 'a["msg1"]')
@@ -224,9 +201,8 @@ class SessionTestCase(unittest.TestCase):
     def test_wait_closed(self):
         s = self.make_session('test')
         s.state = protocol.STATE_CLOSED
-        self.assertRaises(
-            session.SessionIsClosed,
-            self.loop.run_until_complete, s._wait())
+        self.assertRaises(SessionIsClosed,
+                          self.loop.run_until_complete, s._wait())
 
     def test_wait_message(self):
         s = self.make_session('test')
@@ -433,40 +409,7 @@ class SessionTestCase(unittest.TestCase):
         self.assertEqual(messages, [])
 
 
-class SessionManagerTestCase(unittest.TestCase):
-
-    def setUp(self):
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(None)
-
-        self.app = web.Application(loop=self.loop)
-
-    def tearDown(self):
-        self.loop.close()
-
-    def make_session(self, name, handler=None, timeout=timedelta(10)):
-        if handler is None:
-            handler = self.make_handler([])
-        return Session(name, handler,
-                       timeout=timeout, loop=self.loop, debug=True)
-
-    def make_handler(self, result, coro=True):
-        output = result
-
-        def handler(msg, s):
-            output.append(output)
-
-        if coro:
-            return asyncio.coroutine(handler)
-        else:
-            return handler
-
-    def make_manager(self, handler=None):
-        if handler is None:
-            handler = self.make_handler([])
-        s = self.make_session('test', handler=handler)
-        return s, session.SessionManager(
-            'sm', self.app, handler, loop=self.loop, debug=True)
+class SessionManagerTestCase(BaseSockjsTestCase):
 
     def test_fresh(self):
         s, sm = self.make_manager()
@@ -534,7 +477,7 @@ class SessionManagerTestCase(unittest.TestCase):
         self.loop.run_until_complete(sm.acquire(s))
 
         self.assertRaises(
-            session.SessionIsAcquired,
+            SessionIsAcquired,
             self.loop.run_until_complete, sm.acquire(s))
 
     def test_release(self):

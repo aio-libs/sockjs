@@ -48,11 +48,13 @@ class HTMLFileTransport(StreamingTransport):
         callback = request.GET.get('c', None)
         if callback is None:
             yield from self.session._remote_closed()
-            return web.HTTPInternalServerError(body=b'"callback" parameter required')
+            return web.HTTPInternalServerError(
+                body=b'"callback" parameter required')
 
         elif not self.check_callback.match(callback):
             yield from self.session._remote_closed()
-            return web.HTTPInternalServerError(body=b'invalid "callback" parameter')
+            return web.HTTPInternalServerError(
+                body=b'invalid "callback" parameter')
 
         headers = list(
             ((hdrs.CONTENT_TYPE, 'text/html; charset=UTF-8'),
@@ -64,7 +66,7 @@ class HTMLFileTransport(StreamingTransport):
 
         # open sequence (sockjs protocol)
         resp = self.response = web.StreamResponse(headers=headers)
-        resp.start(self.request)
+        yield from resp.prepare(self.request)
         resp.write(b''.join(
             (PRELUDE1, callback.encode('utf-8'), PRELUDE2, b' '*1024)))
 

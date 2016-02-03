@@ -16,8 +16,8 @@ class JSONPolling(StreamingTransport):
     callback = ''
 
     def send(self, text):
-        blob = ('/**/%s(%s);\r\n' % (self.callback, dumps(text))).encode(ENCODING)
-        self.response.write(blob)
+        data = '/**/%s(%s);\r\n' % (self.callback, dumps(text))
+        self.response.write(data.encode(ENCODING))
         return True
 
     @asyncio.coroutine
@@ -48,7 +48,7 @@ class JSONPolling(StreamingTransport):
                 cors_headers(request.headers))
 
             resp = self.response = web.StreamResponse(headers=headers)
-            resp.start(request)
+            yield from resp.prepare(request)
 
             yield from self.handle_session()
             return resp
@@ -59,19 +59,22 @@ class JSONPolling(StreamingTransport):
             ctype = request.content_type.lower()
             if ctype == 'application/x-www-form-urlencoded':
                 if not data.startswith(b'd='):
-                    return web.HTTPInternalServerError(body=b'Payload expected.')
+                    return web.HTTPInternalServerError(
+                        body=b'Payload expected.')
 
                 data = unquote_plus(data[2:].decode(ENCODING))
             else:
                 data = data.decode(ENCODING)
 
             if not data:
-                return web.HTTPInternalServerError(body=b'Payload expected.')
+                return web.HTTPInternalServerError(
+                    body=b'Payload expected.')
 
             try:
                 messages = loads(data)
             except:
-                return web.HTTPInternalServerError(body=b'Broken JSON encoding.')
+                return web.HTTPInternalServerError(
+                    body=b'Broken JSON encoding.')
 
             yield from session._remote_messages(messages)
             return web.Response(

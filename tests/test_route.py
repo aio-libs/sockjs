@@ -1,67 +1,15 @@
 import asyncio
-import unittest
 from unittest import mock
 
 from aiohttp import web
 from aiohttp import CIMultiDict
-from aiohttp.protocol import RawRequestMessage, HttpVersion11
-from sockjs import session, route, protocol, transports
+
+from sockjs import protocol
+
+from test_base import BaseSockjsTestCase
 
 
-class BaseSockjs(unittest.TestCase):
-
-    def setUp(self):
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(None)
-
-        self.app = web.Application(loop=self.loop)
-
-    def tearDown(self):
-        self.loop.close()
-
-    def make_handler(self, result, coro=True):
-
-        output = result
-
-        def handler(msg, s):
-            output.append(output)
-
-        if coro:
-            return asyncio.coroutine(handler)
-        else:
-            return handler
-
-    def make_route(self, handlers=transports.handlers):
-        handler = self.make_handler([])
-        sm = session.SessionManager('sm', self.app, handler, loop=self.loop)
-        return route.SockJSRoute(
-            'sm', sm, 'http:sockjs-cdn', handlers, (), True)
-
-    def make_request(self, method, path, headers=None, match_info=None):
-        self.app = mock.Mock()
-        if headers is None:
-            headers = CIMultiDict(
-                {'HOST': 'server.example.com',
-                 'UPGRADE': 'websocket',
-                 'CONNECTION': 'Upgrade',
-                 'SEC-WEBSOCKET-KEY': 'dGhlIHNhbXBsZSBub25jZQ==',
-                 'ORIGIN': 'http://example.com',
-                 'SEC-WEBSOCKET-PROTOCOL': 'chat, superchat',
-                 'SEC-WEBSOCKET-VERSION': '13'})
-        message = RawRequestMessage(method, path, HttpVersion11, headers,
-                                    False, False)
-        self.payload = mock.Mock()
-        self.transport = mock.Mock()
-        self.reader = mock.Mock()
-        self.writer = mock.Mock()
-        self.app.loop = self.loop
-        req = web.Request(self.app, message, self.payload,
-                          self.transport, self.reader, self.writer)
-        req._match_info = match_info
-        return req
-
-
-class TestSockJSRoute(BaseSockjs):
+class TestSockJSRoute(BaseSockjsTestCase):
 
     def test_info(self):
         route = self.make_route()

@@ -1,12 +1,13 @@
 from unittest import mock
 from aiohttp import web
-from test_base import TestCase
 
 from sockjs import protocol
 from sockjs.transports import base
 
+from test_base import BaseSockjsTestCase
 
-class TransportTestCase(TestCase):
+
+class TransportTestCase(BaseSockjsTestCase):
 
     TRANSPORT_CLASS = base.StreamingTransport
 
