@@ -9,6 +9,7 @@ CHANGES
 - Fixed lost event-loop argument in `sockjs.transports.rawwebsocket.RawWebSocketTransport`
 - Fixed RawRequestMessage. Add raw_header argument (aiohttp 0.21+)
 - Fixed many warnings
+- Fixed `sockjs.route` add_endpoint without name bug
 
 0.3 (08/07/2015)
 ----------------
