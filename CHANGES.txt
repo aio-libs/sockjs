@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.4 (02/XX/2016)
+0.4 (02/04/2016)
 ----------------
 
 - Fixed lost event-loop argument in `sockjs.transports.websocket.WebSocketTransport`
