@@ -1,9 +1,6 @@
 from unittest import mock
 
-from aiohttp import websocket
-from aiohttp.web_ws import WebSocketResponse
-
-from sockjs.transports import EventsourceTransport, WebSocketTransport
+from sockjs.transports import EventsourceTransport
 
 from test_base import BaseSockjsTestCase
 
