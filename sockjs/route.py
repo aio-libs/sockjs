@@ -172,8 +172,7 @@ class SockJSRoute:
             return exc
 
     def info(self, request):
-        resp = web.Response(
-            content_type='application/json; charset=UTF-8')
+        resp = web.Response(content_type='application/json')
         resp.headers[hdrs.CACHE_CONTROL] = (
             'no-store, no-cache, must-revalidate, max-age=0')
         resp.headers.extend(cors_headers(request.headers))
@@ -186,8 +185,7 @@ class SockJSRoute:
         return resp
 
     def info_options(self, request):
-        resp = web.Response(
-            status=204, content_type='application/json; charset=UTF-8')
+        resp = web.Response(status=204, content_type='application/json')
         resp.headers[hdrs.CACHE_CONTROL] = (
             'no-store, no-cache, must-revalidate, max-age=0')
         resp.headers[hdrs.ACCESS_CONTROL_ALLOW_METHODS] = 'OPTIONS, GET'
@@ -205,9 +203,9 @@ class SockJSRoute:
 
         return web.Response(
             body=self.iframe_html,
-            content_type='text/html; charset=UTF-8',
+            content_type='text/html',
             headers=((hdrs.ETAG, self.iframe_html_hxd),) + cache_headers())
 
     def greeting(self, request):
         return web.Response(body=b'Welcome to SockJS!\n',
-                            content_type='text/plain; charset=UTF-8')
+                            content_type='text/plain')
