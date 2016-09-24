@@ -116,6 +116,7 @@ class SockJSRoute:
         self.iframe_html = (IFRAME_HTML % sockjs_cdn).encode('utf-8')
         self.iframe_html_hxd = hashlib.md5(self.iframe_html).hexdigest()
 
+    @asyncio.coroutine
     def handler(self, request):
         info = request.match_info
 
@@ -154,6 +155,7 @@ class SockJSRoute:
                 yield from manager.release(session)
             return web.HTTPInternalServerError()
 
+    @asyncio.coroutine
     def websocket(self, request):
         # session
         sid = '%0.9d' % random.randint(1, 2147483647)
