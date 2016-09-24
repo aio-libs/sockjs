@@ -1,0 +1,8 @@
+flake8
+docutils
+pytest
+pytest-aiohttp
+pytest-cov
+pytest-sugar
+sphinx
+-e .

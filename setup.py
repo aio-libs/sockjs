@@ -3,8 +3,7 @@ from setuptools import setup, find_packages
 
 version = '0.4'
 
-install_requires = ['aiohttp >= 0.18.3']
-tests_require = install_requires + ['nose']
+install_requires = ['aiohttp >= 1.0.2']
 
 
 def read(f):
@@ -30,8 +29,5 @@ setup(name='sockjs',
       license='Apache 2',
       packages=find_packages(),
       install_requires=install_requires,
-      tests_require=tests_require,
-      test_suite='nose.collector',
       include_package_data=True,
-      zip_safe=False
-)
+      zip_safe=False)

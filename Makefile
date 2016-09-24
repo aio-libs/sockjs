@@ -11,14 +11,14 @@ develop:
 	python setup.py develop
 
 test: flake develop
-	nosetests -s $(FLAGS) ./tests/
+	pytest -s $(FLAGS) ./tests/
 
 vtest: flake develop
-	nosetests -s -v $(FLAGS) ./tests/
+	pytest -s -v $(FLAGS) ./tests/
 
 cov cover coverage: flake develop
 	@coverage erase
-	@coverage run -m nose -s $(FLAGS) tests
+	@coverage run -m pytest -s $(FLAGS) tests
 	@coverage combine
 	@coverage report
 	@coverage html
