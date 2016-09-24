@@ -1,7 +1,7 @@
 flake8
 docutils
 pytest
-pytest-aiohttp
+pytest-aiohttp==0.1.2
 pytest-cov
 pytest-sugar==0.7.1
 sphinx==1.4.6
