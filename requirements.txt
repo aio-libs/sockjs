@@ -1,5 +1,5 @@
 flake8==3.0.4
-docutils
+docutils==0.12
 pytest
 pytest-aiohttp==0.1.2
 pytest-cov==2.3.1
