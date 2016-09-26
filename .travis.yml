@@ -5,17 +5,21 @@ python:
 install:
   - pip install --upgrade setuptools
   - pip install -r requirements.txt
+  - pip install codecov
   - python setup.py develop
 
 script:
   - flake8 sockjs
-  - coverage run --source=sockjs setup.py test
-  - coverage report
+  - py.test --cov=sockjs --cov-report=term --cov-report=html tests
   - python setup.py check -rm
   - if python -c "import sys; sys.exit(sys.version_info < (3,5))"; then
         python setup.py check -s;
     fi
 
+
+after_success:
+
+  - codecov
 
 deploy:
   provider: pypi

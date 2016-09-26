@@ -17,11 +17,7 @@ vtest: flake develop
 	pytest -s -v $(FLAGS) ./tests/
 
 cov cover coverage: flake develop
-	@coverage erase
-	@coverage run -m pytest -s $(FLAGS) tests
-	@coverage combine
-	@coverage report
-	@coverage html
+	@py.test --cov=sockjs --cov-report=term --cov-report=html tests
 	@echo "open file://`pwd`/coverage/index.html"
 
 clean:
