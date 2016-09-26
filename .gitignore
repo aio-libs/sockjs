@@ -19,3 +19,4 @@ develop-eggs
 docs/_build/
 nosetests.xml
 pyrami_sockjs/coverage.xml
+.cache

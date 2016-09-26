@@ -213,4 +213,4 @@ class TestSockJSRoute(BaseSockjsTestCase):
         route = self.make_route()
         request = self.make_request('GET', '/sm/')
         res = self.loop.run_until_complete(route.websocket(request))
-        self.assertIsInstance(res, web.HTTPNotFound)
+        self.assertFalse(isinstance(res, web.HTTPNotFound))

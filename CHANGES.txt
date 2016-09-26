@@ -2,10 +2,14 @@
 CHANGES
 =======
 
-0.5 (2016-09-24)
+0.5 (2016-09-26)
 ----------------
 
 - Mark SockJSRoute.handler and SockJSRoute.websocket as coroutines. #25
+
+- Removed existence check for "ORIGIN" header #12
+
+- Process FRAME_MESSAGE_BLOB message type #12
 
 0.4 (2016-02-04)
 ----------------

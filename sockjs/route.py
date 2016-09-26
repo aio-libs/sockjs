@@ -159,10 +159,6 @@ class SockJSRoute:
         sid = '%0.9d' % random.randint(1, 2147483647)
         session = self.manager.get(sid, True, request=request)
 
-        # websocket
-        if hdrs.ORIGIN in request.headers:
-            return web.HTTPNotFound()
-
         transport = RawWebSocketTransport(self.manager, session, request)
         try:
             return (yield from transport.process())
