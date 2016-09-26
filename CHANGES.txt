@@ -2,7 +2,12 @@
 CHANGES
 =======
 
-0.4 (02/04/2016)
+0.5 (2016-09-24)
+----------------
+
+- Mark SockJSRoute.handler and SockJSRoute.websocket as coroutines. #25
+
+0.4 (2016-02-04)
 ----------------
 
 - Fixed lost event-loop argument in `sockjs.transports.websocket.WebSocketTransport`
@@ -11,19 +16,19 @@ CHANGES
 - Fixed many warnings
 - Fixed `sockjs.route` add_endpoint without name bug
 
-0.3 (08/07/2015)
+0.3 (2015-08-07)
 ----------------
 
 - Fixed calls of ``SessionManager.aquire()`` - was removed the unnecessary second argument.
 - Fixed the incorrect argument in one call of ``cors_headers()``.
 - Fixed many errors. The code is not perfect, but at least it was working as it should.
 
-0.2 (07/07/2015)
+0.2 (2015-07-07)
 ----------------
 
 - Fixed packaging
 
-0.1.0 (06/21/2015)
+0.1.0 (2015-06-21)
 ------------------
 
 - Initial release

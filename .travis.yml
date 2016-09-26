@@ -12,3 +12,18 @@ script:
   - coverage run --source=sockjs setup.py test
   - coverage report
   - python setup.py check -rm
+  - if python -c "import sys; sys.exit(sys.version_info < (3,5))"; then
+        python setup.py check -s;
+    fi
+
+
+deploy:
+  provider: pypi
+  user: andrew.svetlov
+  password:
+    secure: "eCDk6LIug3AJJb7vyStX2JQ9/xG8RK4AP5SNyVGHTn+g59OxixYMdGRSTpeduWLQp/Xq2TZHGgnzIuo29Ir/stj+TorVmloZpk/Xt+Lm31u5IKeEytq2iditz+83iUvodXDyKADqOX8op5ARYyA+W2leYxzC6+q43O4GaXJOJeY="
+  distributions: "sdist bdist_wheel"
+  on:
+    tags: true
+    all_branches: true
+    python: 3.5
