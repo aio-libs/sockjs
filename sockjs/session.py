@@ -134,6 +134,7 @@ class Session(object):
             if not waiter.cancelled():
                 waiter.set_result(True)
 
+    @asyncio.coroutine
     def _wait(self, pack=True):
         if not self._queue and self.state != STATE_CLOSED:
             assert not self._waiter
@@ -269,7 +270,6 @@ class SessionManager(dict):
         self.sessions = []
         self.heartbeat = heartbeat
         self.timeout = timeout
-        self.heartbeat = heartbeat
         self.loop = loop
         self.debug = debug
 
@@ -298,6 +298,7 @@ class SessionManager(dict):
             self._hb_task = asyncio.async(
                 self._heartbeat_task(), loop=self.loop)
 
+    @asyncio.coroutine
     def _heartbeat_task(self):
         sessions = self.sessions
 
