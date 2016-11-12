@@ -8,6 +8,7 @@ from aiohttp import CIMultiDict
 from aiohttp.web import Request, Application
 from aiohttp.protocol import RawRequestMessage, HttpVersion11
 from aiohttp.signals import Signal
+from aiohttp.test_utils import make_mocked_request
 
 from sockjs import Session, SessionManager, transports
 from sockjs.route import SockJSRoute
@@ -15,6 +16,8 @@ from sockjs.route import SockJSRoute
 
 def make_raw_request_message(method, path, headers, version=HttpVersion11,
                              should_close=False, compression=False):
+    return make_mocked_request(method, path, headers,
+                               version=version, closing=should_close)
     raw_headers = [(k.encode('utf-8'), v.encode('utf-8'))
                    for k, v in headers.items()]
     try:

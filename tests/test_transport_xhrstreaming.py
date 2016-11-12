@@ -1,20 +1,34 @@
+import asyncio
+from unittest import mock
+
+import pytest
+
 from sockjs.transports import xhrstreaming
 
-from test_base import BaseSockjsTestCase
+
+@pytest.fixture
+def make_transport(make_request, make_fut):
+    def maker(method='GET', path='/', query_params={}):
+        manager = mock.Mock()
+        session = mock.Mock()
+        session._remote_closed = make_fut(1)
+        request = make_request(method, path, query_params=query_params)
+        return xhrstreaming.XHRStreamingTransport(manager, session, request)
+
+    return maker
 
 
-class XHRStreamingTransportTests(BaseSockjsTestCase):
+@asyncio.coroutine
+def test_process(make_transport, make_fut):
+    transp = make_transport()
+    transp.handle_session = make_fut(1)
+    resp = yield from transp.process()
+    assert transp.handle_session.called
+    assert resp.status == 200
 
-    TRANSPORT_CLASS = xhrstreaming.XHRStreamingTransport
 
-    def test_process(self):
-        transp = self.make_transport()
-        transp.handle_session = self.make_fut(1)
-        resp = self.loop.run_until_complete(transp.process())
-        self.assertTrue(transp.handle_session.called)
-        self.assertEqual(resp.status, 200)
-
-    def test_process_OPTIONS(self):
-        transp = self.make_transport(method='OPTIONS')
-        resp = self.loop.run_until_complete(transp.process())
-        self.assertEqual(resp.status, 204)
+@asyncio.coroutine
+def test_process_OPTIONS(make_transport):
+    transp = make_transport(method='OPTIONS')
+    resp = yield from transp.process()
+    assert resp.status == 204

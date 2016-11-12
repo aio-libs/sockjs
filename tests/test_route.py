@@ -1,66 +1,65 @@
 import asyncio
-from unittest import mock
 
 from aiohttp import web
 from aiohttp import CIMultiDict
 
 from sockjs import protocol
 
-from test_base import BaseSockjsTestCase
+
+def test_info(make_route, make_request):
+    route = make_route()
+    request = make_request('GET', '/sm/')
+
+    response = route.info(request)
+    info = protocol.loads(response.body.decode('utf-8'))
+
+    assert info['websocket']
+    assert info['cookie_needed']
 
 
-class TestSockJSRoute(BaseSockjsTestCase):
+def test_info_entropy(make_route, make_request):
+    route = make_route()
+    request = make_request('GET', '/sm/')
 
-    def test_info(self):
-        route = self.make_route()
-        request = self.make_request('GET', '/sm/')
+    response = route.info(request)
+    entropy1 = protocol.loads(response.body.decode('utf-8'))['entropy']
 
-        response = route.info(request)
-        info = protocol.loads(response.body.decode('utf-8'))
+    response = route.info(request)
+    entropy2 = protocol.loads(response.body.decode('utf-8'))['entropy']
 
-        self.assertTrue(info['websocket'])
-        self.assertTrue(info['cookie_needed'])
+    assert entropy1 != entropy2
 
-    def test_info_entropy(self):
-        route = self.make_route()
-        request = self.make_request('GET', '/sm/')
 
-        response = route.info(request)
-        entropy1 = protocol.loads(response.body.decode('utf-8'))['entropy']
+def test_info_options(make_route, make_request):
+    route = make_route()
+    request = make_request('OPTIONS', '/sm/')
+    response = route.info_options(request)
 
-        response = route.info(request)
-        entropy2 = protocol.loads(response.body.decode('utf-8'))['entropy']
+    assert response.status == 204
 
-        self.assertFalse(entropy1 == entropy2)
+    headers = response.headers
+    assert 'Access-Control-Max-Age' in headers
+    assert 'Cache-Control' in headers
+    assert 'Expires' in headers
+    assert 'Set-Cookie' in headers
+    assert 'access-control-allow-credentials' in headers
+    assert 'access-control-allow-origin' in headers
 
-    def test_info_options(self):
-        route = self.make_route()
-        request = self.make_request('OPTIONS', '/sm/')
-        response = route.info_options(request)
 
-        self.assertEqual(response.status, 204)
+def test_greeting(make_route, make_request):
+    route = make_route()
+    request = make_request('GET', '/sm/')
+    response = route.greeting(request)
 
-        headers = response.headers
-        self.assertIn('Access-Control-Max-Age', headers)
-        self.assertIn('Cache-Control', headers)
-        self.assertIn('Expires', headers)
-        self.assertIn('Set-Cookie', headers)
-        self.assertIn('access-control-allow-credentials', headers)
-        self.assertIn('access-control-allow-origin', headers)
+    assert response.body == b'Welcome to SockJS!\n'
 
-    def test_greeting(self):
-        route = self.make_route()
-        request = self.make_request('GET', '/sm/')
-        response = route.greeting(request)
 
-        self.assertEqual(response.body, b'Welcome to SockJS!\n')
+def test_iframe(make_route, make_request):
+    route = make_route()
+    request = make_request('GET', '/sm/')
 
-    def test_iframe(self):
-        route = self.make_route()
-        request = self.make_request('GET', '/sm/')
-
-        response = route.iframe(request)
-        text = """<!DOCTYPE html>
+    response = route.iframe(request)
+    text = """<!DOCTYPE html>
 <html>
 <head>
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
@@ -77,140 +76,160 @@ class TestSockJSRoute(BaseSockjsTestCase):
 </body>
 </html>"""
 
-        self.assertEqual(response.body.decode('utf-8'), text)
-        self.assertIn('ETag', response.headers)
+    assert response.body.decode('utf-8') == text
+    assert 'ETag' in response.headers
 
-    def test_iframe_cache(self):
-        route = self.make_route()
-        request = self.make_request(
-            'GET', '/sm/',
-            headers=CIMultiDict({'IF-NONE-MATCH': 'test'}))
-        response = route.iframe(request)
 
-        self.assertEqual(response.status, 304)
+def test_iframe_cache(make_route, make_request):
+    route = make_route()
+    request = make_request(
+        'GET', '/sm/',
+        headers=CIMultiDict({'IF-NONE-MATCH': 'test'}))
+    response = route.iframe(request)
 
-    def test_handler_unknown_transport(self):
-        route = self.make_route()
-        request = self.make_request(
-            'GET', '/sm/', match_info={'transport': 'unknown'})
+    assert response.status == 304
 
-        res = self.loop.run_until_complete(route.handler(request))
-        self.assertIsInstance(res, web.HTTPNotFound)
 
-    def test_handler_emptry_session(self):
-        route = self.make_route()
-        request = self.make_request(
-            'GET', '/sm/',
-            match_info={'transport': 'websocket', 'session': ''})
-        res = self.loop.run_until_complete(route.handler(request))
-        self.assertIsInstance(res, web.HTTPNotFound)
+@asyncio.coroutine
+def test_handler_unknown_transport(make_route, make_request):
+    route = make_route()
+    request = make_request(
+        'GET', '/sm/', match_info={'transport': 'unknown'})
 
-    def test_handler_bad_session_id(self):
-        route = self.make_route()
-        request = self.make_request(
-            'GET', '/sm/',
-            match_info={'transport': 'websocket',
-                        'session': 'test.1', 'server': '000'})
-        res = self.loop.run_until_complete(route.handler(request))
-        self.assertIsInstance(res, web.HTTPNotFound)
+    res = yield from route.handler(request)
+    assert isinstance(res, web.HTTPNotFound)
 
-    def test_handler_bad_server_id(self):
-        route = self.make_route()
-        request = self.make_request(
-            'GET', '/sm/',
-            match_info={'transport': 'websocket',
-                        'session': 'test', 'server': 'test.1'})
-        res = self.loop.run_until_complete(route.handler(request))
-        self.assertIsInstance(res, web.HTTPNotFound)
 
-    def test_new_session_before_read(self):
-        route = self.make_route()
-        request = self.make_request(
-            'GET', '/sm/',
-            match_info={
-                'transport': 'xhr_send', 'session': 's1', 'server': '000'})
-        res = self.loop.run_until_complete(route.handler(request))
-        self.assertIsInstance(res, web.HTTPNotFound)
+@asyncio.coroutine
+def test_handler_emptry_session(make_route, make_request):
+    route = make_route()
+    request = make_request(
+        'GET', '/sm/',
+        match_info={'transport': 'websocket', 'session': ''})
+    res = yield from route.handler(request)
+    assert isinstance(res, web.HTTPNotFound)
 
-    def _test_transport(self):
-        route = self.make_route()
-        request = self.make_request(
-            'GET', '/sm/',
-            match_info={
-                'transport': 'xhr', 'session': 's1', 'server': '000'})
 
-        params = []
+@asyncio.coroutine
+def test_handler_bad_session_id(make_route, make_request):
+    route = make_route()
+    request = make_request(
+        'GET', '/sm/',
+        match_info={'transport': 'websocket',
+                    'session': 'test.1', 'server': '000'})
+    res = yield from route.handler(request)
+    assert isinstance(res, web.HTTPNotFound)
 
-        class Transport:
-            def __init__(self, manager, session, request):
-                params.append((manager, session, request))
 
-            def process(self):
-                return web.HTTPOk()
+@asyncio.coroutine
+def test_handler_bad_server_id(make_route, make_request):
+    route = make_route()
+    request = make_request(
+        'GET', '/sm/',
+        match_info={'transport': 'websocket',
+                    'session': 'test', 'server': 'test.1'})
+    res = yield from route.handler(request)
+    assert isinstance(res, web.HTTPNotFound)
 
-        route = self.make_route(handlers={'test': (True, Transport)})
-        res = self.loop.run_until_complete(route.handler(request))
-        self.assertIsInstance(res, web.HTTPOk)
-        self.assertEqual(
-            params[0], (route.manager, route.manager['s1'], request))
 
-    def test_fail_transport(self):
-        request = self.make_request(
-            'GET', '/sm/',
-            match_info={
-                'transport': 'test', 'session': 'session', 'server': '000'})
+@asyncio.coroutine
+def test_new_session_before_read(make_route, make_request):
+    route = make_route()
+    request = make_request(
+        'GET', '/sm/',
+        match_info={
+            'transport': 'xhr_send', 'session': 's1', 'server': '000'})
+    res = yield from route.handler(request)
+    assert isinstance(res, web.HTTPNotFound)
 
-        params = []
 
-        class Transport:
-            def __init__(self, manager, session, request):
-                params.append((manager, session, request))
+@asyncio.coroutine
+def _test_transport(make_route, make_request):
+    route = make_route()
+    request = make_request(
+        'GET', '/sm/',
+        match_info={
+            'transport': 'xhr', 'session': 's1', 'server': '000'})
 
-            def process(self):
-                raise Exception('Error')
+    params = []
 
-        route = self.make_route(handlers={'test': (True, Transport)})
-        res = self.loop.run_until_complete(route.handler(request))
-        self.assertIsInstance(res, web.HTTPInternalServerError)
+    class Transport:
+        def __init__(self, manager, session, request):
+            params.append((manager, session, request))
 
-    def test_release_session_for_failed_transport(self):
-        request = self.make_request(
-            'GET', '/sm/',
-            match_info={
-                'transport': 'test', 'session': 's1', 'server': '000'})
+        def process(self):
+            return web.HTTPOk()
 
-        class Transport:
-            def __init__(self, manager, session, request):
-                self.manager = manager
-                self.session = session
+    route = make_route(handlers={'test': (True, Transport)})
+    res = yield from route.handler(request)
+    assert isinstance(res, web.HTTPOk)
+    assert params[0] == (route.manager, route.manager['s1'], request)
 
-            def process(self):
-                yield from self.manager.acquire(self.session)
-                raise Exception('Error')
 
-        route = self.make_route(handlers={'test': (True, Transport)})
-        res = self.loop.run_until_complete(route.handler(request))
-        self.assertIsInstance(res, web.HTTPInternalServerError)
+@asyncio.coroutine
+def test_fail_transport(make_route, make_request):
+    request = make_request(
+        'GET', '/sm/',
+        match_info={
+            'transport': 'test', 'session': 'session', 'server': '000'})
 
-        s1 = route.manager['s1']
-        self.assertFalse(route.manager.is_acquired(s1))
+    params = []
 
-    @mock.patch('sockjs.route.RawWebSocketTransport')
-    def test_raw_websocket(self, ws):
-        ws.return_value.process.return_value = asyncio.Future(loop=self.loop)
-        ws.return_value.process.return_value.set_result(web.HTTPOk())
+    class Transport:
+        def __init__(self, manager, session, request):
+            params.append((manager, session, request))
 
-        route = self.make_route()
-        request = self.make_request(
-            'GET', '/sm/', headers=CIMultiDict({}))
-        res = self.loop.run_until_complete(route.websocket(request))
+        def process(self):
+            raise Exception('Error')
 
-        self.assertIsInstance(res, web.HTTPOk)
-        self.assertTrue(ws.called)
-        self.assertTrue(ws.return_value.process.called)
+    route = make_route(handlers={'test': (True, Transport)})
+    res = yield from route.handler(request)
+    assert isinstance(res, web.HTTPInternalServerError)
 
-    def test_raw_websocket_fail(self):
-        route = self.make_route()
-        request = self.make_request('GET', '/sm/')
-        res = self.loop.run_until_complete(route.websocket(request))
-        self.assertFalse(isinstance(res, web.HTTPNotFound))
+
+@asyncio.coroutine
+def test_release_session_for_failed_transport(make_route, make_request):
+    request = make_request(
+        'GET', '/sm/',
+        match_info={
+            'transport': 'test', 'session': 's1', 'server': '000'})
+
+    class Transport:
+        def __init__(self, manager, session, request):
+            self.manager = manager
+            self.session = session
+
+        def process(self):
+            yield from self.manager.acquire(self.session)
+            raise Exception('Error')
+
+    route = make_route(handlers={'test': (True, Transport)})
+    res = yield from route.handler(request)
+    assert isinstance(res, web.HTTPInternalServerError)
+
+    s1 = route.manager['s1']
+    assert not route.manager.is_acquired(s1)
+
+
+@asyncio.coroutine
+def test_raw_websocket(loop, make_route, make_request, mocker):
+    ws = mocker.patch('sockjs.route.RawWebSocketTransport')
+    ws.return_value.process.return_value = asyncio.Future(loop=loop)
+    ws.return_value.process.return_value.set_result(web.HTTPOk())
+
+    route = make_route()
+    request = make_request(
+        'GET', '/sm/', headers=CIMultiDict({}))
+    res = yield from route.websocket(request)
+
+    assert isinstance(res, web.HTTPOk)
+    assert ws.called
+    assert ws.return_value.process.called
+
+
+@asyncio.coroutine
+def test_raw_websocket_fail(make_route, make_request):
+    route = make_route()
+    request = make_request('GET', '/sm/')
+    res = yield from route.websocket(request)
+    assert not isinstance(res, web.HTTPNotFound)
