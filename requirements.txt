@@ -8,5 +8,5 @@ pytest-mock
 sphinx==1.4.8
 aiohttp
 yarl
-multidict
+multidict==2.1.2
 -e .
