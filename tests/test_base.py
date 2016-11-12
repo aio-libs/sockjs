@@ -32,7 +32,7 @@ def make_raw_request_message(method, path, headers, version=HttpVersion11,
     return message
 
 
-class BaseTestCase(unittest.TestCase):
+class xBaseTestCase(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
@@ -86,7 +86,7 @@ class BaseTestCase(unittest.TestCase):
             return fut
 
 
-class BaseSockjsTestCase(BaseTestCase):
+class xBaseSockjsTestCase(xBaseTestCase):
 
     TRANSPORT_CLASS = None
 
@@ -112,13 +112,6 @@ class BaseSockjsTestCase(BaseTestCase):
             handler = self.make_handler(result)
         return Session(name, handler,
                        timeout=timeout, loop=self.loop, debug=True)
-
-    def make_manager(self, handler=None):
-        if handler is None:
-            handler = self.make_handler([])
-        s = self.make_session('test', handler=handler)
-        return s, SessionManager(
-            'sm', self.app, handler, loop=self.loop, debug=True)
 
     def make_handler(self, result, coro=True, exc=False):
         if result is None:
