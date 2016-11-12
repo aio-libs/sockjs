@@ -1,6 +1,6 @@
 flake8==3.0.4
 docutils==0.12
-pytest==3.0.3
+pytest==3.0.4
 pytest-aiohttp==0.1.2
 pytest-cov==2.4.0
 pytest-sugar==0.7.1
