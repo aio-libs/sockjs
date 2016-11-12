@@ -4,7 +4,7 @@ pytest==3.0.3
 pytest-aiohttp==0.1.2
 pytest-cov==2.4.0
 pytest-sugar==0.7.1
-pytest-mock
+pytest-mock==1.4.0
 sphinx==1.4.8
 aiohttp
 yarl
