@@ -7,6 +7,6 @@ pytest-sugar==0.7.1
 pytest-mock==1.4.0
 sphinx==1.4.8
 aiohttp==1.1.5
-yarl==0.7.0
+yarl==0.7.1
 multidict==2.1.2
 -e .
