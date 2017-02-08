@@ -1,7 +1,7 @@
 SockJS server based on Asyncio (PEP 3156)
 =========================================
 
-.. image :: https://secure.travis-ci.org/aio-libs/sockjs.png
+.. image :: https://secure.travis-ci.org/aio-libs/sockjs.svg
   :target:  https://secure.travis-ci.org/aio-libs/sockjs
 
 `aiosockjs` is a `SockJS <http://sockjs.org>`_ server
