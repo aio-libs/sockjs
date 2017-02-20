@@ -14,6 +14,8 @@ from yarl import URL
 from sockjs import Session, SessionManager, transports
 from sockjs.route import SockJSRoute
 
+pytest_plugins = 'aiohttp.pytest_plugin'
+
 
 @pytest.fixture
 def app(loop):
@@ -82,7 +84,7 @@ def make_request(app):
                  'SEC-WEBSOCKET-PROTOCOL': 'chat, superchat',
                  'SEC-WEBSOCKET-VERSION': '13'})
 
-        ret = make_mocked_request(method, path, headers)
+        ret = make_mocked_request(method, str(path), headers)
         if match_info is None:
             match_info = UrlMappingMatchInfo({}, mock.Mock())
             match_info.add_app(app)

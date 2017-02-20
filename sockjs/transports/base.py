@@ -1,5 +1,5 @@
+import aiohttp
 import asyncio
-from aiohttp import errors
 
 from ..exceptions import SessionIsAcquired, SessionIsClosed
 from ..protocol import close_frame, ENCODING
@@ -78,7 +78,7 @@ class StreamingTransport(Transport):
                                 break
                 except asyncio.CancelledError:
                     yield from self.session._remote_close(
-                        exc=errors.ClientDisconnectedError)
+                        exc=aiohttp.ClientConnectionError)
                     yield from self.session._remote_closed()
                     raise
                 except SessionIsClosed:

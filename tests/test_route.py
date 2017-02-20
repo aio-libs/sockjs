@@ -1,7 +1,7 @@
 import asyncio
 
 from aiohttp import web
-from aiohttp import CIMultiDict
+from multidict import CIMultiDict
 
 from sockjs import protocol
 
