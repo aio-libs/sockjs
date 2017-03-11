@@ -103,7 +103,7 @@ class Session(object):
                 self.exception = exc
                 self.interrupted = True
                 self._feed(FRAME_CLOSE, (3000, 'Internal error'))
-                log.exception('Exceptin in open session handling.')
+                log.exception('Exception in open session handling.')
 
     def _release(self):
         self.acquired = False
@@ -167,7 +167,7 @@ class Session(object):
         try:
             yield from self.handler(SockjsMessage(MSG_CLOSE, exc), self)
         except:
-            log.exception('Exceptin in close handler.')
+            log.exception('Exception in close handler.')
 
     @asyncio.coroutine
     def _remote_closed(self):
@@ -180,7 +180,7 @@ class Session(object):
         try:
             yield from self.handler(ClosedMessage, self)
         except:
-            log.exception('Exceptin in closed handler.')
+            log.exception('Exception in closed handler.')
 
         # notify waiter
         waiter = self._waiter
@@ -197,7 +197,7 @@ class Session(object):
         try:
             yield from self.handler(SockjsMessage(MSG_MESSAGE, msg), self)
         except:
-            log.exception('Exceptin in message handler.')
+            log.exception('Exception in message handler.')
 
     @asyncio.coroutine
     def _remote_messages(self, messages):
@@ -208,7 +208,7 @@ class Session(object):
             try:
                 yield from self.handler(SockjsMessage(MSG_MESSAGE, msg), self)
             except:
-                log.exception('Exceptin in message handler.')
+                log.exception('Exception in message handler.')
 
     def expire(self):
         """Manually expire a session."""
