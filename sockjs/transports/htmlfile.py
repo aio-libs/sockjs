@@ -5,7 +5,7 @@ from aiohttp import web, hdrs
 
 from ..protocol import dumps, ENCODING
 from .base import StreamingTransport
-from .utils import session_cookie, cors_headers
+from .utils import CACHE_CONTROL, session_cookie, cors_headers
 
 
 PRELUDE1 = b"""
@@ -45,7 +45,7 @@ class HTMLFileTransport(StreamingTransport):
     def process(self):
         request = self.request
 
-        callback = request.GET.get('c', None)
+        callback = request.query.get('c', None)
         if callback is None:
             yield from self.session._remote_closed()
             return web.HTTPInternalServerError(
@@ -58,8 +58,7 @@ class HTMLFileTransport(StreamingTransport):
 
         headers = list(
             ((hdrs.CONTENT_TYPE, 'text/html; charset=UTF-8'),
-             (hdrs.CACHE_CONTROL,
-              'no-store, no-cache, must-revalidate, max-age=0'),
+             (hdrs.CACHE_CONTROL, CACHE_CONTROL),
              (hdrs.CONNECTION, 'close')) +
             session_cookie(request) +
             cors_headers(request.headers))

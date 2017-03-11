@@ -11,7 +11,7 @@ with codecs.open(os.path.join(os.path.abspath(os.path.dirname(
     except IndexError:
         raise RuntimeError('Unable to determine version.')
 
-install_requires = ['aiohttp >= 1.0.2']
+install_requires = ['aiohttp >= 1.3.3']
 
 
 def read(f):

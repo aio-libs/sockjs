@@ -54,13 +54,13 @@ FRAME_HEARTBEAT = 'h'
 IFRAME_HTML = """<!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <script src="%s"></script>
   <script>
     document.domain = document.domain;
-    _sockjs_onload = function(){SockJS.bootstrap_iframe();};
+    SockJS.bootstrap_iframe\(\);
   </script>
-  <script src="%s"></script>
 </head>
 <body>
   <h2>Don't panic!</h2>
@@ -68,6 +68,7 @@ IFRAME_HTML = """<!DOCTYPE html>
 </body>
 </html>
 """.strip()
+
 
 IFRAME_MD5 = hashlib.md5(IFRAME_HTML.encode()).hexdigest()
 

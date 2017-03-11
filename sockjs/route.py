@@ -9,6 +9,7 @@ from aiohttp import web, hdrs
 from sockjs.session import SessionManager
 from sockjs.protocol import IFRAME_HTML
 from sockjs.transports import handlers
+from sockjs.transports.utils import CACHE_CONTROL
 from sockjs.transports.utils import session_cookie
 from sockjs.transports.utils import cors_headers
 from sockjs.transports.utils import cache_headers
@@ -27,7 +28,7 @@ def _gen_endpoint_name():
 
 def add_endpoint(app, handler, *, name='', prefix='/sockjs',
                  manager=None, disable_transports=(),
-                 sockjs_cdn='http://cdn.sockjs.org/sockjs-0.3.4.min.js',
+                 sockjs_cdn='http://cdn.sockjs.org/sockjs-0.3.3.min.js',
                  cookie_needed=True):
 
     assert callable(handler), handler
@@ -170,9 +171,9 @@ class SockJSRoute:
             return exc
 
     def info(self, request):
-        resp = web.Response(content_type='application/json')
-        resp.headers[hdrs.CACHE_CONTROL] = (
-            'no-store, no-cache, must-revalidate, max-age=0')
+        resp = web.Response()
+        resp.headers[hdrs.CONTENT_TYPE] = 'application/json;charset=UTF-8'
+        resp.headers[hdrs.CACHE_CONTROL] = CACHE_CONTROL
         resp.headers.extend(cors_headers(request.headers))
 
         info = {'entropy': random.randint(1, 2147483647),
@@ -183,9 +184,9 @@ class SockJSRoute:
         return resp
 
     def info_options(self, request):
-        resp = web.Response(status=204, content_type='application/json')
-        resp.headers[hdrs.CACHE_CONTROL] = (
-            'no-store, no-cache, must-revalidate, max-age=0')
+        resp = web.Response(status=204)
+        resp.headers[hdrs.CONTENT_TYPE] = 'application/json;charset=UTF-8'
+        resp.headers[hdrs.CACHE_CONTROL] = CACHE_CONTROL
         resp.headers[hdrs.ACCESS_CONTROL_ALLOW_METHODS] = 'OPTIONS, GET'
         resp.headers.extend(cors_headers(request.headers))
         resp.headers.extend(cache_headers())
@@ -196,14 +197,17 @@ class SockJSRoute:
         cached = request.headers.get(hdrs.IF_NONE_MATCH)
         if cached:
             response = web.Response(status=304)
+            response.headers[hdrs.CONTENT_TYPE] = ''
             response.headers.extend(cache_headers())
             return response
 
         return web.Response(
             body=self.iframe_html,
-            content_type='text/html',
-            headers=((hdrs.ETAG, self.iframe_html_hxd),) + cache_headers())
+            headers=(
+                (hdrs.CONTENT_TYPE, 'text/html;charset=UTF-8'),
+                (hdrs.ETAG, self.iframe_html_hxd),) + cache_headers())
 
     def greeting(self, request):
-        return web.Response(body=b'Welcome to SockJS!\n',
-                            content_type='text/plain')
+        return web.Response(
+            body=b'Welcome to SockJS!\n',
+            headers=((hdrs.CONTENT_TYPE, 'text/plain; charset=UTF-8'),))

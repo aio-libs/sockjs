@@ -2,7 +2,7 @@ import asyncio
 from aiohttp import web, hdrs
 
 from .base import StreamingTransport
-from .utils import session_cookie, cors_headers, cache_headers
+from .utils import CACHE_CONTROL, session_cookie, cors_headers, cache_headers
 
 
 class XHRTransport(StreamingTransport):
@@ -26,8 +26,7 @@ class XHRTransport(StreamingTransport):
 
         headers = list(
             ((hdrs.CONTENT_TYPE, 'application/javascript; charset=UTF-8'),
-             (hdrs.CACHE_CONTROL,
-              'no-store, no-cache, must-revalidate, max-age=0')) +
+             (hdrs.CACHE_CONTROL, CACHE_CONTROL)) +
             session_cookie(request) +
             cors_headers(request.headers))
 

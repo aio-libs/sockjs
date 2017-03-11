@@ -62,13 +62,13 @@ def test_iframe(make_route, make_request):
     text = """<!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <script src="http:sockjs-cdn"></script>
   <script>
     document.domain = document.domain;
-    _sockjs_onload = function(){SockJS.bootstrap_iframe();};
+    SockJS.bootstrap_iframe\(\);
   </script>
-  <script src="http:sockjs-cdn"></script>
 </head>
 <body>
   <h2>Don't panic!</h2>

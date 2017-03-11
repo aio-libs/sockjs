@@ -3,7 +3,7 @@ from aiohttp import web, hdrs
 
 from ..protocol import loads, ENCODING
 from .base import Transport
-from .utils import session_cookie, cors_headers, cache_headers
+from .utils import CACHE_CONTROL, session_cookie, cors_headers, cache_headers
 
 
 class XHRSendTransport(Transport):
@@ -40,8 +40,7 @@ class XHRSendTransport(Transport):
 
         headers = list(
             ((hdrs.CONTENT_TYPE, 'text/plain; charset=UTF-8'),
-             (hdrs.CACHE_CONTROL,
-              'no-store, no-cache, must-revalidate, max-age=0')) +
+             (hdrs.CACHE_CONTROL, CACHE_CONTROL)) +
             session_cookie(request) +
             cors_headers(request.headers))
 

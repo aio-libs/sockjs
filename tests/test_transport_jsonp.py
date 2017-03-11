@@ -52,7 +52,7 @@ def test_process_bad_callback(make_transport):
 
     resp = yield from transp.process()
     assert transp.session._remote_closed.called
-    assert resp.status == 400
+    assert resp.status == 500
 
 
 @asyncio.coroutine

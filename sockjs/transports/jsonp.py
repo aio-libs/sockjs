@@ -6,7 +6,7 @@ from urllib.parse import unquote_plus
 from aiohttp import web, hdrs
 
 from .base import StreamingTransport
-from .utils import session_cookie, cors_headers
+from .utils import CACHE_CONTROL, session_cookie, cors_headers
 from ..protocol import dumps, loads, ENCODING
 
 
@@ -27,8 +27,7 @@ class JSONPolling(StreamingTransport):
         meth = request.method
 
         if request.method == hdrs.METH_GET:
-
-            callback = self.callback = request.GET.get('c')
+            callback = self.callback = request.query.get('c')
             if not callback:
                 yield from self.session._remote_closed()
                 return web.HTTPInternalServerError(
@@ -36,14 +35,13 @@ class JSONPolling(StreamingTransport):
 
             elif not self.check_callback.match(callback):
                 yield from self.session._remote_closed()
-                return web.HTTPBadRequest(
+                return web.HTTPInternalServerError(
                     body=b'invalid "callback" parameter')
 
             headers = list(
                 ((hdrs.CONTENT_TYPE,
                   'application/javascript; charset=UTF-8'),
-                 (hdrs.CACHE_CONTROL,
-                  'no-store, no-cache, must-revalidate, max-age=0')) +
+                 (hdrs.CACHE_CONTROL, CACHE_CONTROL)) +
                 session_cookie(request) +
                 cors_headers(request.headers))
 
@@ -81,8 +79,7 @@ class JSONPolling(StreamingTransport):
                 body=b'ok',
                 headers=((hdrs.CONTENT_TYPE,
                           'text/plain; charset=UTF-8'),
-                         (hdrs.CACHE_CONTROL,
-                          'no-store, no-cache, must-revalidate, max-age=0')) +
+                         (hdrs.CACHE_CONTROL, CACHE_CONTROL)) +
                 session_cookie(request))
 
         else:

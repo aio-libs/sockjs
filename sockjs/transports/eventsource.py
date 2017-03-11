@@ -4,7 +4,7 @@ from aiohttp import web, hdrs
 from sockjs.protocol import ENCODING
 
 from .base import StreamingTransport
-from .utils import session_cookie
+from .utils import CACHE_CONTROL, session_cookie
 
 
 class EventsourceTransport(StreamingTransport):
@@ -22,9 +22,8 @@ class EventsourceTransport(StreamingTransport):
     @asyncio.coroutine
     def process(self):
         headers = list(
-            ((hdrs.CONTENT_TYPE, 'text/event-stream; charset=UTF-8'),
-             (hdrs.CACHE_CONTROL,
-              'no-store, no-cache, must-revalidate, max-age=0')) +
+            ((hdrs.CONTENT_TYPE, 'text/event-stream'),
+             (hdrs.CACHE_CONTROL, CACHE_CONTROL)) +
             session_cookie(self.request))
 
         # open sequence (sockjs protocol)
