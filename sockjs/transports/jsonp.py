@@ -27,7 +27,11 @@ class JSONPolling(StreamingTransport):
         meth = request.method
 
         if request.method == hdrs.METH_GET:
-            callback = self.callback = request.query.get('c')
+            try:
+                callback = self.callback = request.query.get('c')
+            except:
+                callback = self.callback = request.GET.get('c')
+
             if not callback:
                 yield from self.session._remote_closed()
                 return web.HTTPInternalServerError(

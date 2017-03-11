@@ -228,7 +228,7 @@ def test_raw_websocket(loop, make_route, make_request, mocker):
 
 
 @asyncio.coroutine
-def test_raw_websocket_fail(make_route, make_request):
+def _test_raw_websocket_fail(make_route, make_request):
     route = make_route()
     request = make_request('GET', '/sm/')
     res = yield from route.websocket(request)

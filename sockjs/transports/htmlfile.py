@@ -45,7 +45,11 @@ class HTMLFileTransport(StreamingTransport):
     def process(self):
         request = self.request
 
-        callback = request.query.get('c', None)
+        try:
+            callback = request.query.get('c', None)
+        except:
+            callback = request.GET.get('c', None)
+
         if callback is None:
             yield from self.session._remote_closed()
             return web.HTTPInternalServerError(

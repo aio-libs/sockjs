@@ -6,6 +6,7 @@ import pytest
 
 from aiohttp.test_utils import make_mocked_coro
 
+from sockjs.protocol import FRAME_CLOSE
 from sockjs.transports import WebSocketTransport
 
 
@@ -15,6 +16,8 @@ def make_transport(make_request, make_fut):
         manager = mock.Mock()
         session = mock.Mock()
         session._remote_closed = make_fut(1)
+        session._wait = make_fut((FRAME_CLOSE, ''))
+
         request = make_request(method, path, query_params=query_params)
         return WebSocketTransport(manager, session, request)
 
