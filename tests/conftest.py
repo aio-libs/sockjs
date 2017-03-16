@@ -14,8 +14,6 @@ from yarl import URL
 from sockjs import Session, SessionManager, transports
 from sockjs.route import SockJSRoute
 
-pytest_plugins = 'aiohttp.pytest_plugin'
-
 
 @pytest.fixture
 def app(loop):
