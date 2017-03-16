@@ -11,7 +11,7 @@ develop:
 	python setup.py develop
 
 test: flake develop
-	pytest -s $(FLAGS) ./tests/
+	pytest $(FLAGS) ./tests/
 
 vtest: flake develop
 	pytest -s -v $(FLAGS) ./tests/
