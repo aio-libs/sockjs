@@ -8,5 +8,5 @@ pytest-mock==1.6.0
 sphinx==1.5.5
 aiohttp==2.0.7
 yarl==0.10.2
-multidict==2.1.4
+multidict==2.1.5
 -e .
