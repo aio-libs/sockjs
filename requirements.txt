@@ -1,4 +1,4 @@
-flake8==3.3.0
+flake8==3.4.1
 docutils==0.14
 pytest==3.2.2
 pytest-aiohttp==0.1.3
