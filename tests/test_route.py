@@ -67,7 +67,7 @@ def test_iframe(make_route, make_request):
   <script src="http:sockjs-cdn"></script>
   <script>
     document.domain = document.domain;
-    SockJS.bootstrap_iframe\(\);
+    SockJS.bootstrap_iframe();
   </script>
 </head>
 <body>

@@ -59,7 +59,7 @@ IFRAME_HTML = """<!DOCTYPE html>
   <script src="%s"></script>
   <script>
     document.domain = document.domain;
-    SockJS.bootstrap_iframe\(\);
+    SockJS.bootstrap_iframe();
   </script>
 </head>
 <body>
