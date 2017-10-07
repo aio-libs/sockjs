@@ -56,7 +56,7 @@ class WebSocketTransport(Transport):
 
             elif msg.tp == web.MsgType.close:
                 yield from session._remote_close()
-            elif msg.tp == web.MsgType.closed:
+            elif msg.tp in (web.MsgType.closed, web.MsgType.closing):
                 yield from session._remote_closed()
                 break
 
