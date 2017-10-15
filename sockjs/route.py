@@ -25,10 +25,9 @@ def get_manager(name, app):
 def _gen_endpoint_name():
     return 'n' + str(random.randint(1000, 9999))
 
-
 def add_endpoint(app, handler, *, name='', prefix='/sockjs',
                  manager=None, disable_transports=(),
-                 sockjs_cdn='https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js',
+                 sockjs_cdn='https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js', # noqa
                  cookie_needed=True):
 
     assert callable(handler), handler
