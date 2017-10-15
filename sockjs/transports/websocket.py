@@ -24,7 +24,6 @@ class WebSocketTransport(Transport):
                 break
 
             ws.send_str(data)
-
             if frame == FRAME_CLOSE:
                 try:
                     yield from ws.close()
@@ -33,7 +32,6 @@ class WebSocketTransport(Transport):
 
     @asyncio.coroutine
     def client(self, ws, session):
-        closing = getattr(web.MsgType, 'closing', None)
         while True:
             msg = yield from ws.receive()
 
@@ -60,8 +58,6 @@ class WebSocketTransport(Transport):
             elif msg.tp in (web.MsgType.closed, web.MsgType.closing):
                 yield from session._remote_closed()
                 break
-            elif msg.tp == closing:
-                break
 
     @asyncio.coroutine
     def process(self):
@@ -83,7 +79,6 @@ class WebSocketTransport(Transport):
                 self.ws.send_str(close_frame(3000, 'Go away!'))
                 yield from ws.close()
                 return ws
-
             server = ensure_future(
                 self.server(ws, self.session), loop=self.loop)
             client = ensure_future(

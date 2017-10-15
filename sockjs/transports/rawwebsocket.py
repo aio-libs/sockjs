@@ -41,7 +41,6 @@ class RawWebSocketTransport(Transport):
 
     @asyncio.coroutine
     def client(self, ws, session):
-        closing = getattr(web.MsgType, 'closing', None)
         while True:
             msg = yield from ws.receive()
 
@@ -53,10 +52,8 @@ class RawWebSocketTransport(Transport):
 
             elif msg.tp == web.MsgType.close:
                 yield from self.session._remote_close()
-            elif msg.tp == web.MsgType.closed:
+            elif msg.tp in (web.MsgType.closed, web.MsgType.closing):
                 yield from self.session._remote_closed()
-                break
-            elif msg.tp == closing:
                 break
 
     @asyncio.coroutine
