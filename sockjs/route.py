@@ -28,7 +28,7 @@ def _gen_endpoint_name():
 
 def add_endpoint(app, handler, *, name='', prefix='/sockjs',
                  manager=None, disable_transports=(),
-                 sockjs_cdn='http://cdn.sockjs.org/sockjs-0.3.3.min.js',
+                 sockjs_cdn='https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js', # noqa
                  cookie_needed=True):
 
     assert callable(handler), handler
