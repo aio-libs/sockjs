@@ -24,7 +24,6 @@ class WebSocketTransport(Transport):
                 break
 
             ws.send_str(data)
-
             if frame == FRAME_CLOSE:
                 try:
                     yield from ws.close()
@@ -80,7 +79,6 @@ class WebSocketTransport(Transport):
                 self.ws.send_str(close_frame(3000, 'Go away!'))
                 yield from ws.close()
                 return ws
-
             server = ensure_future(
                 self.server(ws, self.session), loop=self.loop)
             client = ensure_future(
