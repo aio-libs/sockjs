@@ -347,6 +347,7 @@ class SessionManager(dict):
         self.sessions.append(session)
         return session
 
+    @asyncio.coroutine
     def get(self, id, create=False, request=None, default=_marker):
         session = super(SessionManager, self).get(id, None)
         if session is None:
