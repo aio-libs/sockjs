@@ -430,25 +430,28 @@ class TestSessionManager:
         with pytest.raises(ValueError):
             sm._add(s)
 
+    @asyncio.coroutine
     def test_get(self, make_manager):
         s, sm = make_manager()
         with pytest.raises(KeyError):
-            sm.get('test')
+            yield from sm.get('test')
 
         sm._add(s)
-        assert sm.get('test') is s
+        assert (yield from sm.get('test')) is s
 
+    @asyncio.coroutine
     def test_get_unknown_with_default(self, make_manager):
         s, sm = make_manager()
         default = object()
 
-        item = sm.get('id', default=default)
+        item = yield from sm.get('id', default=default)
         assert item is default
 
+    @asyncio.coroutine
     def test_get_with_create(self, make_manager):
         _, sm = make_manager()
 
-        s = sm.get('test', True)
+        s = yield from sm.get('test', True)
         assert s.id in sm
         assert isinstance(s, Session)
 
@@ -486,7 +489,7 @@ class TestSessionManager:
     @asyncio.coroutine
     def test_release(self, make_manager):
         _, sm = make_manager()
-        s = sm.get('test', True)
+        s = yield from sm.get('test', True)
         s._release = mock.Mock()
 
         yield from sm.acquire(s)
@@ -496,23 +499,25 @@ class TestSessionManager:
         assert not sm.is_acquired(s)
         assert s._release.called
 
+    @asyncio.coroutine
     def test_active_sessions(self, make_manager):
         _, sm = make_manager()
 
-        s1 = sm.get('test1', True)
-        s2 = sm.get('test2', True)
+        s1 = yield from sm.get('test1', True)
+        s2 = yield from sm.get('test2', True)
         s2.expire()
 
         active = list(sm.active_sessions())
         assert len(active) == 1
         assert s1 in active
 
+    @asyncio.coroutine
     def test_broadcast(self, make_manager):
         _, sm = make_manager()
 
-        s1 = sm.get('test1', True)
+        s1 = yield from sm.get('test1', True)
         s1.state = protocol.STATE_OPEN
-        s2 = sm.get('test2', True)
+        s2 = yield from sm.get('test2', True)
         s2.state = protocol.STATE_OPEN
         sm.broadcast('msg')
 
@@ -523,9 +528,9 @@ class TestSessionManager:
     def test_clear(self, make_manager):
         _, sm = make_manager()
 
-        s1 = sm.get('s1', True)
+        s1 = yield from sm.get('s1', True)
         s1.state = protocol.STATE_OPEN
-        s2 = sm.get('s2', True)
+        s2 = yield from sm.get('s2', True)
         s2.state = protocol.STATE_OPEN
 
         yield from sm.clear()
