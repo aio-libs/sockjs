@@ -102,12 +102,6 @@ Supported transports
 * `jsonp-polling <https://secure.wikimedia.org/wikipedia/en/wiki/JSONP>`_
 
 
-Not supported transports
-------------------------
-  * websocket `hixie-76
-    <http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76>`_
-
-
 Requirements
 ------------
 
