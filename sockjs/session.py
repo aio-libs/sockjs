@@ -171,7 +171,7 @@ class Session(object):
             self.interrupted = True
         try:
             yield from self.handler(SockjsMessage(MSG_CLOSE, exc), self)
-        except:
+        except Exception:
             log.exception('Exception in close handler.')
 
     @asyncio.coroutine
@@ -184,7 +184,7 @@ class Session(object):
         self.expire()
         try:
             yield from self.handler(ClosedMessage, self)
-        except:
+        except Exception:
             log.exception('Exception in closed handler.')
 
         # notify waiter
@@ -201,7 +201,7 @@ class Session(object):
 
         try:
             yield from self.handler(SockjsMessage(MSG_MESSAGE, msg), self)
-        except:
+        except Exception:
             log.exception('Exception in message handler.')
 
     @asyncio.coroutine
@@ -212,7 +212,7 @@ class Session(object):
             log.debug('incoming message: %s, %s', self.id, msg[:200])
             try:
                 yield from self.handler(SockjsMessage(MSG_MESSAGE, msg), self)
-            except:
+            except Exception:
                 log.exception('Exception in message handler.')
 
     def expire(self):

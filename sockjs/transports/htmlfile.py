@@ -47,7 +47,7 @@ class HTMLFileTransport(StreamingTransport):
 
         try:
             callback = request.query.get('c', None)
-        except:
+        except Exception:
             callback = request.GET.get('c', None)
 
         if callback is None:

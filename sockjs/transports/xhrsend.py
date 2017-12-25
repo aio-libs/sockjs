@@ -33,7 +33,7 @@ class XHRSendTransport(Transport):
 
         try:
             messages = loads(data.decode(ENCODING))
-        except:
+        except Exception:
             return web.HTTPInternalServerError(text="Broken JSON encoding.")
 
         yield from self.session._remote_messages(messages)
