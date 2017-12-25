@@ -29,7 +29,7 @@ class JSONPolling(StreamingTransport):
         if request.method == hdrs.METH_GET:
             try:
                 callback = self.callback = request.query.get('c')
-            except:
+            except Exception:
                 callback = self.callback = request.GET.get('c')
 
             if not callback:
@@ -74,7 +74,7 @@ class JSONPolling(StreamingTransport):
 
             try:
                 messages = loads(data)
-            except:
+            except Exception:
                 return web.HTTPInternalServerError(
                     body=b'Broken JSON encoding.')
 
