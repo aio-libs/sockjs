@@ -8,22 +8,19 @@ from sockjs.transports.htmlfile import HTMLFileTransport
 from sockjs.transports.xhrstreaming import XHRStreamingTransport
 
 
-@asyncio.coroutine
-def echoSession(msg, session):
+async def echoSession(msg, session):
     if msg.tp == sockjs.MSG_MESSAGE:
-        session.send(msg.data)
+        await session.send(msg.data)
 
 
-@asyncio.coroutine
-def closeSessionHander(msg, session):
+async def closeSessionHander(msg, session):
     if msg.tp == sockjs.MSG_OPEN:
-        session.close()
+        await session.close()
 
 
-@asyncio.coroutine
-def broadcastSession(msg, session):
+async def broadcastSession(msg, session):
     if msg.tp == sockjs.MSG_OPEN:
-        session.manager.broadcast(msg.data)
+        await session.manager.broadcast(msg.data)
 
 
 if __name__ == '__main__':

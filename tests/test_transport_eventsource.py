@@ -1,4 +1,3 @@
-import asyncio
 from unittest import mock
 
 import pytest
@@ -32,10 +31,9 @@ def test_streaming_send(make_transport):
     assert stop
 
 
-@asyncio.coroutine
-def test_process(make_transport, make_fut):
+async def test_process(make_transport, make_fut):
     transp = make_transport()
     transp.handle_session = make_fut(1)
-    resp = yield from transp.process()
+    resp = await transp.process()
     assert transp.handle_session.called
     assert resp.status == 200

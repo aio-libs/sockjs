@@ -1,4 +1,3 @@
-import asyncio
 from unittest import mock
 from aiohttp import web
 
@@ -46,37 +45,34 @@ def test_streaming_send(make_transport):
     assert stop
 
 
-@asyncio.coroutine
-def test_handle_session_interrupted(make_transport, make_fut):
+async def test_handle_session_interrupted(make_transport, make_fut):
     trans = make_transport()
     trans.session.interrupted = True
     trans.send = make_fut(1)
     trans.response = web.StreamResponse()
-    yield from trans.handle_session()
+    await trans.handle_session()
     trans.send.assert_called_with('c[1002,"Connection interrupted"]')
 
 
-@asyncio.coroutine
-def test_handle_session_closing(make_transport, make_fut):
+async def test_handle_session_closing(make_transport, make_fut):
     trans = make_transport()
     trans.send = make_fut(1)
     trans.session.interrupted = False
     trans.session.state = protocol.STATE_CLOSING
     trans.session._remote_closed = make_fut(1)
     trans.response = web.StreamResponse()
-    yield from trans.handle_session()
+    await trans.handle_session()
     trans.session._remote_closed.assert_called_with()
     trans.send.assert_called_with('c[3000,"Go away!"]')
 
 
-@asyncio.coroutine
-def test_handle_session_closed(make_transport, make_fut):
+async def test_handle_session_closed(make_transport, make_fut):
     trans = make_transport()
     trans.send = make_fut(1)
     trans.session.interrupted = False
     trans.session.state = protocol.STATE_CLOSED
     trans.session._remote_closed = make_fut(1)
     trans.response = web.StreamResponse()
-    yield from trans.handle_session()
+    await trans.handle_session()
     trans.session._remote_closed.assert_called_with()
     trans.send.assert_called_with('c[3000,"Go away!"]')

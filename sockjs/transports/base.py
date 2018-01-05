@@ -36,8 +36,7 @@ class StreamingTransport(Transport):
         else:
             return False
 
-    @asyncio.coroutine
-    def handle_session(self):
+    async def handle_session(self):
         assert self.response is not None, 'Response is not specified.'
 
         # session was interrupted
@@ -46,13 +45,13 @@ class StreamingTransport(Transport):
 
         # session is closing or closed
         elif self.session.state in (STATE_CLOSING, STATE_CLOSED):
-            yield from self.session._remote_closed()
+            await self.session._remote_closed()
             self.send(close_frame(3000, 'Go away!'))
 
         else:
             # acquire session
             try:
-                yield from self.manager.acquire(self.session)
+                await self.manager.acquire(self.session)
             except SessionIsAcquired:
                 self.send(close_frame(2010, 'Another connection still open'))
             else:
@@ -60,16 +59,16 @@ class StreamingTransport(Transport):
                     while True:
                         if self.timeout:
                             try:
-                                frame, text = yield from asyncio.wait_for(
+                                frame, text = await asyncio.wait_for(
                                     self.session._wait(),
                                     timeout=self.timeout, loop=self.loop)
                             except asyncio.futures.TimeoutError:
                                 frame, text = FRAME_MESSAGE, 'a[]'
                         else:
-                            frame, text = yield from self.session._wait()
+                            frame, text = await self.session._wait()
 
                         if frame == FRAME_CLOSE:
-                            yield from self.session._remote_closed()
+                            await self.session._remote_closed()
                             self.send(text)
                             return
                         else:
@@ -77,11 +76,11 @@ class StreamingTransport(Transport):
                             if stop:
                                 break
                 except asyncio.CancelledError:
-                    yield from self.session._remote_close(
+                    await self.session._remote_close(
                         exc=aiohttp.ClientConnectionError)
-                    yield from self.session._remote_closed()
+                    await self.session._remote_closed()
                     raise
                 except SessionIsClosed:
                     pass
                 finally:
-                    yield from self.manager.release(self.session)
+                    await self.manager.release(self.session)

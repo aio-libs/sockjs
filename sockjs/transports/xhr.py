@@ -1,4 +1,3 @@
-import asyncio
 from aiohttp import web, hdrs
 
 from .base import StreamingTransport
@@ -11,8 +10,7 @@ class XHRTransport(StreamingTransport):
 
     maxsize = 0
 
-    @asyncio.coroutine
-    def process(self):
+    async def process(self):
         request = self.request
 
         if request.method == hdrs.METH_OPTIONS:
@@ -31,7 +29,7 @@ class XHRTransport(StreamingTransport):
             cors_headers(request.headers))
 
         resp = self.response = web.StreamResponse(headers=headers)
-        yield from resp.prepare(request)
+        await resp.prepare(request)
 
-        yield from self.handle_session()
+        await self.handle_session()
         return resp

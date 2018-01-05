@@ -175,60 +175,54 @@ class TestSession:
         assert session._waiter is None
         assert waiter.done()
 
-    @asyncio.coroutine
-    def test_wait(self, make_session, loop):
+    async def test_wait(self, make_session, loop):
         s = make_session('test')
         s.state = protocol.STATE_OPEN
 
-        def send():
-            yield from asyncio.sleep(0.001, loop=loop)
+        async def send():
+            await asyncio.sleep(0.001, loop=loop)
             s._feed(protocol.FRAME_MESSAGE, 'msg1')
 
         ensure_future(send(), loop=loop)
-        frame, payload = yield from s._wait()
+        frame, payload = await s._wait()
         assert frame == protocol.FRAME_MESSAGE
         assert payload == 'a["msg1"]'
 
-    @asyncio.coroutine
-    def test_wait_closed(self, make_session):
+    async def test_wait_closed(self, make_session):
         s = make_session('test')
         s.state = protocol.STATE_CLOSED
         with pytest.raises(SessionIsClosed):
-            yield from s._wait()
+            await s._wait()
 
-    @asyncio.coroutine
-    def test_wait_message(self, make_session):
+    async def test_wait_message(self, make_session):
         s = make_session('test')
         s.state = protocol.STATE_OPEN
         s._feed(protocol.FRAME_MESSAGE, 'msg1')
-        frame, payload = yield from s._wait()
+        frame, payload = await s._wait()
         assert frame == protocol.FRAME_MESSAGE
         assert payload == 'a["msg1"]'
 
-    @asyncio.coroutine
-    def test_wait_close(self, make_session):
+    async def test_wait_close(self, make_session):
         s = make_session('test')
         s.state = protocol.STATE_OPEN
         s._feed(protocol.FRAME_CLOSE, (3000, 'Go away!'))
-        frame, payload = yield from s._wait()
+        frame, payload = await s._wait()
         assert frame == protocol.FRAME_CLOSE
         assert payload == 'c[3000,"Go away!"]'
 
-    @asyncio.coroutine
-    def test_wait_message_unpack(self, make_session):
+    async def test_wait_message_unpack(self, make_session):
         s = make_session('test')
         s.state = protocol.STATE_OPEN
         s._feed(protocol.FRAME_MESSAGE, 'msg1')
-        frame, payload = yield from s._wait(pack=False)
+        frame, payload = await s._wait(pack=False)
         assert frame == protocol.FRAME_MESSAGE
         assert payload == ['msg1']
 
-    @asyncio.coroutine
-    def test_wait_close_unpack(self, make_session):
+    async def test_wait_close_unpack(self, make_session):
         s = make_session('test')
         s.state = protocol.STATE_OPEN
         s._feed(protocol.FRAME_CLOSE, (3000, 'Go away!'))
-        frame, payload = yield from s._wait(pack=False)
+        frame, payload = await s._wait(pack=False)
         assert frame == protocol.FRAME_CLOSE
         assert payload == (3000, 'Go away!')
 
@@ -247,15 +241,14 @@ class TestSession:
         assert session.state == protocol.STATE_CLOSED
         assert list(session._queue) == []
 
-    @asyncio.coroutine
-    def test_acquire_new_session(self, make_session):
+    async def test_acquire_new_session(self, make_session):
         manager = object()
         messages = []
 
         session = make_session(result=messages)
         assert session.state == protocol.STATE_NEW
 
-        yield from session._acquire(manager)
+        await session._acquire(manager)
         assert session.state == protocol.STATE_OPEN
         assert session.manager is manager
         assert session._heartbeat_transport
@@ -263,17 +256,15 @@ class TestSession:
             [(protocol.FRAME_OPEN, protocol.FRAME_OPEN)]
         assert messages == [(protocol.OpenMessage, session)]
 
-    @asyncio.coroutine
-    def test_acquire_exception_in_handler(self, make_session):
+    async def test_acquire_exception_in_handler(self, make_session):
 
-        @asyncio.coroutine
-        def handler(msg, s):
+        async def handler(msg, s):
             raise ValueError
 
         session = make_session(handler=handler)
         assert session.state == protocol.STATE_NEW
 
-        yield from session._acquire(object())
+        await session._acquire(object())
         assert session.state == protocol.STATE_CLOSING
         assert session._heartbeat_transport
         assert session.interrupted
@@ -281,130 +272,120 @@ class TestSession:
             [(protocol.FRAME_OPEN, protocol.FRAME_OPEN),
              (protocol.FRAME_CLOSE, (3000, 'Internal error'))]
 
-    @asyncio.coroutine
-    def test_remote_close(self, make_session):
+    async def test_remote_close(self, make_session):
         messages = []
         session = make_session(result=messages)
 
-        yield from session._remote_close()
+        await session._remote_close()
         assert not session.interrupted
         assert session.state == protocol.STATE_CLOSING
         assert messages == \
             [(protocol.SockjsMessage(
                 tp=protocol.MSG_CLOSE, data=None), session)]
 
-    @asyncio.coroutine
-    def test_remote_close_idempotent(self, make_session):
+    async def test_remote_close_idempotent(self, make_session):
         messages = []
         session = make_session(result=messages)
         session.state = protocol.STATE_CLOSED
 
-        yield from session._remote_close()
+        await session._remote_close()
         assert session.state == protocol.STATE_CLOSED
         assert messages == []
 
-    @asyncio.coroutine
-    def test_remote_close_with_exc(self, make_session):
+    async def test_remote_close_with_exc(self, make_session):
         messages = []
         session = make_session(result=messages)
 
         exc = ValueError()
-        yield from session._remote_close(exc=exc)
+        await session._remote_close(exc=exc)
         assert session.interrupted
         assert session.state == protocol.STATE_CLOSING
         assert messages == \
             [(protocol.SockjsMessage(tp=protocol.MSG_CLOSE, data=exc),
               session)]
 
-    @asyncio.coroutine
-    def test_remote_close_exc_in_handler(self, make_session, make_handler):
+    async def test_remote_close_exc_in_handler(self, make_session,
+                                               make_handler):
         handler = make_handler([], exc=True)
         session = make_session(handler=handler)
 
-        yield from session._remote_close()
+        await session._remote_close()
         assert not session.interrupted
         assert session.state == protocol.STATE_CLOSING
 
-    @asyncio.coroutine
-    def test_remote_closed(self, make_session):
+    async def test_remote_closed(self, make_session):
         messages = []
         session = make_session(result=messages)
 
-        yield from session._remote_closed()
+        await session._remote_closed()
         assert session.expired
         assert session.state == protocol.STATE_CLOSED
         assert messages == [(protocol.ClosedMessage, session)]
 
-    @asyncio.coroutine
-    def test_remote_closed_idempotent(self, make_session):
+    async def test_remote_closed_idempotent(self, make_session):
         messages = []
         session = make_session(result=messages)
         session.state = protocol.STATE_CLOSED
 
-        yield from session._remote_closed()
+        await session._remote_closed()
         assert session.state == protocol.STATE_CLOSED
         assert messages == []
 
-    @asyncio.coroutine
-    def test_remote_closed_with_waiter(self, make_session, loop):
+    async def test_remote_closed_with_waiter(self, make_session, loop):
         messages = []
         session = make_session(result=messages)
         session._waiter = waiter = asyncio.Future(loop=loop)
 
-        yield from session._remote_closed()
+        await session._remote_closed()
         assert waiter.done()
         assert session.expired
         assert session._waiter is None
         assert session.state == protocol.STATE_CLOSED
         assert messages == [(protocol.ClosedMessage, session)]
 
-    @asyncio.coroutine
-    def test_remote_closed_exc_in_handler(self, make_handler, make_session):
+    async def test_remote_closed_exc_in_handler(self, make_handler,
+                                                make_session):
         handler = make_handler([], exc=True)
         session = make_session(handler=handler)
 
-        yield from session._remote_closed()
+        await session._remote_closed()
         assert session.expired
         assert session.state == protocol.STATE_CLOSED
 
-    @asyncio.coroutine
-    def test_remote_message(self, make_session):
+    async def test_remote_message(self, make_session):
         messages = []
         session = make_session(result=messages)
 
-        yield from session._remote_message('msg')
+        await session._remote_message('msg')
         assert messages == \
             [(protocol.SockjsMessage(tp=protocol.MSG_MESSAGE, data='msg'),
               session)]
 
-    @asyncio.coroutine
-    def test_remote_message_exc(self, make_handler, make_session):
+    async def test_remote_message_exc(self, make_handler, make_session):
         messages = []
         handler = make_handler(messages, exc=True)
         session = make_session(handler=handler)
 
-        yield from session._remote_message('msg')
+        await session._remote_message('msg')
         assert messages == []
 
-    @asyncio.coroutine
-    def test_remote_messages(self, make_session):
+    async def test_remote_messages(self, make_session):
         messages = []
         session = make_session(result=messages)
 
-        yield from session._remote_messages(('msg1', 'msg2'))
+        await session._remote_messages(('msg1', 'msg2'))
         assert messages == \
             [(protocol.SockjsMessage(tp=protocol.MSG_MESSAGE, data='msg1'),
               session),
              (protocol.SockjsMessage(tp=protocol.MSG_MESSAGE, data='msg2'),
               session)]
 
-    @asyncio.coroutine
-    def test_remote_messages_exc(self, make_handler, make_session):
+    async def test_remote_messages_exc(self, make_handler, make_session):
         messages = []
         handler = make_handler(messages, exc=True)
         session = make_session(handler=handler)
 
-        yield from session._remote_messages(('msg1', 'msg2'))
+        await session._remote_messages(('msg1', 'msg2'))
         assert messages == []
 
 
@@ -452,15 +433,14 @@ class TestSessionManager:
         assert s.id in sm
         assert isinstance(s, Session)
 
-    @asyncio.coroutine
-    def test_acquire(self, make_manager, loop):
+    async def test_acquire(self, make_manager, loop):
         s1, sm = make_manager()
         sm._add(s1)
         s1._acquire = mock.Mock()
         s1._acquire.return_value = asyncio.Future(loop=loop)
         s1._acquire.return_value.set_result(1)
 
-        s2 = yield from sm.acquire(s1)
+        s2 = await sm.acquire(s1)
 
         assert s1 is s2
         assert s1.id in sm.acquired
@@ -468,29 +448,26 @@ class TestSessionManager:
         assert sm.is_acquired(s1)
         assert s1._acquire.called
 
-    @asyncio.coroutine
-    def test_acquire_unknown(self, make_manager):
+    async def test_acquire_unknown(self, make_manager):
         s, sm = make_manager()
         with pytest.raises(KeyError):
-            yield from sm.acquire(s)
+            await sm.acquire(s)
 
-    @asyncio.coroutine
-    def test_acquire_locked(self, make_manager):
+    async def test_acquire_locked(self, make_manager):
         s, sm = make_manager()
         sm._add(s)
-        yield from sm.acquire(s)
+        await sm.acquire(s)
 
         with pytest.raises(SessionIsAcquired):
-            yield from sm.acquire(s)
+            await sm.acquire(s)
 
-    @asyncio.coroutine
-    def test_release(self, make_manager):
+    async def test_release(self, make_manager):
         _, sm = make_manager()
         s = sm.get('test', True)
         s._release = mock.Mock()
 
-        yield from sm.acquire(s)
-        yield from sm.release(s)
+        await sm.acquire(s)
+        await sm.release(s)
 
         assert 'test' not in sm.acquired
         assert not sm.is_acquired(s)
@@ -519,8 +496,7 @@ class TestSessionManager:
         assert list(s1._queue) == [(protocol.FRAME_MESSAGE_BLOB, 'a["msg"]')]
         assert list(s2._queue) == [(protocol.FRAME_MESSAGE_BLOB, 'a["msg"]')]
 
-    @asyncio.coroutine
-    def test_clear(self, make_manager):
+    async def test_clear(self, make_manager):
         _, sm = make_manager()
 
         s1 = sm.get('s1', True)
@@ -528,7 +504,7 @@ class TestSessionManager:
         s2 = sm.get('s2', True)
         s2.state = protocol.STATE_OPEN
 
-        yield from sm.clear()
+        await sm.clear()
 
         assert not bool(sm)
         assert s1.expired
@@ -556,72 +532,68 @@ class TestSessionManager:
         assert sm._hb_task is None
         assert hb_task._must_cancel
 
-    @asyncio.coroutine
-    def test_heartbeat_task(self, make_manager):
+    async def test_heartbeat_task(self, make_manager):
         _, sm = make_manager()
         sm._hb_task = mock.Mock()
 
-        yield from sm._heartbeat_task()
+        await sm._heartbeat_task()
         assert sm.started
         assert sm._hb_task is None
 
-    @asyncio.coroutine
-    def test_gc_expire(self, make_manager):
+    async def test_gc_expire(self, make_manager):
         s, sm = make_manager()
 
         sm._add(s)
-        yield from sm.acquire(s)
-        yield from sm.release(s)
+        await sm.acquire(s)
+        await sm.release(s)
 
         s.expires = datetime.now() - timedelta(seconds=30)
 
-        yield from sm._heartbeat_task()
+        await sm._heartbeat_task()
         assert s.id not in sm
         assert s.expired
         assert s.state == protocol.STATE_CLOSED
 
-    @asyncio.coroutine
-    def test_gc_expire_acquired(self, make_manager):
+    async def test_gc_expire_acquired(self, make_manager):
         """The acquired session can not be expired. It may be released
         and closed only as a result of errors when sending a heartbeat message.
         """
         s, sm = make_manager()
 
         sm._add(s)
-        yield from sm.acquire(s)
+        await sm.acquire(s)
 
         s.expires = datetime.now() - timedelta(seconds=30)
 
-        yield from sm._heartbeat_task()
+        await sm._heartbeat_task()
         assert s.id in sm
         assert s.id in sm.acquired
         assert not s.expired
         assert s.state == protocol.STATE_OPEN
 
         # Simulating the releasing of the session due to an error
-        yield from sm.release(s)
+        await sm.release(s)
         s.expires = datetime.now() - timedelta(seconds=30)
-        yield from sm._heartbeat_task()
+        await sm._heartbeat_task()
         assert s.id not in sm
         assert s.id not in sm.acquired
         assert s.expired
         assert s.state == protocol.STATE_CLOSED
 
-    @asyncio.coroutine
-    def test_gc_one_expire(self, make_manager, make_session):
+    async def test_gc_one_expire(self, make_manager, make_session):
         _, sm = make_manager()
         s1 = make_session('id1')
         s2 = make_session('id2')
 
         sm._add(s1)
         sm._add(s2)
-        yield from sm.acquire(s1)
-        yield from sm.acquire(s2)
-        yield from sm.release(s1)
-        yield from sm.release(s2)
+        await sm.acquire(s1)
+        await sm.acquire(s2)
+        await sm.release(s1)
+        await sm.release(s2)
 
         s1.expires = datetime.now() - timedelta(seconds=30)
 
-        yield from sm._heartbeat_task()
+        await sm._heartbeat_task()
         assert s1.id not in sm
         assert s2.id in sm

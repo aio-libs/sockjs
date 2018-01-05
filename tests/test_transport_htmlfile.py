@@ -1,4 +1,3 @@
-import asyncio
 from unittest import mock
 
 import pytest
@@ -33,28 +32,25 @@ def test_streaming_send(make_transport):
     assert stop
 
 
-@asyncio.coroutine
-def test_process(make_transport, make_fut):
+async def test_process(make_transport, make_fut):
     transp = make_transport(query_params={'c': 'calback'})
     transp.handle_session = make_fut(1)
-    resp = yield from transp.process()
+    resp = await transp.process()
     assert transp.handle_session.called
     assert resp.status == 200
 
 
-@asyncio.coroutine
-def test_process_no_callback(make_transport):
+async def test_process_no_callback(make_transport):
     transp = make_transport()
 
-    resp = yield from transp.process()
+    resp = await transp.process()
     assert transp.session._remote_closed.called
     assert resp.status == 500
 
 
-@asyncio.coroutine
-def test_process_bad_callback(make_transport):
+async def test_process_bad_callback(make_transport):
     transp = make_transport(query_params={'c': 'calback!!!!'})
 
-    resp = yield from transp.process()
+    resp = await transp.process()
     assert transp.session._remote_closed.called
     assert resp.status == 500
