@@ -3,11 +3,6 @@ import collections
 import logging
 from datetime import datetime, timedelta
 
-try:
-    from asyncio import ensure_future
-except ImportError:  # pragma: no cover
-    ensure_future = asyncio.async
-
 from .protocol import STATE_NEW, STATE_OPEN, STATE_CLOSING, STATE_CLOSED
 from .protocol import FRAME_OPEN, FRAME_CLOSE
 from .protocol import FRAME_MESSAGE, FRAME_MESSAGE_BLOB, FRAME_HEARTBEAT
@@ -294,7 +289,7 @@ class SessionManager(dict):
 
     def _heartbeat(self):
         if self._hb_task is None:
-            self._hb_task = ensure_future(
+            self._hb_task = asyncio.ensure_future(
                 self._heartbeat_task(), loop=self.loop)
 
     async def _heartbeat_task(self):

@@ -2,11 +2,6 @@
 import asyncio
 from aiohttp import web
 
-try:
-    from asyncio import ensure_future
-except ImportError:  # pragma: no cover
-    ensure_future = asyncio.async
-
 from .base import Transport
 from ..exceptions import SessionIsClosed
 from ..protocol import STATE_CLOSED, FRAME_CLOSE
@@ -78,10 +73,10 @@ class WebSocketTransport(Transport):
                 await ws.close()
                 return ws
 
-            server = ensure_future(
-                self.server(ws, self.session), loop=self.loop)
-            client = ensure_future(
-                self.client(ws, self.session), loop=self.loop)
+            server = asyncio.ensure_future(self.server(ws, self.session),
+                                           loop=self.loop)
+            client = asyncio.ensure_future(self.client(ws, self.session),
+                                           loop=self.loop)
             try:
                 await asyncio.wait(
                     (server, client),

@@ -4,11 +4,6 @@ from datetime import datetime, timedelta
 
 import pytest
 
-try:
-    from asyncio import ensure_future
-except ImportError:
-    ensure_future = asyncio.async
-
 from sockjs import Session, SessionIsClosed, protocol, SessionIsAcquired
 
 
@@ -183,7 +178,7 @@ class TestSession:
             await asyncio.sleep(0.001, loop=loop)
             s._feed(protocol.FRAME_MESSAGE, 'msg1')
 
-        ensure_future(send(), loop=loop)
+        asyncio.ensure_future(send(), loop=loop)
         frame, payload = await s._wait()
         assert frame == protocol.FRAME_MESSAGE
         assert payload == 'a["msg1"]'
