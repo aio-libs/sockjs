@@ -139,7 +139,7 @@ class SockJSRoute:
             return web.HTTPNotFound()
 
         try:
-            session = manager.get(sid, create, request=request)
+            session = yield from manager.get(sid, create, request=request)
         except KeyError:
             return web.HTTPNotFound(headers=session_cookie(request))
 
@@ -160,7 +160,7 @@ class SockJSRoute:
     def websocket(self, request):
         # session
         sid = '%0.9d' % random.randint(1, 2147483647)
-        session = self.manager.get(sid, True, request=request)
+        session = yield from self.manager.get(sid, True, request=request)
 
         transport = RawWebSocketTransport(self.manager, session, request)
         try:
