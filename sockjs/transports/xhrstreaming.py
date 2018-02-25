@@ -31,7 +31,7 @@ class XHRStreamingTransport(StreamingTransport):
         resp = self.response = web.StreamResponse(headers=headers)
         resp.force_close()
         yield from resp.prepare(request)
-        resp.write(self.open_seq)
+        yield from resp.write(self.open_seq)
 
         # event loop
         yield from self.handle_session()

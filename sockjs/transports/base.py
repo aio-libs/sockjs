@@ -26,9 +26,10 @@ class StreamingTransport(Transport):
         self.size = 0
         self.response = None
 
+    @asyncio.coroutine
     def send(self, text):
         blob = (text + '\n').encode(ENCODING)
-        self.response.write(blob)
+        yield from self.response.write(blob)
 
         self.size += len(blob)
         if self.size > self.maxsize:
@@ -42,19 +43,20 @@ class StreamingTransport(Transport):
 
         # session was interrupted
         if self.session.interrupted:
-            self.send(close_frame(1002, 'Connection interrupted'))
+            yield from self.send(close_frame(1002, 'Connection interrupted'))
 
         # session is closing or closed
         elif self.session.state in (STATE_CLOSING, STATE_CLOSED):
             yield from self.session._remote_closed()
-            self.send(close_frame(3000, 'Go away!'))
+            yield from self.send(close_frame(3000, 'Go away!'))
 
         else:
             # acquire session
             try:
                 yield from self.manager.acquire(self.session)
             except SessionIsAcquired:
-                self.send(close_frame(2010, 'Another connection still open'))
+                yield from self.send(
+                    close_frame(2010, 'Another connection still open'))
             else:
                 try:
                     while True:
@@ -70,10 +72,10 @@ class StreamingTransport(Transport):
 
                         if frame == FRAME_CLOSE:
                             yield from self.session._remote_closed()
-                            self.send(text)
+                            yield from self.send(text)
                             return
                         else:
-                            stop = self.send(text)
+                            stop = yield from self.send(text)
                             if stop:
                                 break
                 except asyncio.CancelledError:

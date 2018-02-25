@@ -23,7 +23,7 @@ class WebSocketTransport(Transport):
             except SessionIsClosed:
                 break
 
-            ws.send_str(data)
+            yield from ws.send_str(data)
 
             if frame == FRAME_CLOSE:
                 try:
@@ -36,7 +36,7 @@ class WebSocketTransport(Transport):
         while True:
             msg = yield from ws.receive()
 
-            if msg.type == web.MsgType.text:
+            if msg.type == web.WSMsgType.text:
                 data = msg.data
                 if not data:
                     continue
@@ -54,9 +54,9 @@ class WebSocketTransport(Transport):
 
                 yield from session._remote_message(text)
 
-            elif msg.type == web.MsgType.close:
+            elif msg.type == web.WSMsgType.close:
                 yield from session._remote_close()
-            elif msg.type in (web.MsgType.closed, web.MsgType.closing):
+            elif msg.type in (web.WSMsgType.closed, web.WSMsgType.closing):
                 yield from session._remote_closed()
                 break
 
@@ -68,16 +68,17 @@ class WebSocketTransport(Transport):
 
         # session was interrupted
         if self.session.interrupted:
-            self.ws.send_str(close_frame(1002, 'Connection interrupted'))
+            yield from self.ws.send_str(
+                close_frame(1002, 'Connection interrupted'))
 
         elif self.session.state == STATE_CLOSED:
-            self.ws.send_str(close_frame(3000, 'Go away!'))
+            yield from self.ws.send_str(close_frame(3000, 'Go away!'))
 
         else:
             try:
                 yield from self.manager.acquire(self.session)
             except Exception:  # should use specific exception
-                self.ws.send_str(close_frame(3000, 'Go away!'))
+                yield from self.ws.send_str(close_frame(3000, 'Go away!'))
                 yield from ws.close()
                 return ws
 

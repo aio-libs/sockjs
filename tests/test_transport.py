@@ -3,6 +3,7 @@ from unittest import mock
 from aiohttp import web
 
 import pytest
+from aiohttp.test_utils import make_mocked_coro
 
 from sockjs import protocol
 from sockjs.transports import base
@@ -32,17 +33,19 @@ def test_transport_ctor(make_request, loop):
     assert transport.loop is loop
 
 
+@asyncio.coroutine
 def test_streaming_send(make_transport):
     trans = make_transport()
 
     resp = trans.response = mock.Mock()
-    stop = trans.send('text data')
+    resp.write = make_mocked_coro(None)
+    stop = yield from trans.send('text data')
     assert not stop
     assert trans.size == len(b'text data\n')
     resp.write.assert_called_with(b'text data\n')
 
     trans.maxsize = 1
-    stop = trans.send('text data')
+    stop = yield from trans.send('text data')
     assert stop
 
 

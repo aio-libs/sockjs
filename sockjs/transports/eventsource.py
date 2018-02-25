@@ -9,9 +9,10 @@ from .utils import CACHE_CONTROL, session_cookie
 
 class EventsourceTransport(StreamingTransport):
 
+    @asyncio.coroutine
     def send(self, text):
         blob = ''.join(('data: ', text, '\r\n\r\n')).encode(ENCODING)
-        self.response.write(blob)
+        yield from self.response.write(blob)
 
         self.size += len(blob)
         if self.size > self.maxsize:
@@ -29,7 +30,7 @@ class EventsourceTransport(StreamingTransport):
         # open sequence (sockjs protocol)
         resp = self.response = web.StreamResponse(headers=headers)
         yield from resp.prepare(self.request)
-        resp.write(b'\r\n')
+        yield from resp.write(b'\r\n')
 
         # handle session
         yield from self.handle_session()

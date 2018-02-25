@@ -15,9 +15,10 @@ class JSONPolling(StreamingTransport):
     check_callback = re.compile('^[a-zA-Z0-9_\.]+$')
     callback = ''
 
+    @asyncio.coroutine
     def send(self, text):
         data = '/**/%s(%s);\r\n' % (self.callback, dumps(text))
-        self.response.write(data.encode(ENCODING))
+        yield from self.response.write(data.encode(ENCODING))
         return True
 
     @asyncio.coroutine

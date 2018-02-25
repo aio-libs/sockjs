@@ -13,6 +13,7 @@ def make_transport(make_request, make_fut):
         session = mock.Mock()
         session._remote_closed = make_fut(1)
         request = make_request(method, path, query_params=query_params)
+        request.app.freeze()
         return xhrstreaming.XHRStreamingTransport(manager, session, request)
 
     return maker

@@ -30,10 +30,11 @@ class HTMLFileTransport(StreamingTransport):
     maxsize = 131072  # 128K bytes
     check_callback = re.compile('^[a-zA-Z0-9_\.]+$')
 
+    @asyncio.coroutine
     def send(self, text):
         blob = (
             '<script>\np(%s);\n</script>\r\n' % dumps(text)).encode(ENCODING)
-        self.response.write(blob)
+        yield from self.response.write(blob)
 
         self.size += len(blob)
         if self.size > self.maxsize:
@@ -70,7 +71,7 @@ class HTMLFileTransport(StreamingTransport):
         # open sequence (sockjs protocol)
         resp = self.response = web.StreamResponse(headers=headers)
         yield from resp.prepare(self.request)
-        resp.write(b''.join(
+        yield from resp.write(b''.join(
             (PRELUDE1, callback.encode('utf-8'), PRELUDE2, b' '*1024)))
 
         # handle session

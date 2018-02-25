@@ -7,7 +7,7 @@ import pytest
 
 from aiohttp import web
 from aiohttp.web_urldispatcher import UrlMappingMatchInfo
-from aiohttp.test_utils import make_mocked_request
+from aiohttp.test_utils import make_mocked_request, make_mocked_coro
 from multidict import CIMultiDict
 from yarl import URL
 
@@ -82,7 +82,14 @@ def make_request(app):
                  'SEC-WEBSOCKET-PROTOCOL': 'chat, superchat',
                  'SEC-WEBSOCKET-VERSION': '13'})
 
-        ret = make_mocked_request(method, str(path), headers)
+        writer = mock.Mock()
+        writer.write = make_mocked_coro(None)
+        writer.drain = make_mocked_coro(None)
+        transport = mock.Mock()
+        transport._drain_helper = make_mocked_coro()
+        ret = make_mocked_request(method, str(path), headers,
+                                  writer=writer)
+
         if match_info is None:
             match_info = UrlMappingMatchInfo({}, mock.Mock())
             match_info.add_app(app)
