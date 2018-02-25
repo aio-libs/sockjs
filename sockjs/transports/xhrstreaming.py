@@ -10,8 +10,7 @@ class XHRStreamingTransport(StreamingTransport):
     maxsize = 131072  # 128K bytes
     open_seq = b'h' * 2048 + b'\n'
 
-    @asyncio.coroutine
-    def process(self):
+    async def process(self):
         request = self.request
         headers = list(
             ((hdrs.CONNECTION, request.headers.get(hdrs.CONNECTION, 'close')),
@@ -30,10 +29,10 @@ class XHRStreamingTransport(StreamingTransport):
         # open sequence (sockjs protocol)
         resp = self.response = web.StreamResponse(headers=headers)
         resp.force_close()
-        yield from resp.prepare(request)
-        yield from resp.write(self.open_seq)
+        await resp.prepare(request)
+        await resp.write(self.open_seq)
 
         # event loop
-        yield from self.handle_session()
+        await self.handle_session()
 
         return resp

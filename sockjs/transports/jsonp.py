@@ -15,14 +15,12 @@ class JSONPolling(StreamingTransport):
     check_callback = re.compile('^[a-zA-Z0-9_\.]+$')
     callback = ''
 
-    @asyncio.coroutine
-    def send(self, text):
+    async def send(self, text):
         data = '/**/%s(%s);\r\n' % (self.callback, dumps(text))
-        yield from self.response.write(data.encode(ENCODING))
+        await self.response.write(data.encode(ENCODING))
         return True
 
-    @asyncio.coroutine
-    def process(self):
+    async def process(self):
         session = self.session
         request = self.request
         meth = request.method
@@ -34,12 +32,12 @@ class JSONPolling(StreamingTransport):
                 callback = self.callback = request.GET.get('c')
 
             if not callback:
-                yield from self.session._remote_closed()
+                await self.session._remote_closed()
                 return web.HTTPInternalServerError(
                     body=b'"callback" parameter required')
 
             elif not self.check_callback.match(callback):
-                yield from self.session._remote_closed()
+                await self.session._remote_closed()
                 return web.HTTPInternalServerError(
                     body=b'invalid "callback" parameter')
 
@@ -51,13 +49,13 @@ class JSONPolling(StreamingTransport):
                 cors_headers(request.headers))
 
             resp = self.response = web.StreamResponse(headers=headers)
-            yield from resp.prepare(request)
+            await resp.prepare(request)
 
-            yield from self.handle_session()
+            await self.handle_session()
             return resp
 
         elif request.method == hdrs.METH_POST:
-            data = yield from request.read()
+            data = await request.read()
 
             ctype = request.content_type.lower()
             if ctype == 'application/x-www-form-urlencoded':
@@ -79,7 +77,7 @@ class JSONPolling(StreamingTransport):
                 return web.HTTPInternalServerError(
                     body=b'Broken JSON encoding.')
 
-            yield from session._remote_messages(messages)
+            await session._remote_messages(messages)
             return web.Response(
                 body=b'ok',
                 headers=((hdrs.CONTENT_TYPE,

@@ -117,8 +117,7 @@ class SockJSRoute:
         self.iframe_html = (IFRAME_HTML % sockjs_cdn).encode('utf-8')
         self.iframe_html_hxd = hashlib.md5(self.iframe_html).hexdigest()
 
-    @asyncio.coroutine
-    def handler(self, request):
+    async def handler(self, request):
         info = request.match_info
 
         # lookup transport
@@ -145,7 +144,7 @@ class SockJSRoute:
 
         t = transport(manager, session, request)
         try:
-            return (yield from t.process())
+            return await t.process()
         except asyncio.CancelledError:
             raise
         except web.HTTPException as exc:
@@ -153,18 +152,17 @@ class SockJSRoute:
         except Exception as exc:
             log.exception('Exception in transport: %s' % tid)
             if manager.is_acquired(session):
-                yield from manager.release(session)
+                await manager.release(session)
             return web.HTTPInternalServerError()
 
-    @asyncio.coroutine
-    def websocket(self, request):
+    async def websocket(self, request):
         # session
         sid = '%0.9d' % random.randint(1, 2147483647)
         session = self.manager.get(sid, True, request=request)
 
         transport = RawWebSocketTransport(self.manager, session, request)
         try:
-            return (yield from transport.process())
+            return await transport.process()
         except asyncio.CancelledError:
             raise
         except web.HTTPException as exc:

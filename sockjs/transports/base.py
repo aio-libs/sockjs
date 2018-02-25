@@ -26,10 +26,9 @@ class StreamingTransport(Transport):
         self.size = 0
         self.response = None
 
-    @asyncio.coroutine
-    def send(self, text):
+    async def send(self, text):
         blob = (text + '\n').encode(ENCODING)
-        yield from self.response.write(blob)
+        await self.response.write(blob)
 
         self.size += len(blob)
         if self.size > self.maxsize:
@@ -37,53 +36,52 @@ class StreamingTransport(Transport):
         else:
             return False
 
-    @asyncio.coroutine
-    def handle_session(self):
+    async def handle_session(self):
         assert self.response is not None, 'Response is not specified.'
 
         # session was interrupted
         if self.session.interrupted:
-            yield from self.send(close_frame(1002, 'Connection interrupted'))
+            await self.send(close_frame(1002, 'Connection interrupted'))
 
         # session is closing or closed
         elif self.session.state in (STATE_CLOSING, STATE_CLOSED):
-            yield from self.session._remote_closed()
-            yield from self.send(close_frame(3000, 'Go away!'))
+            await self.session._remote_closed()
+            await self.send(close_frame(3000, 'Go away!'))
 
         else:
             # acquire session
             try:
-                yield from self.manager.acquire(self.session)
+                await self.manager.acquire(self.session)
             except SessionIsAcquired:
-                yield from self.send(
+                await self.send(
                     close_frame(2010, 'Another connection still open'))
             else:
                 try:
                     while True:
                         if self.timeout:
                             try:
-                                frame, text = yield from asyncio.wait_for(
+                                frame, text = await asyncio.wait_for(
                                     self.session._wait(),
                                     timeout=self.timeout, loop=self.loop)
                             except asyncio.futures.TimeoutError:
                                 frame, text = FRAME_MESSAGE, 'a[]'
                         else:
-                            frame, text = yield from self.session._wait()
+                            frame, text = await self.session._wait()
 
                         if frame == FRAME_CLOSE:
-                            yield from self.session._remote_closed()
-                            yield from self.send(text)
+                            await self.session._remote_closed()
+                            await self.send(text)
                             return
                         else:
-                            stop = yield from self.send(text)
+                            stop = await self.send(text)
                             if stop:
                                 break
                 except asyncio.CancelledError:
-                    yield from self.session._remote_close(
+                    await self.session._remote_close(
                         exc=aiohttp.ClientConnectionError)
-                    yield from self.session._remote_closed()
+                    await self.session._remote_closed()
                     raise
                 except SessionIsClosed:
                     pass
                 finally:
-                    yield from self.manager.release(self.session)
+                    await self.manager.release(self.session)

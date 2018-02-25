@@ -9,10 +9,9 @@ from .utils import CACHE_CONTROL, session_cookie
 
 class EventsourceTransport(StreamingTransport):
 
-    @asyncio.coroutine
-    def send(self, text):
+    async def send(self, text):
         blob = ''.join(('data: ', text, '\r\n\r\n')).encode(ENCODING)
-        yield from self.response.write(blob)
+        await self.response.write(blob)
 
         self.size += len(blob)
         if self.size > self.maxsize:
@@ -20,8 +19,7 @@ class EventsourceTransport(StreamingTransport):
         else:
             return False
 
-    @asyncio.coroutine
-    def process(self):
+    async def process(self):
         headers = list(
             ((hdrs.CONTENT_TYPE, 'text/event-stream'),
              (hdrs.CACHE_CONTROL, CACHE_CONTROL)) +
@@ -29,10 +27,10 @@ class EventsourceTransport(StreamingTransport):
 
         # open sequence (sockjs protocol)
         resp = self.response = web.StreamResponse(headers=headers)
-        yield from resp.prepare(self.request)
-        yield from resp.write(b'\r\n')
+        await resp.prepare(self.request)
+        await resp.write(b'\r\n')
 
         # handle session
-        yield from self.handle_session()
+        await self.handle_session()
 
         return resp
