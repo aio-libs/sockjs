@@ -1,4 +1,3 @@
-import asyncio
 from aiohttp import web, hdrs
 
 from ..protocol import loads, ENCODING

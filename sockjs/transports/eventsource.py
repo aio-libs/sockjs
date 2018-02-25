@@ -1,5 +1,4 @@
 """ iframe-eventsource transport """
-import asyncio
 from aiohttp import web, hdrs
 from sockjs.protocol import ENCODING
 

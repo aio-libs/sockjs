@@ -1,5 +1,4 @@
 """jsonp transport"""
-import asyncio
 import re
 from urllib.parse import unquote_plus
 

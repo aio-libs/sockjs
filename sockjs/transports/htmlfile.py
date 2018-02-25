@@ -1,5 +1,4 @@
 """ iframe-htmlfile transport """
-import asyncio
 import re
 from aiohttp import web, hdrs
 
