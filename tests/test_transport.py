@@ -21,7 +21,7 @@ def make_transport(make_request, make_fut):
     return maker
 
 
-def test_transport_ctor(make_request, loop):
+def test_transport_ctor(make_request):
     manager = object()
     session = object()
     request = make_request('GET', '/')
@@ -30,7 +30,6 @@ def test_transport_ctor(make_request, loop):
     assert transport.manager is manager
     assert transport.session is session
     assert transport.request is request
-    assert transport.loop is loop
 
 
 @asyncio.coroutine

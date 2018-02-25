@@ -16,8 +16,8 @@ from sockjs.route import SockJSRoute
 
 
 @pytest.fixture
-def app(loop):
-    return web.Application(loop=loop)
+def app():
+    return web.Application()
 
 
 @pytest.fixture

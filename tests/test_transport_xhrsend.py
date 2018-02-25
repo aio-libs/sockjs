@@ -28,7 +28,8 @@ def test_not_supported_meth(make_transport):
 @asyncio.coroutine
 def test_no_payload(make_transport, make_fut):
     transp = make_transport()
-    transp.request.read = make_fut(b'')
+    with pytest.warns(DeprecationWarning):
+        transp.request.read = make_fut(b'')
     resp = yield from transp.process()
     assert resp.status == 500
 
@@ -36,7 +37,8 @@ def test_no_payload(make_transport, make_fut):
 @asyncio.coroutine
 def test_bad_json(make_transport, make_fut):
     transp = make_transport()
-    transp.request.read = make_fut(b'{]')
+    with pytest.warns(DeprecationWarning):
+        transp.request.read = make_fut(b'{]')
     resp = yield from transp.process()
     assert resp.status == 500
 
@@ -45,7 +47,8 @@ def test_bad_json(make_transport, make_fut):
 def test_post_message(make_transport, make_fut):
     transp = make_transport()
     transp.session._remote_messages = make_fut(1)
-    transp.request.read = make_fut(b'["msg1","msg2"]')
+    with pytest.warns(DeprecationWarning):
+        transp.request.read = make_fut(b'["msg1","msg2"]')
     resp = yield from transp.process()
     assert resp.status == 204
     transp.session._remote_messages.assert_called_with(['msg1', 'msg2'])
