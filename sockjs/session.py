@@ -1,3 +1,4 @@
+import warnings
 import asyncio
 import collections
 import logging
@@ -399,5 +400,6 @@ class SessionManager(dict):
                 session.send_frame(blob)
 
     def __del__(self):
-        self.clear()
+        if len(self.sessions):
+            warnings.warn("Unclosed sessions! Please call await clear() before del", RuntimeWarning)
         self.stop()
