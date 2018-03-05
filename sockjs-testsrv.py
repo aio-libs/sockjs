@@ -8,20 +8,17 @@ from sockjs.transports.htmlfile import HTMLFileTransport
 from sockjs.transports.xhrstreaming import XHRStreamingTransport
 
 
-@asyncio.coroutine
-def echoSession(msg, session):
+async def echoSession(msg, session):
     if msg.type == sockjs.MSG_MESSAGE:
         session.send(msg.data)
 
 
-@asyncio.coroutine
-def closeSessionHander(msg, session):
+async def closeSessionHander(msg, session):
     if msg.type == sockjs.MSG_OPEN:
         session.close()
 
 
-@asyncio.coroutine
-def broadcastSession(msg, session):
+async def broadcastSession(msg, session):
     if msg.type == sockjs.MSG_OPEN:
         session.manager.broadcast(msg.data)
 
@@ -51,12 +48,4 @@ if __name__ == '__main__':
         app, echoSession, name='cookie', prefix='/cookie_needed_echo',
         cookie_needed=True)
 
-    handler = app.make_handler()
-    srv = loop.run_until_complete(
-        loop.create_server(handler, '127.0.0.1', 8081))
-    print("Server started at http://127.0.0.1:8081")
-    try:
-        loop.run_forever()
-    except KeyboardInterrupt:
-        srv.close()
-        loop.run_until_complete(handler.finish_connections())
+    web.run_app(app)

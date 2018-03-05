@@ -32,12 +32,4 @@ if __name__ == '__main__':
     app.router.add_route('GET', '/', index)
     sockjs.add_endpoint(app, chat_msg_handler, name='chat', prefix='/sockjs/')
 
-    handler = app.make_handler()
-    srv = loop.run_until_complete(
-        loop.create_server(handler, '127.0.0.1', 8080))
-    print("Server started at http://127.0.0.1:8080")
-    try:
-        loop.run_forever()
-    except KeyboardInterrupt:
-        srv.close()
-        loop.run_until_complete(handler.finish_connections())
+    web.run_app(app)

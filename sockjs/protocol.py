@@ -101,7 +101,10 @@ MSG_CLOSE = 3
 MSG_CLOSED = 4
 
 
-SockjsMessage = collections.namedtuple('SockjsMessage', ['tp', 'data'])
+class SockjsMessage(collections.namedtuple('SockjsMessage', ['type', 'data'])):
+    @property
+    def tp(self):
+        return self.type
 
 OpenMessage = SockjsMessage(MSG_OPEN, None)
 CloseMessage = SockjsMessage(MSG_CLOSE, None)
