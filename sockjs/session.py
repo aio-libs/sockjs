@@ -401,5 +401,9 @@ class SessionManager(dict):
 
     def __del__(self):
         if len(self.sessions):
-            warnings.warn("Unclosed sessions! Please call await clear() before del", RuntimeWarning)
+            warnings.warn(
+                "Unclosed sessions! "
+                "Please call await clear() before del",
+                RuntimeWarning
+            )
         self.stop()
