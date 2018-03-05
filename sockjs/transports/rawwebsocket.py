@@ -31,7 +31,7 @@ class RawWebSocketTransport(Transport):
                     data = data[1:-1]
                 await ws.send_str(data)
             elif frame == FRAME_HEARTBEAT:
-                ws.ping()
+                await ws.ping()
             elif frame == FRAME_CLOSE:
                 try:
                     await ws.close(message='Go away!')
