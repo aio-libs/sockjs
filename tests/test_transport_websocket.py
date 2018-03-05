@@ -28,7 +28,6 @@ async def test_process_release_acquire_and_remote_closed(make_transport):
     transp.session.interrupted = False
     transp.manager.acquire = make_mocked_coro()
     transp.manager.release = make_mocked_coro()
-    transp.request._transport = mock.Mock()
     resp = await transp.process()
     assert resp.status == 101
     assert resp.headers.get('upgrade', '').lower() == 'websocket'
