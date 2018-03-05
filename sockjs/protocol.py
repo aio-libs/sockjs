@@ -106,6 +106,7 @@ class SockjsMessage(collections.namedtuple('SockjsMessage', ['type', 'data'])):
     def tp(self):
         return self.type
 
+
 OpenMessage = SockjsMessage(MSG_OPEN, None)
 CloseMessage = SockjsMessage(MSG_CLOSE, None)
 ClosedMessage = SockjsMessage(MSG_CLOSED, None)

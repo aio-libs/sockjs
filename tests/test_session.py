@@ -281,7 +281,7 @@ class TestSession:
         assert session.state == protocol.STATE_CLOSING
         assert messages == \
             [(protocol.SockjsMessage(
-                tp=protocol.MSG_CLOSE, data=None), session)]
+                protocol.MSG_CLOSE, None), session)]
 
     async def test_remote_close_idempotent(self, make_session):
         messages = []
@@ -301,7 +301,7 @@ class TestSession:
         assert session.interrupted
         assert session.state == protocol.STATE_CLOSING
         assert messages == \
-            [(protocol.SockjsMessage(tp=protocol.MSG_CLOSE, data=exc),
+            [(protocol.SockjsMessage(protocol.MSG_CLOSE, exc),
               session)]
 
     async def test_remote_close_exc_in_handler(self,
@@ -358,7 +358,7 @@ class TestSession:
 
         await session._remote_message('msg')
         assert messages == \
-            [(protocol.SockjsMessage(tp=protocol.MSG_MESSAGE, data='msg'),
+            [(protocol.SockjsMessage(protocol.MSG_MESSAGE, 'msg'),
               session)]
 
     async def test_remote_message_exc(self, make_handler, make_session):
@@ -375,9 +375,9 @@ class TestSession:
 
         await session._remote_messages(('msg1', 'msg2'))
         assert messages == \
-            [(protocol.SockjsMessage(tp=protocol.MSG_MESSAGE, data='msg1'),
+            [(protocol.SockjsMessage(protocol.MSG_MESSAGE, 'msg1'),
               session),
-             (protocol.SockjsMessage(tp=protocol.MSG_MESSAGE, data='msg2'),
+             (protocol.SockjsMessage(protocol.MSG_MESSAGE, 'msg2'),
               session)]
 
     async def test_remote_messages_exc(self, make_handler, make_session):
