@@ -24,14 +24,14 @@ class RawWebSocketTransport(Transport):
 
             if frame == FRAME_MESSAGE:
                 for text in data:
-                    ws.send_str(text)
+                    await ws.send_str(text)
             elif frame == FRAME_MESSAGE_BLOB:
                 data = data[1:]
                 if data.startswith('['):
                     data = data[1:-1]
-                ws.send_str(data)
+                await ws.send_str(data)
             elif frame == FRAME_HEARTBEAT:
-                ws.ping()
+                await ws.ping()
             elif frame == FRAME_CLOSE:
                 try:
                     await ws.close(message='Go away!')
