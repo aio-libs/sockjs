@@ -50,7 +50,7 @@ class RawWebSocketTransport(Transport):
 
             elif msg.type == web.WSMsgType.close:
                 await self.session._remote_close()
-            elif msg.type == web.WSMsgType.closed:
+            elif msg.type in (web.WSMsgType.closed, web.WSMsgType.closing):
                 await self.session._remote_closed()
                 break
 
