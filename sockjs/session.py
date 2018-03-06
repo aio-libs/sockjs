@@ -86,8 +86,7 @@ class Session(object):
         else:
             self.expires = datetime.now() + timeout
 
-    @asyncio.coroutine
-    def _acquire(self, manager, heartbeat=True):
+    async def _acquire(self, manager, heartbeat=True):
         self.acquired = True
         self.manager = manager
         self._heartbeat_transport = heartbeat
@@ -100,7 +99,7 @@ class Session(object):
             self.state = STATE_OPEN
             self._feed(FRAME_OPEN, FRAME_OPEN)
             try:
-                yield from self.handler(OpenMessage, self)
+                await self.handler(OpenMessage, self)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
@@ -139,12 +138,11 @@ class Session(object):
             if not waiter.cancelled():
                 waiter.set_result(True)
 
-    @asyncio.coroutine
-    def _wait(self, pack=True):
+    async def _wait(self, pack=True):
         if not self._queue and self.state != STATE_CLOSED:
             assert not self._waiter
             self._waiter = asyncio.Future(loop=self.loop)
-            yield from self._waiter
+            await self._waiter
 
         if self._queue:
             frame, payload = self._queue.popleft()
@@ -158,8 +156,7 @@ class Session(object):
         else:
             raise SessionIsClosed()
 
-    @asyncio.coroutine
-    def _remote_close(self, exc=None):
+    async def _remote_close(self, exc=None):
         """close session from remote."""
         if self.state in (STATE_CLOSING, STATE_CLOSED):
             return
@@ -170,12 +167,11 @@ class Session(object):
             self.exception = exc
             self.interrupted = True
         try:
-            yield from self.handler(SockjsMessage(MSG_CLOSE, exc), self)
-        except:
+            await self.handler(SockjsMessage(MSG_CLOSE, exc), self)
+        except Exception:
             log.exception('Exception in close handler.')
 
-    @asyncio.coroutine
-    def _remote_closed(self):
+    async def _remote_closed(self):
         if self.state == STATE_CLOSED:
             return
 
@@ -183,8 +179,8 @@ class Session(object):
         self.state = STATE_CLOSED
         self.expire()
         try:
-            yield from self.handler(ClosedMessage, self)
-        except:
+            await self.handler(ClosedMessage, self)
+        except Exception:
             log.exception('Exception in closed handler.')
 
         # notify waiter
@@ -194,25 +190,23 @@ class Session(object):
             if not waiter.cancelled():
                 waiter.set_result(True)
 
-    @asyncio.coroutine
-    def _remote_message(self, msg):
+    async def _remote_message(self, msg):
         log.debug('incoming message: %s, %s', self.id, msg[:200])
         self._tick()
 
         try:
-            yield from self.handler(SockjsMessage(MSG_MESSAGE, msg), self)
-        except:
+            await self.handler(SockjsMessage(MSG_MESSAGE, msg), self)
+        except Exception:
             log.exception('Exception in message handler.')
 
-    @asyncio.coroutine
-    def _remote_messages(self, messages):
+    async def _remote_messages(self, messages):
         self._tick()
 
         for msg in messages:
             log.debug('incoming message: %s, %s', self.id, msg[:200])
             try:
-                yield from self.handler(SockjsMessage(MSG_MESSAGE, msg), self)
-            except:
+                await self.handler(SockjsMessage(MSG_MESSAGE, msg), self)
+            except Exception:
                 log.exception('Exception in message handler.')
 
     def expire(self):
@@ -303,8 +297,7 @@ class SessionManager(dict):
             self._hb_task = ensure_future(
                 self._heartbeat_task(), loop=self.loop)
 
-    @asyncio.coroutine
-    def _heartbeat_task(self):
+    async def _heartbeat_task(self):
         sessions = self.sessions
 
         if sessions:
@@ -320,11 +313,11 @@ class SessionManager(dict):
                 elif session.expires < now:
                     # Session is to be GC'd immedietely
                     if session.id in self.acquired:
-                        yield from self.release(session)
+                        await self.release(session)
                     if session.state == STATE_OPEN:
-                        yield from session._remote_close()
+                        await session._remote_close()
                     if session.state == STATE_CLOSING:
-                        yield from session._remote_closed()
+                        await session._remote_closed()
 
                     del self[session.id]
                     del self.sessions[idx]
@@ -363,8 +356,7 @@ class SessionManager(dict):
 
         return session
 
-    @asyncio.coroutine
-    def acquire(self, s):
+    async def acquire(self, s):
         sid = s.id
 
         if sid in self.acquired:
@@ -372,7 +364,7 @@ class SessionManager(dict):
         if sid not in self:
             raise KeyError('Unknown session')
 
-        yield from s._acquire(self)
+        await s._acquire(self)
 
         self.acquired[sid] = True
         return s
@@ -380,8 +372,7 @@ class SessionManager(dict):
     def is_acquired(self, session):
         return session.id in self.acquired
 
-    @asyncio.coroutine
-    def release(self, s):
+    async def release(self, s):
         if s.id in self.acquired:
             s._release()
             del self.acquired[s.id]
@@ -391,12 +382,11 @@ class SessionManager(dict):
             if not session.expired:
                 yield session
 
-    @asyncio.coroutine
-    def clear(self):
+    async def clear(self):
         """Manually expire all sessions in the pool."""
         for session in list(self.values()):
             if session.state != STATE_CLOSED:
-                yield from session._remote_closed()
+                await session._remote_closed()
 
         self.sessions.clear()
         super(SessionManager, self).clear()

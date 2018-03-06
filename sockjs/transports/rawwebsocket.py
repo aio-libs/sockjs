@@ -15,72 +15,67 @@ from ..protocol import FRAME_CLOSE, FRAME_MESSAGE, FRAME_MESSAGE_BLOB, \
 
 class RawWebSocketTransport(Transport):
 
-    @asyncio.coroutine
-    def server(self, ws, session):
+    async def server(self, ws, session):
         while True:
             try:
-                frame, data = yield from session._wait(pack=False)
+                frame, data = await session._wait(pack=False)
             except SessionIsClosed:
                 break
 
             if frame == FRAME_MESSAGE:
                 for text in data:
-                    ws.send_str(text)
+                    await ws.send_str(text)
             elif frame == FRAME_MESSAGE_BLOB:
                 data = data[1:]
                 if data.startswith('['):
                     data = data[1:-1]
-                ws.send_str(data)
+                await ws.send_str(data)
             elif frame == FRAME_HEARTBEAT:
-                ws.ping()
+                await ws.ping()
             elif frame == FRAME_CLOSE:
                 try:
-                    yield from ws.close(message='Go away!')
+                    await ws.close(message='Go away!')
                 finally:
-                    yield from session._remote_closed()
+                    await session._remote_closed()
 
-    @asyncio.coroutine
-    def client(self, ws, session):
+    async def client(self, ws, session):
         while True:
-            msg = yield from ws.receive()
+            msg = await ws.receive()
 
-            if msg.tp == web.MsgType.text:
+            if msg.type == web.WSMsgType.text:
                 if not msg.data:
                     continue
-
-                yield from self.session._remote_message(msg.data)
-
-            elif msg.tp == web.MsgType.close:
-                yield from self.session._remote_close()
-            elif msg.tp in (web.MsgType.closed, web.MsgType.closing):
-                yield from self.session._remote_closed()
+                await self.session._remote_message(msg.data)
+            elif msg.type == web.WSMsgType.close:
+                await self.session._remote_close()
+            elif msg.type in (web.WSMsgType.closed, web.WSMsgType.closing):
+                await self.session._remote_closed()
                 break
 
-    @asyncio.coroutine
-    def process(self):
+    async def process(self):
         # start websocket connection
         ws = self.ws = web.WebSocketResponse()
-        yield from ws.prepare(self.request)
+        await ws.prepare(self.request)
 
         try:
-            yield from self.manager.acquire(self.session)
-        except:  # should use specific exception
-            yield from ws.close(message='Go away!')
+            await self.manager.acquire(self.session)
+        except Exception:  # should use specific exception
+            await ws.close(message='Go away!')
             return ws
 
         server = ensure_future(self.server(ws, self.session), loop=self.loop)
         client = ensure_future(self.client(ws, self.session), loop=self.loop)
         try:
-            yield from asyncio.wait(
+            await asyncio.wait(
                 (server, client),
                 loop=self.loop,
                 return_when=asyncio.FIRST_COMPLETED)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            yield from self.session._remote_close(exc)
+            await self.session._remote_close(exc)
         finally:
-            yield from self.manager.release(self.session)
+            await self.manager.release(self.session)
             if not server.done():
                 server.cancel()
             if not client.done():

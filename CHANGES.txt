@@ -2,6 +2,16 @@
 CHANGES
 =======
 
+0.7.1 (2018-03-05)
+------------------
+
+- Fix compatibility with aiohttp 3.0+ again.
+
+0.7.0 (2018-02-25)
+------------------
+
+- Fixed compatibility with aiohttp 3.0+ (#169)
+
 0.6 (2017-04-13)
 ----------------
 

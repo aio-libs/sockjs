@@ -1,5 +1,4 @@
 """ iframe-htmlfile transport """
-import asyncio
 import re
 from aiohttp import web, hdrs
 
@@ -30,10 +29,10 @@ class HTMLFileTransport(StreamingTransport):
     maxsize = 131072  # 128K bytes
     check_callback = re.compile('^[a-zA-Z0-9_\.]+$')
 
-    def send(self, text):
+    async def send(self, text):
         blob = (
             '<script>\np(%s);\n</script>\r\n' % dumps(text)).encode(ENCODING)
-        self.response.write(blob)
+        await self.response.write(blob)
 
         self.size += len(blob)
         if self.size > self.maxsize:
@@ -41,22 +40,21 @@ class HTMLFileTransport(StreamingTransport):
         else:
             return False
 
-    @asyncio.coroutine
-    def process(self):
+    async def process(self):
         request = self.request
 
         try:
             callback = request.query.get('c', None)
-        except:
+        except Exception:
             callback = request.GET.get('c', None)
 
         if callback is None:
-            yield from self.session._remote_closed()
+            await self.session._remote_closed()
             return web.HTTPInternalServerError(
                 body=b'"callback" parameter required')
 
         elif not self.check_callback.match(callback):
-            yield from self.session._remote_closed()
+            await self.session._remote_closed()
             return web.HTTPInternalServerError(
                 body=b'invalid "callback" parameter')
 
@@ -69,11 +67,11 @@ class HTMLFileTransport(StreamingTransport):
 
         # open sequence (sockjs protocol)
         resp = self.response = web.StreamResponse(headers=headers)
-        yield from resp.prepare(self.request)
-        resp.write(b''.join(
+        await resp.prepare(self.request)
+        await resp.write(b''.join(
             (PRELUDE1, callback.encode('utf-8'), PRELUDE2, b' '*1024)))
 
         # handle session
-        yield from self.handle_session()
+        await self.handle_session()
 
         return resp

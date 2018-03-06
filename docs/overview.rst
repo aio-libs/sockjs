@@ -4,13 +4,13 @@ Pyramid SockJS
 Overview
 --------
 
-Gevent-based SockJS integration for Pyramid. SockJS interface is 
+Gevent-based SockJS integration for Pyramid. SockJS interface is
 implemented as pyramid route. It runs inside wsgi app rather than wsgi server.
-It's possible to create any number of different sockjs routes, ie 
+It's possible to create any number of different sockjs routes, ie
 `/__sockjs__/*` or `/mycustom-sockjs/*`. also you can provide different
 session implementation and management for each of sockjs routes.
 
-Gevent based server is required for ``pyramid_sockjs``. 
+Gevent based server is required for ``pyramid_sockjs``.
 For example ``gunicorn`` with gevent worker. ``pyramid_sockjs`` provides
 simple paster server runner:
 
@@ -58,7 +58,7 @@ with empty name and prefix ``/__sockjs__``, so js client code should look like:
 
 All interactions between client and server happen through `Sessions`.
 Its possible to override default session with custom implementation.
-Default session is very stupid, its even not possible to receive 
+Default session is very stupid, its even not possible to receive
 client messages, so in most cases it is required to replace session.
 Let's implement `echo` session as example:
 
@@ -112,16 +112,16 @@ request function.
        message = request.GET.get('message')
        if message:
           manager = request.get_sockjs_manager('chat-service')
-	  for session in manager.active_session():
+      for session in manager.active_session():
               session.send(message)
 
-       return 'Message has been sent' 
+       return 'Message has been sent'
 
 
 To use custom ``SessionManager`` pass it as `session_manager=` argument
-to :py:func:`add_sockjs_route` configurator directive. 
-Check :py:class:`pyramid_sockjs.Session` 
-and :py:class:`pyramid_sockjs.SessionManager` api for 
+to :py:func:`add_sockjs_route` configurator directive.
+Check :py:class:`pyramid_sockjs.Session`
+and :py:class:`pyramid_sockjs.SessionManager` api for
 detailed description.
 
 
