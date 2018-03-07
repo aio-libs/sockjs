@@ -6,34 +6,34 @@ from multidict import CIMultiDict
 from sockjs import protocol
 
 
-def test_info(make_route, make_request):
+async def test_info(make_route, make_request):
     route = make_route()
     request = make_request('GET', '/sm/')
 
-    response = route.info(request)
+    response = await route.info(request)
     info = protocol.loads(response.body.decode('utf-8'))
 
     assert info['websocket']
     assert info['cookie_needed']
 
 
-def test_info_entropy(make_route, make_request):
+async def test_info_entropy(make_route, make_request):
     route = make_route()
     request = make_request('GET', '/sm/')
 
-    response = route.info(request)
+    response = await route.info(request)
     entropy1 = protocol.loads(response.body.decode('utf-8'))['entropy']
 
-    response = route.info(request)
+    response = await route.info(request)
     entropy2 = protocol.loads(response.body.decode('utf-8'))['entropy']
 
     assert entropy1 != entropy2
 
 
-def test_info_options(make_route, make_request):
+async def test_info_options(make_route, make_request):
     route = make_route()
     request = make_request('OPTIONS', '/sm/')
-    response = route.info_options(request)
+    response = await route.info_options(request)
 
     assert response.status == 204
 
@@ -46,19 +46,19 @@ def test_info_options(make_route, make_request):
     assert 'access-control-allow-origin' in headers
 
 
-def test_greeting(make_route, make_request):
+async def test_greeting(make_route, make_request):
     route = make_route()
     request = make_request('GET', '/sm/')
-    response = route.greeting(request)
+    response = await route.greeting(request)
 
     assert response.body == b'Welcome to SockJS!\n'
 
 
-def test_iframe(make_route, make_request):
+async def test_iframe(make_route, make_request):
     route = make_route()
     request = make_request('GET', '/sm/')
 
-    response = route.iframe(request)
+    response = await route.iframe(request)
     text = """<!DOCTYPE html>
 <html>
 <head>
@@ -80,12 +80,12 @@ def test_iframe(make_route, make_request):
     assert 'ETag' in response.headers
 
 
-def test_iframe_cache(make_route, make_request):
+async def test_iframe_cache(make_route, make_request):
     route = make_route()
     request = make_request(
         'GET', '/sm/',
         headers=CIMultiDict({'IF-NONE-MATCH': 'test'}))
-    response = route.iframe(request)
+    response = await route.iframe(request)
 
     assert response.status == 304
 
