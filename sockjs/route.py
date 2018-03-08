@@ -168,7 +168,7 @@ class SockJSRoute:
         except web.HTTPException as exc:
             return exc
 
-    def info(self, request):
+    async def info(self, request):
         resp = web.Response()
         resp.headers[hdrs.CONTENT_TYPE] = 'application/json;charset=UTF-8'
         resp.headers[hdrs.CACHE_CONTROL] = CACHE_CONTROL
@@ -181,7 +181,7 @@ class SockJSRoute:
         resp.text = json.dumps(info)
         return resp
 
-    def info_options(self, request):
+    async def info_options(self, request):
         resp = web.Response(status=204)
         resp.headers[hdrs.CONTENT_TYPE] = 'application/json;charset=UTF-8'
         resp.headers[hdrs.CACHE_CONTROL] = CACHE_CONTROL
@@ -191,7 +191,7 @@ class SockJSRoute:
         resp.headers.extend(session_cookie(request))
         return resp
 
-    def iframe(self, request):
+    async def iframe(self, request):
         cached = request.headers.get(hdrs.IF_NONE_MATCH)
         if cached:
             response = web.Response(status=304)
@@ -205,7 +205,7 @@ class SockJSRoute:
                 (hdrs.CONTENT_TYPE, 'text/html;charset=UTF-8'),
                 (hdrs.ETAG, self.iframe_html_hxd),) + cache_headers())
 
-    def greeting(self, request):
+    async def greeting(self, request):
         return web.Response(
             body=b'Welcome to SockJS!\n',
             headers=((hdrs.CONTENT_TYPE, 'text/plain; charset=UTF-8'),))
