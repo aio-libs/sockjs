@@ -51,10 +51,12 @@ class RawWebSocketTransport(Transport):
             elif msg.type in (web.WSMsgType.closed, web.WSMsgType.closing):
                 await self.session._remote_closed()
                 break
+            elif msg.type == web.WSMsgType.PONG:
+                self.session._tick()
 
     async def process(self):
         # start websocket connection
-        ws = self.ws = web.WebSocketResponse()
+        ws = self.ws = web.WebSocketResponse(autoping=False)
         await ws.prepare(self.request)
 
         try:
