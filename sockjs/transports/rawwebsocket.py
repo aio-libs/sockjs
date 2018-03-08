@@ -45,9 +45,7 @@ class RawWebSocketTransport(Transport):
             if msg.type == web.WSMsgType.text:
                 if not msg.data:
                     continue
-
                 await self.session._remote_message(msg.data)
-
             elif msg.type == web.WSMsgType.close:
                 await self.session._remote_close()
             elif msg.type in (web.WSMsgType.closed, web.WSMsgType.closing):
