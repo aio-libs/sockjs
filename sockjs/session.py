@@ -81,8 +81,6 @@ class Session(object):
         return ' '.join(result)
 
     def _tick(self, timeout=None):
-        self.expired = False
-
         if timeout is None:
             self.expires = datetime.now() + self.timeout
         else:
@@ -117,8 +115,6 @@ class Session(object):
         self._heartbeat_transport = False
 
     def _heartbeat(self):
-        self.expired = False
-        self._tick()
         self._heartbeats += 1
         if self._heartbeat:
             self._feed(FRAME_HEARTBEAT, FRAME_HEARTBEAT)
@@ -225,7 +221,6 @@ class Session(object):
         if self.state != STATE_OPEN:
             return
 
-        self._tick()
         self._feed(FRAME_MESSAGE, msg)
 
     def send_frame(self, frm):
@@ -236,7 +231,6 @@ class Session(object):
         if self.state != STATE_OPEN:
             return
 
-        self._tick()
         self._feed(FRAME_MESSAGE_BLOB, frm)
 
     def close(self, code=3000, reason='Go away!'):
@@ -261,7 +255,7 @@ class SessionManager(dict):
     _hb_task = None  # gc task
 
     def __init__(self, name, app, handler, loop,
-                 heartbeat=25.0, timeout=timedelta(seconds=5), debug=False):
+                 heartbeat=25.0, timeout=timedelta(seconds=40), debug=False):
         self.name = name
         self.route_name = 'sockjs-url-%s' % name
         self.app = app
@@ -309,10 +303,9 @@ class SessionManager(dict):
             while idx < len(sessions):
                 session = sessions[idx]
 
-                if session.acquired:
-                    session._heartbeat()
+                session._heartbeat()
 
-                elif session.expires < now:
+                if session.expires < now:
                     # Session is to be GC'd immedietely
                     if session.id in self.acquired:
                         await self.release(session)

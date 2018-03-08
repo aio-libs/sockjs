@@ -91,14 +91,11 @@ class TestSession:
 
     def test_heartbeat(self, make_session):
         session = make_session('test')
-        session._tick = mock.Mock()
         assert session._heartbeats == 0
-
         session._heartbeat()
         assert session._heartbeats == 1
         session._heartbeat()
         assert session._heartbeats == 2
-        assert session._tick.call_count == 2
 
     def test_heartbeat_transport(self, make_session):
         session = make_session('test')
@@ -119,13 +116,11 @@ class TestSession:
         session.send('message')
         assert list(session._queue) == []
 
-        session._tick = mock.Mock()
         session.state = protocol.STATE_OPEN
         session.send('message')
 
         assert list(session._queue) == \
             [(protocol.FRAME_MESSAGE, ['message'])]
-        assert session._tick.called
 
     def test_send_non_str(self, make_session):
         session = make_session('test')
@@ -137,13 +132,11 @@ class TestSession:
         session.send_frame('a["message"]')
         assert list(session._queue) == []
 
-        session._tick = mock.Mock()
         session.state = protocol.STATE_OPEN
         session.send_frame('a["message"]')
 
         assert list(session._queue) == \
             [(protocol.FRAME_MESSAGE_BLOB, 'a["message"]')]
-        assert session._tick.called
 
     def test_feed(self, make_session):
         session = make_session('test')
@@ -571,27 +564,13 @@ class TestSessionManager:
         assert s.state == protocol.STATE_CLOSED
 
     async def test_gc_expire_acquired(self, make_manager, make_session):
-        """The acquired session can not be expired. It may be released
-        and closed only as a result of errors when sending a heartbeat message.
-        """
         sm = make_manager()
         s = make_session()
-
         sm._add(s)
         await sm.acquire(s)
-
-        s.expires = datetime.now() - timedelta(seconds=30)
-
-        await sm._heartbeat_task()
-        assert s.id in sm
-        assert s.id in sm.acquired
-        assert not s.expired
-        assert s.state == protocol.STATE_OPEN
-
-        # Simulating the releasing of the session due to an error
-        await sm.release(s)
         s.expires = datetime.now() - timedelta(seconds=30)
         await sm._heartbeat_task()
+
         assert s.id not in sm
         assert s.id not in sm.acquired
         assert s.expired
