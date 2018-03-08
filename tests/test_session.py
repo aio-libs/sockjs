@@ -597,3 +597,30 @@ class TestSessionManager:
         await sm._heartbeat_task()
         assert s1.id not in sm
         assert s2.id in sm
+
+    async def test_emits_warning_on_del(self, make_manager, make_session):
+
+        _, sm = make_manager()
+        s1 = make_session('id1')
+        s2 = make_session('id2')
+
+        sm._add(s1)
+        sm._add(s2)
+
+        with pytest.warns(RuntimeWarning) as warning:
+            getattr(sm, '__del__')()
+            msg = 'Unclosed sessions! Please call ' \
+                '`await SessionManager.clear()` before del'
+            assert warning[0].message.args[0] == msg
+
+    async def test_does_not_emits_warning_on_del_if_no_sessions(self, make_manager, make_session):
+
+        _, sm = make_manager()
+        s1 = make_session('id1')
+        s2 = make_session('id2')
+
+        sm._add(s1)
+        sm._add(s2)
+
+        await sm.clear()
+        getattr(sm, '__del__')()
