@@ -99,11 +99,14 @@ def make_request(app):
 
 
 @pytest.fixture
-def make_session(make_handler, loop):
-    def maker(name='test', timeout=timedelta(10), handler=None, result=None):
+def make_session(make_handler, make_request, loop):
+    def maker(name='test', timeout=timedelta(10), request=None, handler=None, result=None):
+        if request is None:
+            request = make_request('GET', '/TestPath/')
+
         if handler is None:
             handler = make_handler(result)
-        return Session(name, handler,
+        return Session(name, handler, request,
                        timeout=timeout, loop=loop, debug=True)
 
     return maker
@@ -114,7 +117,6 @@ def make_manager(app, loop, make_handler, make_session):
     def maker(handler=None):
         if handler is None:
             handler = make_handler([])
-        s = make_session('test', handler=handler)
-        return s, SessionManager(
+        return SessionManager(
             'sm', app, handler, loop=loop, debug=True)
     return maker

@@ -1,4 +1,9 @@
 import asyncio
+from unittest import mock
+
+from aiohttp import web
+import asyncio
+
 import pytest
 
 from unittest import mock
@@ -11,14 +16,14 @@ from sockjs.transports import WebSocketTransport
 
 
 @pytest.fixture
-def make_transport(make_request, make_fut):
+def make_transport(make_manager, make_request, make_handler, make_fut):
     def maker(method='GET', path='/', query_params={}):
-        manager = mock.Mock()
-        session = mock.Mock()
-        session._remote_closed = make_fut(1)
-        session._wait = make_fut((FRAME_CLOSE, ''))
+        handler = make_handler(None)
+        manager = make_manager(handler)
         request = make_request(method, path, query_params=query_params)
         request.app.freeze()
+        session = manager.get('TestSessionWebsocket', create=True, request=request)
+        session._wait = make_fut((FRAME_CLOSE, ''))
         return WebSocketTransport(manager, session, request)
 
     return maker
@@ -31,6 +36,8 @@ async def test_process_release_acquire_and_remote_closed(make_transport):
     transp.manager.acquire = make_mocked_coro()
     transp.manager.release = make_mocked_coro()
     resp = await transp.process()
+    await transp.manager.clear()
+
     assert resp.status == 101
     assert resp.headers.get('upgrade', '').lower() == 'websocket'
     assert resp.headers.get('connection', '').lower() == 'upgrade'
@@ -38,7 +45,6 @@ async def test_process_release_acquire_and_remote_closed(make_transport):
     transp.session._remote_closed.assert_called_once_with()
     assert transp.manager.acquire.called
     assert transp.manager.release.called
-
 
 async def test_server_close(app, make_manager, make_request):
     reached_closed = False
@@ -67,3 +73,8 @@ async def test_server_close(app, make_manager, make_request):
     await transp.process()
 
     assert reached_closed is True
+
+
+async def test_session_has_request(make_transport, make_fut):
+    transp = make_transport(method='POST')
+    assert isinstance(transp.session.request, web.Request)
