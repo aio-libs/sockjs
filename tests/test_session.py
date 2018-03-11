@@ -2,6 +2,8 @@ import asyncio
 from unittest import mock
 from datetime import datetime, timedelta
 
+from aiohttp import web
+
 import pytest
 
 try:
@@ -14,12 +16,13 @@ from sockjs import Session, SessionIsClosed, protocol, SessionIsAcquired
 
 class TestSession:
 
-    def test_ctor(self, mocker, make_handler, loop):
+    def test_ctor(self, mocker, make_handler, make_request, loop):
         dt = mocker.patch('sockjs.session.datetime')
         now = dt.now.return_value = datetime.now()
 
         handler = make_handler([])
-        session = Session('id', handler, loop=loop)
+        request = make_request("GET", "/TestPath")
+        session = Session('id', handler, request, loop=loop)
 
         assert session.id == 'id'
         assert not session.expired
@@ -29,7 +32,7 @@ class TestSession:
         assert session._heartbeats == 0
         assert session.state == protocol.STATE_NEW
 
-        session = Session('id', handler, timeout=timedelta(seconds=15))
+        session = Session('id', handler, request, timeout=timedelta(seconds=15))
 
         assert session.id == 'id'
         assert not session.expired
@@ -391,28 +394,37 @@ class TestSession:
 
 class TestSessionManager:
 
-    def test_fresh(self, make_manager):
-        s, sm = make_manager()
+    def test_request_available(self, make_manager, make_request):
+        sm = make_manager()
+        s = sm.get('test', True, make_request('GET', '/test/'))
+        assert isinstance(s.request, web.Request)
+
+    def test_fresh(self, make_manager, make_session):
+        sm = make_manager()
+        s = make_session()
         sm._add(s)
         assert 'test' in sm
 
-    def test_add(self, make_manager):
-        s, sm = make_manager()
+    def test_add(self, make_manager, make_session):
+        sm = make_manager()
+        s = make_session()
 
         sm._add(s)
         assert 'test' in sm
         assert sm['test'] is s
         assert s.manager is sm
 
-    def test_add_expired(self, make_manager):
-        s, sm = make_manager()
+    def test_add_expired(self, make_manager, make_session):
+        sm = make_manager()
+        s = make_session()
         s.expire()
 
         with pytest.raises(ValueError):
             sm._add(s)
 
-    def test_get(self, make_manager):
-        s, sm = make_manager()
+    def test_get(self, make_manager, make_session):
+        sm = make_manager()
+        s = make_session()
         with pytest.raises(KeyError):
             sm.get('test')
 
@@ -420,21 +432,22 @@ class TestSessionManager:
         assert sm.get('test') is s
 
     def test_get_unknown_with_default(self, make_manager):
-        s, sm = make_manager()
+        sm = make_manager()
         default = object()
 
         item = sm.get('id', default=default)
         assert item is default
 
     def test_get_with_create(self, make_manager):
-        _, sm = make_manager()
+        sm = make_manager()
 
         s = sm.get('test', True)
         assert s.id in sm
         assert isinstance(s, Session)
 
-    async def test_acquire(self, make_manager, loop):
-        s1, sm = make_manager()
+    async def test_acquire(self, make_manager, make_session, loop):
+        sm = make_manager()
+        s1 = make_session()
         sm._add(s1)
         s1._acquire = mock.Mock()
         s1._acquire.return_value = asyncio.Future(loop=loop)
@@ -448,13 +461,15 @@ class TestSessionManager:
         assert sm.is_acquired(s1)
         assert s1._acquire.called
 
-    async def test_acquire_unknown(self, make_manager):
-        s, sm = make_manager()
+    async def test_acquire_unknown(self, make_manager, make_session):
+        sm = make_manager()
+        s = make_session()
         with pytest.raises(KeyError):
             await sm.acquire(s)
 
-    async def test_acquire_locked(self, make_manager):
-        s, sm = make_manager()
+    async def test_acquire_locked(self, make_manager, make_session):
+        sm = make_manager()
+        s = make_session()
         sm._add(s)
         await sm.acquire(s)
 
@@ -462,7 +477,7 @@ class TestSessionManager:
             await sm.acquire(s)
 
     async def test_release(self, make_manager):
-        _, sm = make_manager()
+        sm = make_manager()
         s = sm.get('test', True)
         s._release = mock.Mock()
 
@@ -474,7 +489,7 @@ class TestSessionManager:
         assert s._release.called
 
     def test_active_sessions(self, make_manager):
-        _, sm = make_manager()
+        sm = make_manager()
 
         s1 = sm.get('test1', True)
         s2 = sm.get('test2', True)
@@ -485,7 +500,7 @@ class TestSessionManager:
         assert s1 in active
 
     def test_broadcast(self, make_manager):
-        _, sm = make_manager()
+        sm = make_manager()
 
         s1 = sm.get('test1', True)
         s1.state = protocol.STATE_OPEN
@@ -497,7 +512,7 @@ class TestSessionManager:
         assert list(s2._queue) == [(protocol.FRAME_MESSAGE_BLOB, 'a["msg"]')]
 
     async def test_clear(self, make_manager):
-        _, sm = make_manager()
+        sm = make_manager()
 
         s1 = sm.get('s1', True)
         s1.state = protocol.STATE_OPEN
@@ -513,7 +528,7 @@ class TestSessionManager:
         assert s2.state == protocol.STATE_CLOSED
 
     def test_heartbeat(self, make_manager):
-        _, sm = make_manager()
+        sm = make_manager()
         assert not sm.started
         assert sm._hb_task is None
 
@@ -533,15 +548,16 @@ class TestSessionManager:
         assert hb_task._must_cancel
 
     async def test_heartbeat_task(self, make_manager):
-        _, sm = make_manager()
+        sm = make_manager()
         sm._hb_task = mock.Mock()
 
         await sm._heartbeat_task()
         assert sm.started
         assert sm._hb_task is None
 
-    async def test_gc_expire(self, make_manager):
-        s, sm = make_manager()
+    async def test_gc_expire(self, make_manager, make_session):
+        sm = make_manager()
+        s = make_session()
 
         sm._add(s)
         await sm.acquire(s)
@@ -554,11 +570,12 @@ class TestSessionManager:
         assert s.expired
         assert s.state == protocol.STATE_CLOSED
 
-    async def test_gc_expire_acquired(self, make_manager):
+    async def test_gc_expire_acquired(self, make_manager, make_session):
         """The acquired session can not be expired. It may be released
         and closed only as a result of errors when sending a heartbeat message.
         """
-        s, sm = make_manager()
+        sm = make_manager()
+        s = make_session()
 
         sm._add(s)
         await sm.acquire(s)
@@ -581,7 +598,7 @@ class TestSessionManager:
         assert s.state == protocol.STATE_CLOSED
 
     async def test_gc_one_expire(self, make_manager, make_session):
-        _, sm = make_manager()
+        sm = make_manager()
         s1 = make_session('id1')
         s2 = make_session('id2')
 
@@ -600,7 +617,7 @@ class TestSessionManager:
 
     async def test_emits_warning_on_del(self, make_manager, make_session):
 
-        _, sm = make_manager()
+        sm = make_manager()
         s1 = make_session('id1')
         s2 = make_session('id2')
 
@@ -615,7 +632,7 @@ class TestSessionManager:
 
     async def test_does_not_emits_warning_on_del_if_no_sessions(self, make_manager, make_session):
 
-        _, sm = make_manager()
+        sm = make_manager()
         s1 = make_session('id1')
         s2 = make_session('id2')
 

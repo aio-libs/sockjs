@@ -41,10 +41,11 @@ class Session(object):
     interrupted = False
     exception = None
 
-    def __init__(self, id, handler, *,
+    def __init__(self, id, handler, request, *,
                  timeout=timedelta(seconds=10), loop=None, debug=False):
         self.id = id
         self.handler = handler
+        self.request = request
         self.expired = False
         self.timeout = timeout
         self.expires = datetime.now() + timeout
@@ -348,6 +349,7 @@ class SessionManager(dict):
                 session = self._add(
                     self.factory(
                         id, self.handler,
+                        request,
                         timeout=self.timeout,
                         loop=self.loop, debug=self.debug))
             else:
