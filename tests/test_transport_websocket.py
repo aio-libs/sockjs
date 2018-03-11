@@ -1,10 +1,11 @@
-from unittest import mock
-
+import asyncio
 import pytest
+
+from unittest import mock
 
 from aiohttp.test_utils import make_mocked_coro
 
-from sockjs import Session, SessionManager, MSG_OPEN, MSG_CLOSED, MSG_MESSAGE
+from sockjs import SessionManager, MSG_OPEN, MSG_CLOSED, MSG_MESSAGE
 from sockjs.protocol import FRAME_CLOSE
 from sockjs.transports import WebSocketTransport
 
@@ -38,28 +39,31 @@ async def test_process_release_acquire_and_remote_closed(make_transport):
     assert transp.manager.acquire.called
     assert transp.manager.release.called
 
-@asyncio.coroutine
-def test_server_close(app, loop, make_manager, make_request):
-    # Issue #161
+
+async def test_server_close(app, make_manager, make_request):
     reached_closed = False
 
-    @asyncio.coroutine
-    def handler(msg, session):
+    loop = asyncio.get_event_loop()
+
+    async def handler(msg, session):
         nonlocal reached_closed
         if msg.tp == MSG_OPEN:
             asyncio.ensure_future(session._remote_message('TESTMSG'), loop=loop)
             pass
+
         elif msg.tp == MSG_MESSAGE:
             # To reproduce the ordering which makes the issue
             loop.call_later(0.05, session.close)
         elif msg.tp == MSG_CLOSED:
             reached_closed = True
 
-    request = make_request('GET', '/', query_params={})
+    app.freeze()
+
+    request = make_request('GET', '/', query_params={}, loop=loop)
     manager = SessionManager('sm', app, handler, loop=loop, debug=True)
     session = manager.get('test', create=True)
+
     transp = WebSocketTransport(manager, session, request)
-    resp = yield from transp.process()
-    assert reached_closed
+    await transp.process()
 
-
+    assert reached_closed is True

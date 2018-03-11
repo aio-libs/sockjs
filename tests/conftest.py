@@ -67,7 +67,7 @@ def make_route(make_handler, loop, app):
 @pytest.fixture
 def make_request(app):
     def maker(method, path, query_params={}, headers=None,
-              match_info=None):
+              match_info=None, loop=None):
         path = URL(path)
         if query_params:
             path = path.with_query(query_params)
@@ -88,7 +88,7 @@ def make_request(app):
         transport = mock.Mock()
         transport._drain_helper = make_mocked_coro()
         ret = make_mocked_request(method, str(path), headers,
-                                  writer=writer)
+                                  writer=writer, loop=loop)
 
         if match_info is None:
             match_info = UrlMappingMatchInfo({}, mock.Mock())
