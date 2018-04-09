@@ -1,12 +1,12 @@
 flake8==3.5.0
 docutils==0.14
-pytest==3.4.2
+pytest==3.5.0
 pytest-aiohttp==0.3.0
 pytest-cov==2.5.1
 pytest-sugar==0.9.1
-pytest-mock==1.7.1
-sphinx==1.7.1
-aiohttp==3.0.9
+pytest-mock==1.8.0
+sphinx==1.7.2
+aiohttp==3.1.2
 yarl==1.1.1
 multidict==4.1.0
 -e .
