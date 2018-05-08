@@ -4,9 +4,6 @@ SockJS server based on Asyncio (PEP 3156)
 .. image :: https://secure.travis-ci.org/aio-libs/sockjs.svg
   :target:  https://secure.travis-ci.org/aio-libs/sockjs
 
-`sockjs` is a `SockJS <http://sockjs.org>`_ server
-based on `aiohttp <https://github.com/aio-libs/aiohttp/>`_.
-
 `sockjs` is a `SockJS <http://sockjs.org>`_ integration for
 `aiohttp <https://github.com/aio-libs/aiohttp/>`_.  SockJS interface
 is implemented as a `aiohttp` route. Its possible to create any number
@@ -61,25 +58,6 @@ Client side code::
   </script>
 
 
-Installation
-------------
-
-1. Install virtualenv::
-
-    $ wget https://raw.github.com/pypa/virtualenv/master/virtualenv.py
-    $ python3.4 ./virtualenv.py --no-site-packages sockjs
-
-3. Clone aiosockjs from github and then install::
-
-    $ git clone https://github.com/aio-libs/sockjs.git
-    $ cd sockjs
-    $ ../sockjs/bin/python setup.py develop
-
-To run chat example use following command::
-
-    $ ./sockjs/bin/python ./aiosockjs/examples/chat.py
-
-
 Supported transports
 --------------------
 
@@ -97,8 +75,7 @@ Supported transports
   <https://developer.mozilla.org/en/DOM/window.postMessage>`_)
 * iframe-htmlfile (`HtmlFile
   <http://cometdaily.com/2007/11/18/ie-activexhtmlfile-transport-part-ii/>`_
-  used from an `iframe via postMessage
-  <https://developer.mozilla.org/en/DOM/window.postMessage>`_.)
+  used from an *iframe via postMessage*.
 * `jsonp-polling <https://secure.wikimedia.org/wikipedia/en/wiki/JSONP>`_
 
 
