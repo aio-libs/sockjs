@@ -1,12 +1,8 @@
 import asyncio
-from unittest import mock
 
 from aiohttp import web
-import asyncio
 
 import pytest
-
-from unittest import mock
 
 from aiohttp.test_utils import make_mocked_coro
 
@@ -22,7 +18,8 @@ def make_transport(make_manager, make_request, make_handler, make_fut):
         manager = make_manager(handler)
         request = make_request(method, path, query_params=query_params)
         request.app.freeze()
-        session = manager.get('TestSessionWebsocket', create=True, request=request)
+        session = manager.get('TestSessionWebsocket',
+                              create=True, request=request)
         session._wait = make_fut((FRAME_CLOSE, ''))
         return WebSocketTransport(manager, session, request)
 
@@ -46,6 +43,7 @@ async def test_process_release_acquire_and_remote_closed(make_transport):
     assert transp.manager.acquire.called
     assert transp.manager.release.called
 
+
 async def test_server_close(app, make_manager, make_request):
     reached_closed = False
 
@@ -54,7 +52,8 @@ async def test_server_close(app, make_manager, make_request):
     async def handler(msg, session):
         nonlocal reached_closed
         if msg.tp == MSG_OPEN:
-            asyncio.ensure_future(session._remote_message('TESTMSG'), loop=loop)
+            asyncio.ensure_future(session._remote_message('TESTMSG'),
+                                  loop=loop)
             pass
 
         elif msg.tp == MSG_MESSAGE:

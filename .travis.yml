@@ -9,12 +9,8 @@ install:
   - python setup.py develop
 
 script:
-  - flake8 sockjs
-  - py.test --cov=sockjs --cov-report=term --cov-report=html tests
-  - python setup.py check -rm
-  - if python -c "import sys; sys.exit(sys.version_info < (3,5))"; then
-        python setup.py check -s;
-    fi
+  - make cov
+  - python setup.py check -rms
 
 
 after_success:

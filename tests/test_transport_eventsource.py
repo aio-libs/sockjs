@@ -14,7 +14,8 @@ def make_transport(make_manager, make_request, make_handler, make_fut):
         manager = make_manager(handler)
         request = make_request(method, path, query_params=query_params)
         request.app.freeze()
-        session = manager.get('TestSessionEventSource', create=True, request=request)
+        session = manager.get('TestSessionEventSource',
+                              create=True, request=request)
         return EventsourceTransport(manager, session, request)
 
     return maker

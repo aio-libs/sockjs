@@ -32,7 +32,8 @@ class TestSession:
         assert session._heartbeats == 0
         assert session.state == protocol.STATE_NEW
 
-        session = Session('id', handler, request, timeout=timedelta(seconds=15))
+        session = Session('id', handler, request,
+                          timeout=timedelta(seconds=15))
 
         assert session.id == 'id'
         assert not session.expired
@@ -630,7 +631,9 @@ class TestSessionManager:
                 '`await SessionManager.clear()` before del'
             assert warning[0].message.args[0] == msg
 
-    async def test_does_not_emits_warning_on_del_if_no_sessions(self, make_manager, make_session):
+    async def test_does_not_emits_warning_on_del_if_no_sessions(self,
+                                                                make_manager,
+                                                                make_session):
 
         sm = make_manager()
         s1 = make_session('id1')

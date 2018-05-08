@@ -83,6 +83,7 @@ def make_request(app):
                  'SEC-WEBSOCKET-VERSION': '13'})
 
         writer = mock.Mock()
+        writer.write_headers = make_mocked_coro(None)
         writer.write = make_mocked_coro(None)
         writer.drain = make_mocked_coro(None)
         transport = mock.Mock()
@@ -100,7 +101,11 @@ def make_request(app):
 
 @pytest.fixture
 def make_session(make_handler, make_request, loop):
-    def maker(name='test', timeout=timedelta(10), request=None, handler=None, result=None):
+    def maker(name='test',
+              timeout=timedelta(10),
+              request=None,
+              handler=None,
+              result=None):
         if request is None:
             request = make_request('GET', '/TestPath/')
 
