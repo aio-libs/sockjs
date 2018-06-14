@@ -255,7 +255,7 @@ class SessionManager(dict):
     _hb_task = None  # gc task
 
     def __init__(self, name, app, handler, loop,
-                 heartbeat=25.0, timeout=timedelta(seconds=40), debug=False):
+                 heartbeat=25.0, timeout=timedelta(seconds=5), debug=False):
         self.name = name
         self.route_name = 'sockjs-url-%s' % name
         self.app = app
