@@ -9,7 +9,7 @@ CHAT_FILE = open(
     os.path.join(os.path.dirname(__file__), 'chat.html'), 'rb').read()
 
 
-def chat_msg_handler(msg, session):
+async def chat_msg_handler(msg, session):
     if msg.type == sockjs.MSG_OPEN:
         session.manager.broadcast("Someone joined.")
     elif msg.type == sockjs.MSG_MESSAGE:
