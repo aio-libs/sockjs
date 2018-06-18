@@ -374,7 +374,7 @@ class SessionManager(dict):
             del self.acquired[s.id]
 
     def active_sessions(self):
-        for session in self.values():
+        for session in list(self.values()):
             if not session.expired:
                 yield session
 
@@ -390,7 +390,7 @@ class SessionManager(dict):
     def broadcast(self, message):
         blob = message_frame(message)
 
-        for session in self.values():
+        for session in list(self.values()):
             if not session.expired:
                 session.send_frame(blob)
 
