@@ -26,7 +26,7 @@ class TestSession:
 
         assert session.id == 'id'
         assert not session.expired
-        assert session.expires == now + timedelta(seconds=10)
+        assert session.expires == now + timedelta(seconds=40)
 
         assert session._hits == 0
         assert session._heartbeats == 0
