@@ -1,13 +1,15 @@
+from unittest import mock
 import asyncio
-
+from asyncio import Future
 from aiohttp import web
 
 import pytest
 
 from aiohttp.test_utils import make_mocked_coro
-
 from sockjs import SessionManager, MSG_OPEN, MSG_CLOSED, MSG_MESSAGE
-from sockjs.protocol import FRAME_CLOSE
+from sockjs.exceptions import SessionIsClosed
+from sockjs.protocol import FRAME_CLOSE, FRAME_HEARTBEAT
+
 from sockjs.transports import WebSocketTransport
 
 
@@ -77,3 +79,25 @@ async def test_server_close(app, make_manager, make_request):
 async def test_session_has_request(make_transport, make_fut):
     transp = make_transport(method='POST')
     assert isinstance(transp.session.request, web.Request)
+
+
+async def test_server_frame_heartbeat_tickcalled(make_session, make_transport):
+    transp = make_transport()
+
+    future = Future()
+    future.set_result(False)
+
+    ws = mock.Mock()
+    ws.send_str = make_mocked_coro(1)
+
+    hb_future = Future()
+    hb_future.set_result((FRAME_HEARTBEAT, b''))
+
+    session_close_future = Future()
+    session_close_future.set_exception(SessionIsClosed)
+
+    session = mock.Mock()
+    session._wait.side_effect = [hb_future, session_close_future]
+
+    await transp.server(ws, session)
+    assert session._tick.called
