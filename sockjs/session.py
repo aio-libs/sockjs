@@ -4,10 +4,7 @@ import collections
 import logging
 from datetime import datetime, timedelta
 
-try:
-    from asyncio import ensure_future
-except ImportError:  # pragma: no cover
-    ensure_future = asyncio.async
+from asyncio import ensure_future
 
 from .protocol import STATE_NEW, STATE_OPEN, STATE_CLOSING, STATE_CLOSED
 from .protocol import FRAME_OPEN, FRAME_CLOSE

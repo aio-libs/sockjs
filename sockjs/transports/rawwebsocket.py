@@ -5,7 +5,8 @@ from aiohttp import web
 try:
     from asyncio import ensure_future
 except ImportError:  # pragma: no cover
-    ensure_future = asyncio.async
+    pass
+    # ensure_future = asyncio.async
 
 from .base import Transport
 from ..exceptions import SessionIsClosed
