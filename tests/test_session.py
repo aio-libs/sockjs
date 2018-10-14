@@ -6,10 +6,7 @@ from aiohttp import web
 
 import pytest
 
-try:
-    from asyncio import ensure_future
-except ImportError:
-    ensure_future = asyncio.async
+from asyncio import ensure_future
 
 from sockjs import Session, SessionIsClosed, protocol, SessionIsAcquired
 
