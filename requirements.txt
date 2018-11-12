@@ -3,7 +3,7 @@ docutils==0.14
 pytest==3.10.1
 pytest-aiohttp==0.3.0
 pytest-cov==2.6.0
-pytest-sugar==0.9.1
+pytest-sugar==0.9.2
 pytest-mock==1.10.0
 sphinx==1.8.1
 aiohttp==3.4.4
