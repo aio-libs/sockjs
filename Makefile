@@ -6,7 +6,9 @@ FLAGS=
 flake:
 #	python setup.py check -rms
 	flake8 sockjs tests examples
-	black --check sockjs tests setup.py
+	if python -c "import sys; sys.exit(sys.version_info<(3,6))"; then \
+		black --check sockjs tests setup.py; \
+	fi
 
 fmt:
 	black sockjs tests setup.py
