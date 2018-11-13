@@ -6,12 +6,10 @@ from asyncio import ensure_future
 
 from .base import Transport
 from ..exceptions import SessionIsClosed
-from ..protocol import FRAME_CLOSE, FRAME_MESSAGE, FRAME_MESSAGE_BLOB, \
-    FRAME_HEARTBEAT
+from ..protocol import FRAME_CLOSE, FRAME_MESSAGE, FRAME_MESSAGE_BLOB, FRAME_HEARTBEAT
 
 
 class RawWebSocketTransport(Transport):
-
     async def server(self, ws, session):
         while True:
             try:
@@ -24,14 +22,14 @@ class RawWebSocketTransport(Transport):
                     await ws.send_str(text)
             elif frame == FRAME_MESSAGE_BLOB:
                 data = data[1:]
-                if data.startswith('['):
+                if data.startswith("["):
                     data = data[1:-1]
                 await ws.send_str(data)
             elif frame == FRAME_HEARTBEAT:
                 await ws.ping()
             elif frame == FRAME_CLOSE:
                 try:
-                    await ws.close(message='Go away!')
+                    await ws.close(message="Go away!")
                 finally:
                     await session._remote_closed()
 
@@ -59,16 +57,15 @@ class RawWebSocketTransport(Transport):
         try:
             await self.manager.acquire(self.session)
         except Exception:  # should use specific exception
-            await ws.close(message='Go away!')
+            await ws.close(message="Go away!")
             return ws
 
         server = ensure_future(self.server(ws, self.session), loop=self.loop)
         client = ensure_future(self.client(ws, self.session), loop=self.loop)
         try:
             await asyncio.wait(
-                (server, client),
-                loop=self.loop,
-                return_when=asyncio.FIRST_COMPLETED)
+                (server, client), loop=self.loop, return_when=asyncio.FIRST_COMPLETED
+            )
         except asyncio.CancelledError:
             raise
         except Exception as exc:

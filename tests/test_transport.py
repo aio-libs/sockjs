@@ -10,13 +10,12 @@ from sockjs.transports import base
 
 @pytest.fixture
 def make_transport(make_manager, make_request, make_handler, make_fut):
-    def maker(method='GET', path='/', query_params={}):
+    def maker(method="GET", path="/", query_params={}):
         handler = make_handler(None)
         manager = make_manager(handler)
         request = make_request(method, path, query_params=query_params)
         request.app.freeze()
-        session = manager.get('TestSessionStreaming',
-                              create=True, request=request)
+        session = manager.get("TestSessionStreaming", create=True, request=request)
         return base.StreamingTransport(manager, session, request)
 
     return maker
@@ -25,7 +24,7 @@ def make_transport(make_manager, make_request, make_handler, make_fut):
 def test_transport_ctor(make_request):
     manager = object()
     session = object()
-    request = make_request('GET', '/')
+    request = make_request("GET", "/")
 
     transport = base.Transport(manager, session, request)
     assert transport.manager is manager
@@ -38,13 +37,13 @@ async def test_streaming_send(make_transport):
 
     resp = trans.response = mock.Mock()
     resp.write = make_mocked_coro(None)
-    stop = await trans.send('text data')
+    stop = await trans.send("text data")
     assert not stop
-    assert trans.size == len(b'text data\n')
-    resp.write.assert_called_with(b'text data\n')
+    assert trans.size == len(b"text data\n")
+    resp.write.assert_called_with(b"text data\n")
 
     trans.maxsize = 1
-    stop = await trans.send('text data')
+    stop = await trans.send("text data")
     assert stop
 
 
@@ -82,6 +81,6 @@ async def test_handle_session_closed(make_transport, make_fut):
 
 
 async def test_session_has_request(make_transport, make_fut):
-    transp = make_transport(method='POST')
+    transp = make_transport(method="POST")
     transp.session._remote_messages = make_fut(1)
     assert isinstance(transp.session.request, web.Request)

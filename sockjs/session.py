@@ -16,7 +16,7 @@ from .protocol import close_frame, message_frame, messages_frame
 from .protocol import SockjsMessage, OpenMessage, ClosedMessage
 
 
-log = logging.getLogger('sockjs')
+log = logging.getLogger("sockjs")
 
 
 class Session(object):
@@ -38,8 +38,16 @@ class Session(object):
     interrupted = False
     exception = None
 
-    def __init__(self, id, handler, request, *,
-                 timeout=timedelta(seconds=10), loop=None, debug=False):
+    def __init__(
+        self,
+        id,
+        handler,
+        request,
+        *,
+        timeout=timedelta(seconds=10),
+        loop=None,
+        debug=False
+    ):
         self.id = id
         self.handler = handler
         self.request = request
@@ -56,26 +64,26 @@ class Session(object):
         self._queue = collections.deque()
 
     def __str__(self):
-        result = ['id=%r' % (self.id,)]
+        result = ["id=%r" % (self.id,)]
 
         if self.state == STATE_OPEN:
-            result.append('connected')
+            result.append("connected")
         elif self.state == STATE_CLOSED:
-            result.append('closed')
+            result.append("closed")
         else:
-            result.append('disconnected')
+            result.append("disconnected")
 
         if self.acquired:
-            result.append('acquired')
+            result.append("acquired")
 
         if len(self._queue):
-            result.append('queue[%s]' % len(self._queue))
+            result.append("queue[%s]" % len(self._queue))
         if self._hits:
-            result.append('hits=%s' % self._hits)
+            result.append("hits=%s" % self._hits)
         if self._heartbeats:
-            result.append('heartbeats=%s' % self._heartbeats)
+            result.append("heartbeats=%s" % self._heartbeats)
 
-        return ' '.join(result)
+        return " ".join(result)
 
     def _tick(self, timeout=None):
         if timeout is None:
@@ -92,7 +100,7 @@ class Session(object):
         self._hits += 1
 
         if self.state == STATE_NEW:
-            log.debug('open session: %s', self.id)
+            log.debug("open session: %s", self.id)
             self.state = STATE_OPEN
             self._feed(FRAME_OPEN, FRAME_OPEN)
             try:
@@ -103,8 +111,8 @@ class Session(object):
                 self.state = STATE_CLOSING
                 self.exception = exc
                 self.interrupted = True
-                self._feed(FRAME_CLOSE, (3000, 'Internal error'))
-                log.exception('Exception in open session handling.')
+                self._feed(FRAME_CLOSE, (3000, "Internal error"))
+                log.exception("Exception in open session handling.")
 
     def _release(self):
         self.acquired = False
@@ -156,7 +164,7 @@ class Session(object):
         if self.state in (STATE_CLOSING, STATE_CLOSED):
             return
 
-        log.info('close session: %s', self.id)
+        log.info("close session: %s", self.id)
         self.state = STATE_CLOSING
         if exc is not None:
             self.exception = exc
@@ -164,19 +172,19 @@ class Session(object):
         try:
             await self.handler(SockjsMessage(MSG_CLOSE, exc), self)
         except Exception:
-            log.exception('Exception in close handler.')
+            log.exception("Exception in close handler.")
 
     async def _remote_closed(self):
         if self.state == STATE_CLOSED:
             return
 
-        log.info('session closed: %s', self.id)
+        log.info("session closed: %s", self.id)
         self.state = STATE_CLOSED
         self.expire()
         try:
             await self.handler(ClosedMessage, self)
         except Exception:
-            log.exception('Exception in closed handler.')
+            log.exception("Exception in closed handler.")
 
         # notify waiter
         waiter = self._waiter
@@ -186,23 +194,23 @@ class Session(object):
                 waiter.set_result(True)
 
     async def _remote_message(self, msg):
-        log.debug('incoming message: %s, %s', self.id, msg[:200])
+        log.debug("incoming message: %s, %s", self.id, msg[:200])
         self._tick()
 
         try:
             await self.handler(SockjsMessage(MSG_MESSAGE, msg), self)
         except Exception:
-            log.exception('Exception in message handler.')
+            log.exception("Exception in message handler.")
 
     async def _remote_messages(self, messages):
         self._tick()
 
         for msg in messages:
-            log.debug('incoming message: %s, %s', self.id, msg[:200])
+            log.debug("incoming message: %s, %s", self.id, msg[:200])
             try:
                 await self.handler(SockjsMessage(MSG_MESSAGE, msg), self)
             except Exception:
-                log.exception('Exception in message handler.')
+                log.exception("Exception in message handler.")
 
     def expire(self):
         """Manually expire a session."""
@@ -210,10 +218,10 @@ class Session(object):
 
     def send(self, msg):
         """send message to client."""
-        assert isinstance(msg, str), 'String is required'
+        assert isinstance(msg, str), "String is required"
 
         if self._debug:
-            log.info('outgoing message: %s, %s', self.id, str(msg)[:200])
+            log.info("outgoing message: %s, %s", self.id, str(msg)[:200])
 
         if self.state != STATE_OPEN:
             return
@@ -223,20 +231,20 @@ class Session(object):
     def send_frame(self, frm):
         """send message frame to client."""
         if self._debug:
-            log.info('outgoing message: %s, %s', self.id, frm[:200])
+            log.info("outgoing message: %s, %s", self.id, frm[:200])
 
         if self.state != STATE_OPEN:
             return
 
         self._feed(FRAME_MESSAGE_BLOB, frm)
 
-    def close(self, code=3000, reason='Go away!'):
+    def close(self, code=3000, reason="Go away!"):
         """close session"""
         if self.state in (STATE_CLOSING, STATE_CLOSED):
             return
 
         if self._debug:
-            log.debug('close session: %s', self.id)
+            log.debug("close session: %s", self.id)
 
         self.state = STATE_CLOSING
         self._feed(FRAME_CLOSE, (code, reason))
@@ -251,10 +259,18 @@ class SessionManager(dict):
     _hb_handle = None  # heartbeat event loop timer
     _hb_task = None  # gc task
 
-    def __init__(self, name, app, handler, loop,
-                 heartbeat=25.0, timeout=timedelta(seconds=5), debug=False):
+    def __init__(
+        self,
+        name,
+        app,
+        handler,
+        loop,
+        heartbeat=25.0,
+        timeout=timedelta(seconds=5),
+        debug=False,
+    ):
         self.name = name
-        self.route_name = 'sockjs-url-%s' % name
+        self.route_name = "sockjs-url-%s" % name
         self.app = app
         self.handler = handler
         self.factory = Session
@@ -274,8 +290,7 @@ class SessionManager(dict):
 
     def start(self):
         if not self._hb_handle:
-            self._hb_handle = self.loop.call_later(
-                self.heartbeat, self._heartbeat)
+            self._hb_handle = self.loop.call_later(self.heartbeat, self._heartbeat)
 
     def stop(self):
         if self._hb_handle is not None:
@@ -287,8 +302,7 @@ class SessionManager(dict):
 
     def _heartbeat(self):
         if self._hb_task is None:
-            self._hb_task = ensure_future(
-                self._heartbeat_task(), loop=self.loop)
+            self._hb_task = ensure_future(self._heartbeat_task(), loop=self.loop)
 
     async def _heartbeat_task(self):
         sessions = self.sessions
@@ -318,12 +332,11 @@ class SessionManager(dict):
                 idx += 1
 
         self._hb_task = None
-        self._hb_handle = self.loop.call_later(
-            self.heartbeat, self._heartbeat)
+        self._hb_handle = self.loop.call_later(self.heartbeat, self._heartbeat)
 
     def _add(self, session):
         if session.expired:
-            raise ValueError('Can not add expired session')
+            raise ValueError("Can not add expired session")
 
         session.manager = self
         session.registry = self.app
@@ -338,10 +351,14 @@ class SessionManager(dict):
             if create:
                 session = self._add(
                     self.factory(
-                        id, self.handler,
+                        id,
+                        self.handler,
                         request,
                         timeout=self.timeout,
-                        loop=self.loop, debug=self.debug))
+                        loop=self.loop,
+                        debug=self.debug,
+                    )
+                )
             else:
                 if default is not _marker:
                     return default
@@ -353,9 +370,9 @@ class SessionManager(dict):
         sid = s.id
 
         if sid in self.acquired:
-            raise SessionIsAcquired('Another connection still open')
+            raise SessionIsAcquired("Another connection still open")
         if sid not in self:
-            raise KeyError('Unknown session')
+            raise KeyError("Unknown session")
 
         await s._acquire(self)
 
@@ -396,6 +413,6 @@ class SessionManager(dict):
             warnings.warn(
                 "Unclosed sessions! "
                 "Please call `await SessionManager.clear()` before del",
-                RuntimeWarning
+                RuntimeWarning,
             )
         self.stop()

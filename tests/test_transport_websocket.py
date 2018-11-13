@@ -13,14 +13,13 @@ from sockjs.transports import WebSocketTransport
 
 @pytest.fixture
 def make_transport(make_manager, make_request, make_handler, make_fut):
-    def maker(method='GET', path='/', query_params={}):
+    def maker(method="GET", path="/", query_params={}):
         handler = make_handler(None)
         manager = make_manager(handler)
         request = make_request(method, path, query_params=query_params)
         request.app.freeze()
-        session = manager.get('TestSessionWebsocket',
-                              create=True, request=request)
-        session._wait = make_fut((FRAME_CLOSE, ''))
+        session = manager.get("TestSessionWebsocket", create=True, request=request)
+        session._wait = make_fut((FRAME_CLOSE, ""))
         return WebSocketTransport(manager, session, request)
 
     return maker
@@ -36,8 +35,8 @@ async def test_process_release_acquire_and_remote_closed(make_transport):
     await transp.manager.clear()
 
     assert resp.status == 101
-    assert resp.headers.get('upgrade', '').lower() == 'websocket'
-    assert resp.headers.get('connection', '').lower() == 'upgrade'
+    assert resp.headers.get("upgrade", "").lower() == "websocket"
+    assert resp.headers.get("connection", "").lower() == "upgrade"
 
     transp.session._remote_closed.assert_called_once_with()
     assert transp.manager.acquire.called
@@ -52,8 +51,7 @@ async def test_server_close(app, make_manager, make_request):
     async def handler(msg, session):
         nonlocal reached_closed
         if msg.tp == MSG_OPEN:
-            asyncio.ensure_future(session._remote_message('TESTMSG'),
-                                  loop=loop)
+            asyncio.ensure_future(session._remote_message("TESTMSG"), loop=loop)
             pass
 
         elif msg.tp == MSG_MESSAGE:
@@ -64,9 +62,9 @@ async def test_server_close(app, make_manager, make_request):
 
     app.freeze()
 
-    request = make_request('GET', '/', query_params={}, loop=loop)
-    manager = SessionManager('sm', app, handler, loop=loop, debug=True)
-    session = manager.get('test', create=True)
+    request = make_request("GET", "/", query_params={}, loop=loop)
+    manager = SessionManager("sm", app, handler, loop=loop, debug=True)
+    session = manager.get("test", create=True)
 
     transp = WebSocketTransport(manager, session, request)
     await transp.process()
@@ -75,5 +73,5 @@ async def test_server_close(app, make_manager, make_request):
 
 
 async def test_session_has_request(make_transport, make_fut):
-    transp = make_transport(method='POST')
+    transp = make_transport(method="POST")
     assert isinstance(transp.session.request, web.Request)

@@ -2,7 +2,7 @@ import collections
 import hashlib
 from datetime import datetime
 
-ENCODING = 'utf-8'
+ENCODING = "utf-8"
 
 STATE_NEW = 0
 STATE_OPEN = 1
@@ -10,9 +10,21 @@ STATE_CLOSING = 2
 STATE_CLOSED = 3
 
 
-_days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+_days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+_months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+]
 
 # json
 # -----------
@@ -20,16 +32,24 @@ _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
 # Fastest
 try:
     import ujson as json
+
     kwargs = {}  # pragma: no cover
 except ImportError:  # pragma: no cover
+
     def dthandler(obj):
         if isinstance(obj, datetime):
             now = obj.timetuple()
-            return '%s, %02d %s %04d %02d:%02d:%02d -0000' % (
-                _days[now[6]], now[2],
-                _months[now[1] - 1], now[0], now[3], now[4], now[5])
+            return "%s, %02d %s %04d %02d:%02d:%02d -0000" % (
+                _days[now[6]],
+                now[2],
+                _months[now[1] - 1],
+                now[0],
+                now[3],
+                now[4],
+                now[5],
+            )
 
-    kwargs = {'default': dthandler, 'separators': (',', ':')}
+    kwargs = {"default": dthandler, "separators": (",", ":")}
 
     # Faster
     try:
@@ -42,11 +62,11 @@ except ImportError:  # pragma: no cover
 # Frames
 # ------
 
-FRAME_OPEN = 'o'
-FRAME_CLOSE = 'c'
-FRAME_MESSAGE = 'a'
-FRAME_MESSAGE_BLOB = 'a1'
-FRAME_HEARTBEAT = 'h'
+FRAME_OPEN = "o"
+FRAME_CLOSE = "c"
+FRAME_MESSAGE = "a"
+FRAME_MESSAGE_BLOB = "a1"
+FRAME_HEARTBEAT = "h"
 
 
 # ------------------
@@ -73,7 +93,7 @@ IFRAME_HTML = """<!DOCTYPE html>
 IFRAME_MD5 = hashlib.md5(IFRAME_HTML.encode()).hexdigest()
 
 loads = json.loads
-ENCODING = 'utf-8'
+ENCODING = "utf-8"
 
 
 def dumps(data):
@@ -101,7 +121,7 @@ MSG_CLOSE = 3
 MSG_CLOSED = 4
 
 
-class SockjsMessage(collections.namedtuple('SockjsMessage', ['type', 'data'])):
+class SockjsMessage(collections.namedtuple("SockjsMessage", ["type", "data"])):
     @property
     def tp(self):
         return self.type

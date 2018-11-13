@@ -6,6 +6,11 @@ FLAGS=
 flake:
 #	python setup.py check -rms
 	flake8 sockjs tests examples
+	black --check sockjs tests setup.py
+
+fmt:
+	black sockjs tests setup.py
+
 
 develop:
 	python setup.py develop

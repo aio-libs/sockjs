@@ -52,6 +52,7 @@ def make_handler():
             return asyncio.coroutine(handler)
         else:
             return handler
+
     return maker
 
 
@@ -59,28 +60,31 @@ def make_handler():
 def make_route(make_handler, loop, app):
     def maker(handlers=transports.handlers):
         handler = make_handler([])
-        sm = SessionManager('sm', app, handler, loop=loop)
-        return SockJSRoute('sm', sm, 'http:sockjs-cdn', handlers, (), True)
+        sm = SessionManager("sm", app, handler, loop=loop)
+        return SockJSRoute("sm", sm, "http:sockjs-cdn", handlers, (), True)
+
     return maker
 
 
 @pytest.fixture
 def make_request(app):
-    def maker(method, path, query_params={}, headers=None,
-              match_info=None, loop=None):
+    def maker(method, path, query_params={}, headers=None, match_info=None, loop=None):
         path = URL(path)
         if query_params:
             path = path.with_query(query_params)
 
         if headers is None:
             headers = CIMultiDict(
-                {'HOST': 'server.example.com',
-                 'UPGRADE': 'websocket',
-                 'CONNECTION': 'Upgrade',
-                 'SEC-WEBSOCKET-KEY': 'dGhlIHNhbXBsZSBub25jZQ==',
-                 'ORIGIN': 'http://example.com',
-                 'SEC-WEBSOCKET-PROTOCOL': 'chat, superchat',
-                 'SEC-WEBSOCKET-VERSION': '13'})
+                {
+                    "HOST": "server.example.com",
+                    "UPGRADE": "websocket",
+                    "CONNECTION": "Upgrade",
+                    "SEC-WEBSOCKET-KEY": "dGhlIHNhbXBsZSBub25jZQ==",
+                    "ORIGIN": "http://example.com",
+                    "SEC-WEBSOCKET-PROTOCOL": "chat, superchat",
+                    "SEC-WEBSOCKET-VERSION": "13",
+                }
+            )
 
         writer = mock.Mock()
         writer.write_headers = make_mocked_coro(None)
@@ -88,31 +92,28 @@ def make_request(app):
         writer.drain = make_mocked_coro(None)
         transport = mock.Mock()
         transport._drain_helper = make_mocked_coro()
-        ret = make_mocked_request(method, str(path), headers,
-                                  writer=writer, loop=loop)
+        ret = make_mocked_request(method, str(path), headers, writer=writer, loop=loop)
 
         if match_info is None:
             match_info = UrlMappingMatchInfo({}, mock.Mock())
             match_info.add_app(app)
         ret._match_info = match_info
         return ret
+
     return maker
 
 
 @pytest.fixture
 def make_session(make_handler, make_request, loop):
-    def maker(name='test',
-              timeout=timedelta(10),
-              request=None,
-              handler=None,
-              result=None):
+    def maker(
+        name="test", timeout=timedelta(10), request=None, handler=None, result=None
+    ):
         if request is None:
-            request = make_request('GET', '/TestPath/')
+            request = make_request("GET", "/TestPath/")
 
         if handler is None:
             handler = make_handler(result)
-        return Session(name, handler, request,
-                       timeout=timeout, loop=loop, debug=True)
+        return Session(name, handler, request, timeout=timeout, loop=loop, debug=True)
 
     return maker
 
@@ -122,6 +123,6 @@ def make_manager(app, loop, make_handler, make_session):
     def maker(handler=None):
         if handler is None:
             handler = make_handler([])
-        return SessionManager(
-            'sm', app, handler, loop=loop, debug=True)
+        return SessionManager("sm", app, handler, loop=loop, debug=True)
+
     return maker

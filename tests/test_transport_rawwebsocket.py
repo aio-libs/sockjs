@@ -12,11 +12,11 @@ from aiohttp import WSMessage, WSMsgType
 
 @pytest.fixture
 def make_transport(make_request, make_fut):
-    def maker(method='GET', path='/', query_params={}):
+    def maker(method="GET", path="/", query_params={}):
         manager = mock.Mock()
         session = mock.Mock()
         session._remote_closed = make_fut(1)
-        session._wait = make_fut((FRAME_CLOSE, ''))
+        session._wait = make_fut((FRAME_CLOSE, ""))
         request = make_request(method, path, query_params=query_params)
         request.app.freeze()
         return RawWebSocketTransport(manager, session, request)
@@ -27,8 +27,8 @@ def make_transport(make_request, make_fut):
 async def test_ticks_pong(make_transport, make_fut):
     transp = make_transport()
 
-    pong = WSMessage(type=WSMsgType.PONG, data=b'', extra='')
-    close = WSMessage(type=WSMsgType.closing, data=b'', extra='')
+    pong = WSMessage(type=WSMsgType.PONG, data=b"", extra="")
+    close = WSMessage(type=WSMsgType.closing, data=b"", extra="")
 
     future = Future()
     future.set_result(pong)
@@ -55,7 +55,7 @@ async def test_sends_ping(make_transport, make_fut):
     ws.ping.side_effect = [future]
 
     hb_future = Future()
-    hb_future.set_result((FRAME_HEARTBEAT, b''))
+    hb_future.set_result((FRAME_HEARTBEAT, b""))
 
     session_close_future = Future()
     session_close_future.set_exception(SessionIsClosed)

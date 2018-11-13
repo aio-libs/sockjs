@@ -11,7 +11,6 @@ from ..protocol import loads, close_frame
 
 
 class WebSocketTransport(Transport):
-
     async def server(self, ws, session):
         while True:
             try:
@@ -35,7 +34,7 @@ class WebSocketTransport(Transport):
                 if not data:
                     continue
 
-                if data.startswith('['):
+                if data.startswith("["):
                     data = data[1:-1]
 
                 try:
@@ -43,7 +42,7 @@ class WebSocketTransport(Transport):
                 except Exception as exc:
                     await session._remote_close(exc)
                     await session._remote_closed()
-                    await ws.close(message=b'broken json')
+                    await ws.close(message=b"broken json")
                     break
 
                 await session._remote_message(text)
@@ -61,28 +60,26 @@ class WebSocketTransport(Transport):
 
         # session was interrupted
         if self.session.interrupted:
-            await self.ws.send_str(
-                close_frame(1002, 'Connection interrupted'))
+            await self.ws.send_str(close_frame(1002, "Connection interrupted"))
 
         elif self.session.state == STATE_CLOSED:
-            await self.ws.send_str(close_frame(3000, 'Go away!'))
+            await self.ws.send_str(close_frame(3000, "Go away!"))
 
         else:
             try:
                 await self.manager.acquire(self.session)
             except Exception:  # should use specific exception
-                await self.ws.send_str(close_frame(3000, 'Go away!'))
+                await self.ws.send_str(close_frame(3000, "Go away!"))
                 await ws.close()
                 return ws
-            server = ensure_future(
-                self.server(ws, self.session), loop=self.loop)
-            client = ensure_future(
-                self.client(ws, self.session), loop=self.loop)
+            server = ensure_future(self.server(ws, self.session), loop=self.loop)
+            client = ensure_future(self.client(ws, self.session), loop=self.loop)
             try:
                 await asyncio.wait(
                     (server, client),
                     loop=self.loop,
-                    return_when=asyncio.FIRST_COMPLETED)
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
