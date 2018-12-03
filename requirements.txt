@@ -1,5 +1,5 @@
 black==18.9b0; python_version>="3.6"
-flake8==3.5.0
+flake8==3.6.0
 docutils==0.14
 pytest==3.9.1
 pytest-aiohttp==0.3.0
