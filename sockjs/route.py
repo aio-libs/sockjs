@@ -163,7 +163,7 @@ class SockJSRoute:
             raise
         except web.HTTPException as exc:
             return exc
-        except Exception as exc:
+        except Exception:
             log.exception("Exception in transport: %s" % tid)
             if manager.is_acquired(session):
                 await manager.release(session)
