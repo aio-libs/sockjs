@@ -27,7 +27,7 @@ PRELUDE2 = b""";
 class HTMLFileTransport(StreamingTransport):
 
     maxsize = 131072  # 128K bytes
-    check_callback = re.compile("^[a-zA-Z0-9_\.]+$")
+    check_callback = re.compile(r"^[a-zA-Z0-9_\.]+$")
 
     async def send(self, text):
         blob = ("<script>\np(%s);\n</script>\r\n" % dumps(text)).encode(ENCODING)

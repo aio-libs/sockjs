@@ -11,7 +11,7 @@ from ..protocol import dumps, loads, ENCODING
 
 class JSONPolling(StreamingTransport):
 
-    check_callback = re.compile("^[a-zA-Z0-9_\.]+$")
+    check_callback = re.compile(r"^[a-zA-Z0-9_\.]+$")
     callback = ""
 
     async def send(self, text):
