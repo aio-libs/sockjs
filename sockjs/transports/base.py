@@ -11,7 +11,7 @@ class Transport:
         self.manager = manager
         self.session = session
         self.request = request
-        self.loop = request.app.loop
+        self.loop = asyncio.get_event_loop()
 
 
 class StreamingTransport(Transport):

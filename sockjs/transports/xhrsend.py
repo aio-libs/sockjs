@@ -10,7 +10,7 @@ class XHRSendTransport(Transport):
         request = self.request
 
         if request.method not in (hdrs.METH_GET, hdrs.METH_POST, hdrs.METH_OPTIONS):
-            return web.HTTPForbidden(text="Method is not allowed")
+            raise web.HTTPForbidden(text="Method is not allowed")
 
         if self.request.method == hdrs.METH_OPTIONS:
             headers = (
@@ -24,12 +24,12 @@ class XHRSendTransport(Transport):
 
         data = await request.read()
         if not data:
-            return web.HTTPInternalServerError(text="Payload expected.")
+            raise web.HTTPInternalServerError(text="Payload expected.")
 
         try:
             messages = loads(data.decode(ENCODING))
         except Exception:
-            return web.HTTPInternalServerError(text="Broken JSON encoding.")
+            raise web.HTTPInternalServerError(text="Broken JSON encoding.")
 
         await self.session._remote_messages(messages)
 

@@ -51,7 +51,8 @@ def add_endpoint(
 
     # set session manager
     if manager is None:
-        manager = SessionManager(name, app, handler, app.loop)
+        loop = asyncio.get_event_loop()
+        manager = SessionManager(name, app, handler, loop)
 
     if manager.name != name:
         raise ValueError("Session manage must have same name as sockjs route")
@@ -138,7 +139,7 @@ class SockJSRoute:
         tid = info["transport"]
 
         if tid not in self.handlers or tid in self.disable_transports:
-            return web.HTTPNotFound()
+            raise web.HTTPNotFound()
 
         create, transport = self.handlers[tid]
 
@@ -149,12 +150,12 @@ class SockJSRoute:
 
         sid = info["session"]
         if not sid or "." in sid or "." in info["server"]:
-            return web.HTTPNotFound()
+            raise web.HTTPNotFound()
 
         try:
             session = manager.get(sid, create, request=request)
         except KeyError:
-            return web.HTTPNotFound(headers=session_cookie(request))
+            raise web.HTTPNotFound(headers=session_cookie(request))
 
         t = transport(manager, session, request)
         try:
@@ -167,7 +168,7 @@ class SockJSRoute:
             log.exception("Exception in transport: %s" % tid)
             if manager.is_acquired(session):
                 await manager.release(session)
-            return web.HTTPInternalServerError()
+            raise web.HTTPInternalServerError()
 
     async def websocket(self, request):
         # session
