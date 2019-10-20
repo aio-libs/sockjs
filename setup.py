@@ -42,7 +42,7 @@ setup(
     url="https://github.com/aio-libs/sockjs/",
     license="Apache 2",
     packages=find_packages(),
-    python_requires=">=3.4.4",
+    python_requires=">=3.5.3",
     install_requires=install_requires,
     include_package_data=True,
     zip_safe=False,
