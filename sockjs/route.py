@@ -51,7 +51,7 @@ def add_endpoint(
 
     # set session manager
     if manager is None:
-        manager = SessionManager(name, app, handler, app.loop)
+        manager = SessionManager(name, app, handler)
 
     if manager.name != name:
         raise ValueError("Session manage must have same name as sockjs route")

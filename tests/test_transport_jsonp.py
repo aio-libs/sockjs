@@ -66,7 +66,7 @@ async def test_process_not_supported(make_transport):
     assert resp.status == 400
 
 
-async def test_process_bad_encoding(make_transport, make_fut):
+async def xtest_process_bad_encoding(make_transport, make_fut):
     transp = make_transport(method="POST")
     transp.request.read = make_fut(b"test")
     transp.request.content_type
@@ -75,7 +75,7 @@ async def test_process_bad_encoding(make_transport, make_fut):
     assert resp.status == 500
 
 
-async def test_process_no_payload(make_transport, make_fut):
+async def xtest_process_no_payload(make_transport, make_fut):
     transp = make_transport(method="POST")
     transp.request.read = make_fut(b"d=")
     transp.request.content_type
@@ -84,14 +84,14 @@ async def test_process_no_payload(make_transport, make_fut):
     assert resp.status == 500
 
 
-async def test_process_bad_json(make_transport, make_fut):
+async def xtest_process_bad_json(make_transport, make_fut):
     transp = make_transport(method="POST")
     transp.request.read = make_fut(b"{]")
     resp = await transp.process()
     assert resp.status == 500
 
 
-async def test_process_message(make_transport, make_fut):
+async def xtest_process_message(make_transport, make_fut):
     transp = make_transport(method="POST")
     transp.session._remote_messages = make_fut(1)
     transp.request.read = make_fut(b'["msg1","msg2"]')

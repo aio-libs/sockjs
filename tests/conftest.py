@@ -21,9 +21,10 @@ def app():
 
 
 @pytest.fixture
-def make_fut(loop):
+def make_fut():
     def maker(val, makemock=True):
-        fut = asyncio.Future(loop=loop)
+        loop = asyncio.get_event_loop()
+        fut = loop.create_future()
         fut.set_result(val)
 
         if makemock:
@@ -57,10 +58,10 @@ def make_handler():
 
 
 @pytest.fixture
-def make_route(make_handler, loop, app):
+def make_route(make_handler, app):
     def maker(handlers=transports.handlers):
         handler = make_handler([])
-        sm = SessionManager("sm", app, handler, loop=loop)
+        sm = SessionManager("sm", app, handler)
         return SockJSRoute("sm", sm, "http:sockjs-cdn", handlers, (), True)
 
     return maker
@@ -68,7 +69,7 @@ def make_route(make_handler, loop, app):
 
 @pytest.fixture
 def make_request(app):
-    def maker(method, path, query_params={}, headers=None, match_info=None, loop=None):
+    def maker(method, path, query_params={}, headers=None, match_info=None):
         path = URL(path)
         if query_params:
             path = path.with_query(query_params)
@@ -92,6 +93,7 @@ def make_request(app):
         writer.drain = make_mocked_coro(None)
         transport = mock.Mock()
         transport._drain_helper = make_mocked_coro()
+        loop = asyncio.get_event_loop()
         ret = make_mocked_request(method, str(path), headers, writer=writer, loop=loop)
 
         if match_info is None:
@@ -104,7 +106,7 @@ def make_request(app):
 
 
 @pytest.fixture
-def make_session(make_handler, make_request, loop):
+def make_session(make_handler, make_request):
     def maker(
         name="test", timeout=timedelta(10), request=None, handler=None, result=None
     ):
@@ -113,16 +115,16 @@ def make_session(make_handler, make_request, loop):
 
         if handler is None:
             handler = make_handler(result)
-        return Session(name, handler, request, timeout=timeout, loop=loop, debug=True)
+        return Session(name, handler, request, timeout=timeout, debug=True)
 
     return maker
 
 
 @pytest.fixture
-def make_manager(app, loop, make_handler, make_session):
+def make_manager(app, make_handler, make_session):
     def maker(handler=None):
         if handler is None:
             handler = make_handler([])
-        return SessionManager("sm", app, handler, loop=loop, debug=True)
+        return SessionManager("sm", app, handler, debug=True)
 
     return maker

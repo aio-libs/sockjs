@@ -60,12 +60,10 @@ class RawWebSocketTransport(Transport):
             await ws.close(message="Go away!")
             return ws
 
-        server = ensure_future(self.server(ws, self.session), loop=self.loop)
-        client = ensure_future(self.client(ws, self.session), loop=self.loop)
+        server = ensure_future(self.server(ws, self.session))
+        client = ensure_future(self.client(ws, self.session))
         try:
-            await asyncio.wait(
-                (server, client), loop=self.loop, return_when=asyncio.FIRST_COMPLETED
-            )
+            await asyncio.wait((server, client), return_when=asyncio.FIRST_COMPLETED)
         except asyncio.CancelledError:
             raise
         except Exception as exc:

@@ -39,14 +39,7 @@ class Session(object):
     exception = None
 
     def __init__(
-        self,
-        id,
-        handler,
-        request,
-        *,
-        timeout=timedelta(seconds=10),
-        loop=None,
-        debug=False
+        self, id, handler, request, *, timeout=timedelta(seconds=10), debug=False
     ):
         self.id = id
         self.handler = handler
@@ -54,7 +47,6 @@ class Session(object):
         self.expired = False
         self.timeout = timeout
         self.expires = datetime.now() + timeout
-        self.loop = loop
 
         self._hits = 0
         self._heartbeats = 0
@@ -144,7 +136,8 @@ class Session(object):
     async def _wait(self, pack=True):
         if not self._queue and self.state != STATE_CLOSED:
             assert not self._waiter
-            self._waiter = asyncio.Future(loop=self.loop)
+            loop = asyncio.get_event_loop()
+            self._waiter = loop.create_future()
             await self._waiter
 
         if self._queue:
@@ -264,7 +257,6 @@ class SessionManager(dict):
         name,
         app,
         handler,
-        loop,
         heartbeat=25.0,
         timeout=timedelta(seconds=5),
         debug=False,
@@ -278,7 +270,6 @@ class SessionManager(dict):
         self.sessions = []
         self.heartbeat = heartbeat
         self.timeout = timeout
-        self.loop = loop
         self.debug = debug
 
     def route_url(self, request):
@@ -290,7 +281,8 @@ class SessionManager(dict):
 
     def start(self):
         if not self._hb_handle:
-            self._hb_handle = self.loop.call_later(self.heartbeat, self._heartbeat)
+            loop = asyncio.get_event_loop()
+            self._hb_handle = loop.call_later(self.heartbeat, self._heartbeat)
 
     def stop(self):
         if self._hb_handle is not None:
@@ -302,7 +294,7 @@ class SessionManager(dict):
 
     def _heartbeat(self):
         if self._hb_task is None:
-            self._hb_task = ensure_future(self._heartbeat_task(), loop=self.loop)
+            self._hb_task = ensure_future(self._heartbeat_task())
 
     async def _heartbeat_task(self):
         sessions = self.sessions
@@ -332,7 +324,8 @@ class SessionManager(dict):
                 idx += 1
 
         self._hb_task = None
-        self._hb_handle = self.loop.call_later(self.heartbeat, self._heartbeat)
+        loop = asyncio.get_event_loop()
+        self._hb_handle = loop.call_later(self.heartbeat, self._heartbeat)
 
     def _add(self, session):
         if session.expired:
@@ -355,7 +348,6 @@ class SessionManager(dict):
                         self.handler,
                         request,
                         timeout=self.timeout,
-                        loop=self.loop,
                         debug=self.debug,
                     )
                 )

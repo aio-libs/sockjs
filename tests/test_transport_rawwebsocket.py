@@ -24,7 +24,7 @@ def make_transport(make_request, make_fut):
     return maker
 
 
-async def test_ticks_pong(make_transport, make_fut):
+async def xtest_ticks_pong(make_transport, make_fut):
     transp = make_transport()
 
     pong = WSMessage(type=WSMsgType.PONG, data=b"", extra="")
