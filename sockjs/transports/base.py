@@ -11,7 +11,6 @@ class Transport:
         self.manager = manager
         self.session = session
         self.request = request
-        self.loop = request.app.loop
 
 
 class StreamingTransport(Transport):
@@ -59,9 +58,7 @@ class StreamingTransport(Transport):
                         if self.timeout:
                             try:
                                 frame, text = await asyncio.wait_for(
-                                    self.session._wait(),
-                                    timeout=self.timeout,
-                                    loop=self.loop,
+                                    self.session._wait(), timeout=self.timeout
                                 )
                             except asyncio.futures.TimeoutError:
                                 frame, text = FRAME_MESSAGE, "a[]"

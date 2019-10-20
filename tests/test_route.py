@@ -206,9 +206,10 @@ async def test_release_session_for_failed_transport(make_route, make_request):
     assert not route.manager.is_acquired(s1)
 
 
-async def test_raw_websocket(loop, make_route, make_request, mocker):
+async def test_raw_websocket(make_route, make_request, mocker):
     ws = mocker.patch("sockjs.route.RawWebSocketTransport")
-    ws.return_value.process.return_value = asyncio.Future(loop=loop)
+    loop = asyncio.get_event_loop()
+    ws.return_value.process.return_value = loop.create_future()
     ws.return_value.process.return_value.set_result(web.HTTPOk())
 
     route = make_route()

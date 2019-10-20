@@ -17,8 +17,10 @@ class WebSocketTransport(Transport):
                 frame, data = await session._wait()
             except SessionIsClosed:
                 break
-
-            await ws.send_str(data)
+            try:
+                await ws.send_str(data)
+            except OSError:
+                pass  # ignore 'cannot write to closed transport'
             if frame == FRAME_CLOSE:
                 try:
                     await ws.close()
@@ -72,13 +74,11 @@ class WebSocketTransport(Transport):
                 await self.ws.send_str(close_frame(3000, "Go away!"))
                 await ws.close()
                 return ws
-            server = ensure_future(self.server(ws, self.session), loop=self.loop)
-            client = ensure_future(self.client(ws, self.session), loop=self.loop)
+            server = ensure_future(self.server(ws, self.session))
+            client = ensure_future(self.client(ws, self.session))
             try:
                 await asyncio.wait(
-                    (server, client),
-                    loop=self.loop,
-                    return_when=asyncio.FIRST_COMPLETED,
+                    (server, client), return_when=asyncio.FIRST_COMPLETED
                 )
             except asyncio.CancelledError:
                 raise

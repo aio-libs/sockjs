@@ -21,7 +21,7 @@ def make_transport(make_manager, make_request, make_handler, make_fut):
     return maker
 
 
-def test_transport_ctor(make_request):
+async def test_transport_ctor(make_request):
     manager = object()
     session = object()
     request = make_request("GET", "/")
