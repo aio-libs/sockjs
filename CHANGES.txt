@@ -2,6 +2,22 @@
 CHANGES
 =======
 
+
+0.10.0 (2019-10-20)
+-------------------
+
+- Sync with aiohttp 3.6 (#298)
+
+0.9.1 (2018-12-04)
+------------------
+
+- Minor code styling cleanups
+
+0.9.0 (2018-10-11)
+------------------
+
+- Support Python 3.7. The minimal available Python version is 3.5.3 (#240)
+
 0.8.0 (2018-06-15)
 ------------------
 

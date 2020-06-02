@@ -11,11 +11,11 @@ from ..protocol import dumps, loads, ENCODING
 
 class JSONPolling(StreamingTransport):
 
-    check_callback = re.compile('^[a-zA-Z0-9_\.]+$')
-    callback = ''
+    check_callback = re.compile(r"^[a-zA-Z0-9_\.]+$")
+    callback = ""
 
     async def send(self, text):
-        data = '/**/%s(%s);\r\n' % (self.callback, dumps(text))
+        data = "/**/%s(%s);\r\n" % (self.callback, dumps(text))
         await self.response.write(data.encode(ENCODING))
         return True
 
@@ -26,26 +26,24 @@ class JSONPolling(StreamingTransport):
 
         if request.method == hdrs.METH_GET:
             try:
-                callback = self.callback = request.query.get('c')
+                callback = self.callback = request.query.get("c")
             except Exception:
-                callback = self.callback = request.GET.get('c')
+                callback = self.callback = request.GET.get("c")
 
             if not callback:
                 await self.session._remote_closed()
-                return web.HTTPInternalServerError(
-                    body=b'"callback" parameter required')
+                return web.HTTPInternalServerError(text='"callback" parameter required')
 
             elif not self.check_callback.match(callback):
                 await self.session._remote_closed()
-                return web.HTTPInternalServerError(
-                    body=b'invalid "callback" parameter')
+                return web.HTTPInternalServerError(text='invalid "callback" parameter')
 
-            headers = list(
-                ((hdrs.CONTENT_TYPE,
-                  'application/javascript; charset=UTF-8'),
-                 (hdrs.CACHE_CONTROL, CACHE_CONTROL)) +
-                session_cookie(request) +
-                cors_headers(request.headers))
+            headers = (
+                (hdrs.CONTENT_TYPE, "application/javascript; charset=UTF-8"),
+                (hdrs.CACHE_CONTROL, CACHE_CONTROL),
+            )
+            headers += session_cookie(request)
+            headers += cors_headers(request.headers)
 
             resp = self.response = web.StreamResponse(headers=headers)
             await resp.prepare(request)
@@ -57,33 +55,30 @@ class JSONPolling(StreamingTransport):
             data = await request.read()
 
             ctype = request.content_type.lower()
-            if ctype == 'application/x-www-form-urlencoded':
-                if not data.startswith(b'd='):
-                    return web.HTTPInternalServerError(
-                        body=b'Payload expected.')
+            if ctype == "application/x-www-form-urlencoded":
+                if not data.startswith(b"d="):
+                    return web.HTTPInternalServerError(text="Payload expected.")
 
                 data = unquote_plus(data[2:].decode(ENCODING))
             else:
                 data = data.decode(ENCODING)
 
             if not data:
-                return web.HTTPInternalServerError(
-                    body=b'Payload expected.')
+                return web.HTTPInternalServerError(text="Payload expected.")
 
             try:
                 messages = loads(data)
             except Exception:
-                return web.HTTPInternalServerError(
-                    body=b'Broken JSON encoding.')
+                return web.HTTPInternalServerError(text="Broken JSON encoding.")
 
             await session._remote_messages(messages)
-            return web.Response(
-                body=b'ok',
-                headers=((hdrs.CONTENT_TYPE,
-                          'text/plain; charset=UTF-8'),
-                         (hdrs.CACHE_CONTROL, CACHE_CONTROL)) +
-                session_cookie(request))
+
+            headers = (
+                (hdrs.CONTENT_TYPE, "text/html;charset=UTF-8"),
+                (hdrs.CACHE_CONTROL, CACHE_CONTROL),
+            )
+            headers += session_cookie(request)
+            return web.Response(body=b"ok", headers=headers)
 
         else:
-            return web.HTTPBadRequest(
-                text="No support for such method: %s" % meth)
+            return web.HTTPBadRequest(text="No support for such method: %s" % meth)

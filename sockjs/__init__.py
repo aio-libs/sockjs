@@ -20,11 +20,22 @@ from sockjs.protocol import MSG_CLOSED
 from sockjs.route import get_manager, add_endpoint
 
 
-__version__ = '0.8.0'
+__version__ = "0.10.0"
 
 
 __all__ = (
-    'get_manager', 'add_endpoint', 'Session', 'SessionManager',
-    'SessionIsClosed', 'SessionIsAcquired',
-    'STATE_NEW', 'STATE_OPEN', 'STATE_CLOSING', 'STATE_CLOSED',
-    'MSG_OPEN', 'MSG_MESSAGE', 'MSG_CLOSE', 'MSG_CLOSED',)
+    "get_manager",
+    "add_endpoint",
+    "Session",
+    "SessionManager",
+    "SessionIsClosed",
+    "SessionIsAcquired",
+    "STATE_NEW",
+    "STATE_OPEN",
+    "STATE_CLOSING",
+    "STATE_CLOSED",
+    "MSG_OPEN",
+    "MSG_MESSAGE",
+    "MSG_CLOSE",
+    "MSG_CLOSED",
+)

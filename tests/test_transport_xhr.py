@@ -7,12 +7,12 @@ from sockjs.transports import xhr
 
 @pytest.fixture
 def make_transport(make_manager, make_request, make_handler, make_fut):
-    def maker(method='GET', path='/', query_params={}):
+    def maker(method="GET", path="/", query_params={}):
         handler = make_handler(None)
         manager = make_manager(handler)
         request = make_request(method, path, query_params=query_params)
         request.app.freeze()
-        session = manager.get('TestSessionXhr', create=True, request=request)
+        session = manager.get("TestSessionXhr", create=True, request=request)
         return xhr.XHRTransport(manager, session, request)
 
     return maker
@@ -27,7 +27,7 @@ async def test_process(make_transport, make_fut):
 
 
 async def test_process_OPTIONS(make_transport):
-    transp = make_transport(method='OPTIONS')
+    transp = make_transport(method="OPTIONS")
     resp = await transp.process()
     assert resp.status == 204
 
