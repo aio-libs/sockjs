@@ -50,7 +50,11 @@ def make_handler():
             output.append((msg, s))
 
         if coro:
-            return asyncio.coroutine(handler)
+
+            async def async_handler(msg, s):
+                return handler(msg, s)
+
+            return async_handler
         else:
             return handler
 

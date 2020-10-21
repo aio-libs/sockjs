@@ -2,7 +2,15 @@
 CHANGES
 =======
 
-- Set WebSocketTransport to ignore empty frames and added the ability to process multi messages (383.feature).
+0.11.0 (unreleased)
+-------------------
+
+- **Breaking change:** Added into the WebSocketTransport the ability
+  to process multi messages from client (#383).
+- Set WebSocketTransport to ignore empty frames (#383).
+- Added tick after dequeue so heartbeat keeps session live (#265).
+- Fix race condition during iteration over sessions (#217).
+- Support Python 3.8.
 
 0.10.0 (2019-10-20)
 -------------------
