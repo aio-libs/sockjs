@@ -1,8 +1,8 @@
 SockJS server based on Asyncio (PEP 3156)
 =========================================
 
-.. image :: https://secure.travis-ci.org/aio-libs/sockjs.svg
-  :target:  https://secure.travis-ci.org/aio-libs/sockjs
+.. image:: https://travis-ci.com/aio-libs/sockjs.svg?branch=master
+    :target: https://travis-ci.com/aio-libs/sockjs
 
 `sockjs` is a `SockJS <http://sockjs.org>`_ integration for
 `aiohttp <https://github.com/aio-libs/aiohttp/>`_.  SockJS interface
@@ -40,23 +40,24 @@ Example of sockjs route::
 
 Client side code::
 
-  <script src="//cdn.jsdelivr.net/sockjs/0.3.4/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
   <script>
-      var sock = new SockJS('http://localhost:8080/sockjs');
+    var sock = new SockJS('http://localhost:8080/sockjs');
 
-      sock.onopen = function() {
-        console.log('open');
-      };
+    sock.onopen = function() {
+      console.log('open');
+      sock.send('test');
+    };
 
-      sock.onmessage = function(obj) {
-        console.log(obj);
-      };
+    sock.onmessage = function(e) {
+      console.log('message', e.data);
+      sock.close();
+    };
 
-      sock.onclose = function() {
-        console.log('close');
-      };
+    sock.onclose = function() {
+      console.log('close');
+    };
   </script>
-
 
 Supported transports
 --------------------
