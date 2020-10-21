@@ -2,6 +2,7 @@
 CHANGES
 =======
 
+- Set WebSocketTransport to ignore empty frames and added the ability to process multi messages (383.feature).
 
 0.10.0 (2019-10-20)
 -------------------

@@ -36,9 +36,6 @@ class WebSocketTransport(Transport):
                 if not data:
                     continue
 
-                if data.startswith("["):
-                    data = data[1:-1]
-
                 try:
                     text = loads(data)
                 except Exception as exc:
@@ -47,7 +44,10 @@ class WebSocketTransport(Transport):
                     await ws.close(message=b"broken json")
                     break
 
-                await session._remote_message(text)
+                if data.startswith("["):
+                    await session._remote_messages(text)
+                else:
+                    await session._remote_message(text)
 
             elif msg.type == web.WSMsgType.close:
                 await session._remote_close()
