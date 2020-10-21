@@ -20,7 +20,7 @@ log = logging.getLogger("sockjs")
 
 
 class Session(object):
-    """ SockJS session object
+    """SockJS session object
 
     ``state``: Session state
 
