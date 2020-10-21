@@ -82,7 +82,7 @@ Supported transports
 Requirements
 ------------
 
-- Python 3.4
+- Python 3.5.3
 
 - gunicorn 19.2.0
 
