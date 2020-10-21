@@ -114,6 +114,6 @@ async def test_frames(make_transport, make_handler):
     session = transp.session
     await transp.client(ws, session)
 
-    assert result[0][0].data == 'single_msg'
-    assert result[1][0].data == 'msg1'
-    assert result[2][0].data == 'msg2'
+    assert result[0][0].data == "single_msg"
+    assert result[1][0].data == "msg1"
+    assert result[2][0].data == "msg2"
