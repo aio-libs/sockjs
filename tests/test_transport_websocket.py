@@ -90,16 +90,26 @@ async def test_frames(make_transport, make_handler):
     empty_frame.set_result(WSMessage(type=WSMsgType.text, data="[]", extra=""))
 
     single_msg_frame = Future()
-    single_msg_frame.set_result(WSMessage(type=WSMsgType.text, data='"single_msg"', extra=""))
+    single_msg_frame.set_result(
+        WSMessage(type=WSMsgType.text, data='"single_msg"', extra="")
+    )
 
     multi_msg_frame = Future()
-    multi_msg_frame.set_result(WSMessage(type=WSMsgType.text, data='["msg1", "msg2"]', extra=""))
+    multi_msg_frame.set_result(
+        WSMessage(type=WSMsgType.text, data='["msg1", "msg2"]', extra="")
+    )
 
     close_frame = Future()
     close_frame.set_result(WSMessage(type=WSMsgType.closed, data="", extra=""))
 
     ws = mock.Mock()
-    ws.receive.side_effect = [empty_message, empty_frame, single_msg_frame, multi_msg_frame, close_frame]
+    ws.receive.side_effect = [
+        empty_message,
+        empty_frame,
+        single_msg_frame,
+        multi_msg_frame,
+        close_frame,
+    ]
 
     session = transp.session
     await transp.client(ws, session)
