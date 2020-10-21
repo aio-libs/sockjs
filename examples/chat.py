@@ -1,9 +1,10 @@
-import asyncio
-import os
 import logging
+import os
+
 from aiohttp import web
 
 import sockjs
+
 
 CHAT_FILE = open(
     os.path.join(os.path.dirname(__file__), 'chat.html'), 'rb').read()
