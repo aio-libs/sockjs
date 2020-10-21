@@ -23,20 +23,10 @@ Simple aiohttp web server is required::
 Example of sockjs route::
 
    def main(global_settings, **settings):
-       app = web.Application(loop=loop)
+       app = web.Application()
        app.router.add_route('GET', '/', index)
        sockjs.add_endpoint(app, prefix='/sockjs', handler=chatSession)
-
-       handler = app.make_handler()
-       srv = loop.run_until_complete(
-           loop.create_server(handler, '127.0.0.1', 8080))
-       print("Server started at http://127.0.0.1:8080")
-       try:
-           loop.run_forever()
-        except KeyboardInterrupt:
-           srv.close()
-           loop.run_until_complete(handler.finish_connections())
-
+       web.run_app(app)
 
 Client side code::
 

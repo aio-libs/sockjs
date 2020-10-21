@@ -10,6 +10,8 @@ CHAT_FILE = open(
 
 
 async def chat_msg_handler(msg, session):
+    if session.manager is None:
+        return
     if msg.type == sockjs.MSG_OPEN:
         session.manager.broadcast("Someone joined.")
     elif msg.type == sockjs.MSG_MESSAGE:
@@ -24,11 +26,10 @@ def index(request):
 
 if __name__ == '__main__':
     """Simple sockjs chat."""
-    loop = asyncio.get_event_loop()
     logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s %(levelname)s %(message)s')
 
-    app = web.Application(loop=loop)
+    app = web.Application()
     app.router.add_route('GET', '/', index)
     sockjs.add_endpoint(app, chat_msg_handler, name='chat', prefix='/sockjs/')
 

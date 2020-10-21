@@ -11,6 +11,7 @@ CHANGES
 - Added tick after dequeue so heartbeat keeps session live (#265).
 - Fix race condition during iteration over sessions (#217).
 - Support Python 3.8.
+- Fixed examples of using of SockJS server (#264).
 
 0.10.0 (2019-10-20)
 -------------------
