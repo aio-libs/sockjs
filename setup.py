@@ -25,6 +25,7 @@ setup(
     version=version,
     description="SockJS server implementation for aiohttp.",
     long_description="\n\n".join((read("README.rst"), read("CHANGES.rst"))),
+    long_description_content_type="text/x-rst",
     classifiers=[
         "License :: OSI Approved :: Apache Software License",
         "Intended Audience :: Developers",
