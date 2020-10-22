@@ -20,7 +20,7 @@ from sockjs.protocol import MSG_CLOSED
 from sockjs.route import get_manager, add_endpoint
 
 
-__version__ = "0.10.0"
+__version__ = "0.11.0"
 
 
 __all__ = (
