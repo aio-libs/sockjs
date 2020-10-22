@@ -21,7 +21,7 @@
             return $(this).attr('id');
         }).get();
 
-        conn = new SockJS('http://' + window.location.host + '/sockjs/', transports, {debug: true});
+        conn = new SockJS('http://' + window.location.host + '/sockjs/', [], {debug: true, transports: transports});
 
         log('Connecting...');
 
