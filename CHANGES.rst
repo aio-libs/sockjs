@@ -2,8 +2,8 @@
 CHANGES
 =======
 
-0.12.0 (not released yet)
--------------------------
+0.12.0 (2022-02-08)
+-------------------
 
 - Fixed processing of heartbeats and a session expiration.
 - Fixed ping-pong based heartbeats for web-socket connections.
