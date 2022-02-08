@@ -15,6 +15,7 @@ CHANGES
 - **Breaking change:** Argument ``heartbeat`` of ``SessionManager.__init__()``
   renamed into ``heartbeat_delay``.
 - **Breaking change:** ``Session.registry`` renamed into ``Session.app``.
+- **Breaking change:** Deleted method ``SessionManager.route_url()``.
 - **Breaking change:** Dropped support of Python < 3.7
 
 0.11.0 (2020-10-22)

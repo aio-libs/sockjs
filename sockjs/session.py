@@ -2,7 +2,6 @@ import asyncio
 import collections
 import logging
 import warnings
-from asyncio import ensure_future
 from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 
@@ -158,7 +157,6 @@ class Session:
         self._heartbeats += 1
         if self._send_heartbeats:
             self._feed(FRAME_HEARTBEAT, FRAME_HEARTBEAT)
-            log.debug("heartbeat sent: %s", self.id)
 
     def _feed(self, frame, data):
         # pack messages
@@ -319,10 +317,6 @@ class SessionManager(dict):
         self.disconnect_delay = disconnect_delay
         self.debug = debug
 
-    def route_url(self, request: web.Request):
-        url = self.app.router[self.route_name].url_for()
-        return "%s://%s%s" % (request.scheme, request.host, url)
-
     @property
     def started(self):
         return self._hb_task is not None
@@ -339,10 +333,6 @@ class SessionManager(dict):
                 pass  # an event loop already stopped
             self._hb_task = None
         await self.clear()
-
-    def _heartbeat(self):
-        if self._hb_task is None:
-            self._hb_task = ensure_future(self._heartbeat_task())
 
     async def _check_expiration(self, session: Session):
         if session.expired:
@@ -371,14 +361,20 @@ class SessionManager(dict):
                 del sessions[idx]
 
     async def _heartbeat_task(self):
+        delay = min(self.heartbeat_delay, self.disconnect_delay)
+        if delay <= 0:
+            delay = max(self.heartbeat_delay, self.disconnect_delay, 10)
         while True:
-            await asyncio.sleep(self.heartbeat_delay)
+            await asyncio.sleep(delay)
             await self._gc_expired_sessions()
-            # Send heartbeat
-            now = datetime.now()
-            for session in self.sessions:
-                if session.next_heartbeat <= now:
-                    session._heartbeat()
+            self._heartbeat()
+
+    def _heartbeat(self):
+        # Send heartbeat
+        now = datetime.now()
+        for session in self.sessions:
+            if session.next_heartbeat <= now:
+                session._heartbeat()
 
     def _add(self, session: Session):
         if session.expired:
