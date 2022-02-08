@@ -1,24 +1,25 @@
 import asyncio
-import json
-import random
-import logging
 import hashlib
 import inspect
-from aiohttp import web, hdrs
+import json
+import logging
+import random
+from typing import Iterable, Type
 
-from sockjs.session import SessionManager
-from sockjs.protocol import IFRAME_HTML
-from sockjs.transports import handlers
-from sockjs.transports.utils import CACHE_CONTROL
-from sockjs.transports.utils import session_cookie
-from sockjs.transports.utils import cors_headers
-from sockjs.transports.utils import cache_headers
-from sockjs.transports.rawwebsocket import RawWebSocketTransport
+from aiohttp import hdrs, web
+
+from .protocol import IFRAME_HTML
+from .session import SessionManager
+from .transports import transport_handlers
+from .transports.base import Transport
+from .transports.rawwebsocket import RawWebSocketTransport
+from .transports.utils import CACHE_CONTROL, cache_headers, cors_headers, session_cookie
+
 
 log = logging.getLogger("sockjs")
 
 
-def get_manager(name, app):
+def get_manager(name, app) -> SessionManager:
     return app["__sockjs_managers__"][name]
 
 
@@ -27,7 +28,7 @@ def _gen_endpoint_name():
 
 
 def add_endpoint(
-    app,
+    app: web.Application,
     handler,
     *,
     name="",
@@ -37,12 +38,14 @@ def add_endpoint(
     sockjs_cdn="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js",  # noqa
     cookie_needed=True
 ):
-
     assert callable(handler), handler
     if not asyncio.iscoroutinefunction(handler) and not inspect.isgeneratorfunction(
         handler
     ):
-        handler = asyncio.coroutine(handler)
+        sync_handler = handler
+
+        async def handler(msg, session):
+            return sync_handler(msg, session)
 
     router = app.router
 
@@ -64,12 +67,15 @@ def add_endpoint(
 
     # register routes
     route = SockJSRoute(
-        name, manager, sockjs_cdn, handlers, disable_transports, cookie_needed
+        name,
+        manager,
+        sockjs_cdn,
+        transport_handlers,
+        disable_transports,
+        cookie_needed,
     )
 
-    if prefix.endswith("/"):
-        prefix = prefix[:-1]
-
+    prefix = prefix.rstrip("/")
     route_name = "sockjs-url-%s-greeting" % name
     router.add_route(hdrs.METH_GET, prefix, route.greeting, name=route_name)
 
@@ -109,24 +115,23 @@ def add_endpoint(
         hdrs.METH_GET, "%s/iframe{version}.html" % prefix, route.iframe, name=route_name
     )
 
-    # start session gc
-    manager.start()
+    app.on_cleanup.append(manager.stop)
 
 
 class SockJSRoute:
     def __init__(
         self,
-        name,
-        manager,
-        sockjs_cdn,
+        name: str,
+        manager: SessionManager,
+        sockjs_cdn: str,
         handlers,
-        disable_transports,
+        disable_transports: Iterable[str],
         cookie_needed=True,
     ):
         self.name = name
         self.manager = manager
         self.handlers = handlers
-        self.disable_transports = dict((k, 1) for k in disable_transports)
+        self.disable_transports = set(disable_transports)
         self.cookie_needed = cookie_needed
         self.iframe_html = (IFRAME_HTML % sockjs_cdn).encode("utf-8")
         self.iframe_html_hxd = hashlib.md5(self.iframe_html).hexdigest()
@@ -140,7 +145,7 @@ class SockJSRoute:
         if tid not in self.handlers or tid in self.disable_transports:
             return web.HTTPNotFound()
 
-        create, transport = self.handlers[tid]
+        transport: Type[Transport] = self.handlers[tid]
 
         # session
         manager = self.manager
@@ -152,7 +157,7 @@ class SockJSRoute:
             return web.HTTPNotFound()
 
         try:
-            session = manager.get(sid, create, request=request)
+            session = transport.get_session(manager, sid)
         except KeyError:
             return web.HTTPNotFound(headers=session_cookie(request))
 
@@ -170,9 +175,12 @@ class SockJSRoute:
             return web.HTTPInternalServerError()
 
     async def websocket(self, request):
+        if not self.manager.started:
+            self.manager.start()
+
         # session
         sid = "%0.9d" % random.randint(1, 2147483647)
-        session = self.manager.get(sid, True, request=request)
+        session = self.manager.get(sid, True)
 
         transport = RawWebSocketTransport(self.manager, session, request)
         try:

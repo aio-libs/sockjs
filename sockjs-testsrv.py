@@ -33,7 +33,7 @@ if __name__ == '__main__':
     EventsourceTransport.maxsize = 4096
     XHRStreamingTransport.maxsize = 4096
 
-    app = web.Application(loop=loop)
+    app = web.Application()
 
     sockjs.add_endpoint(
         app, echoSession, name='echo', prefix='/echo')
@@ -48,4 +48,4 @@ if __name__ == '__main__':
         app, echoSession, name='cookie', prefix='/cookie_needed_echo',
         cookie_needed=True)
 
-    web.run_app(app)
+    web.run_app(app, port=8081)

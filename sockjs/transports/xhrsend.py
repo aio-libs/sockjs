@@ -1,11 +1,13 @@
-from aiohttp import web, hdrs
+from aiohttp import hdrs, web
 
-from ..protocol import loads, ENCODING
 from .base import Transport
-from .utils import CACHE_CONTROL, session_cookie, cors_headers, cache_headers
+from .utils import CACHE_CONTROL, cache_headers, cors_headers, session_cookie
+from ..protocol import ENCODING, loads
 
 
 class XHRSendTransport(Transport):
+    create_session = False
+
     async def process(self):
         request = self.request
 

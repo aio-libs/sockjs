@@ -2,22 +2,22 @@
 import re
 from urllib.parse import unquote_plus
 
-from aiohttp import web, hdrs
+from aiohttp import hdrs, web
 
 from .base import StreamingTransport
-from .utils import CACHE_CONTROL, session_cookie, cors_headers
-from ..protocol import dumps, loads, ENCODING
+from .utils import CACHE_CONTROL, cors_headers, session_cookie
+from ..protocol import ENCODING, dumps, loads
 
 
 class JSONPolling(StreamingTransport):
-
+    create_session = True
+    maxsize = 0
     check_callback = re.compile(r"^[a-zA-Z0-9_\.]+$")
     callback = ""
 
-    async def send(self, text):
-        data = "/**/%s(%s);\r\n" % (self.callback, dumps(text))
-        await self.response.write(data.encode(ENCODING))
-        return True
+    async def _send(self, text: str):
+        text = "/**/%s(%s);\r\n" % (self.callback, dumps(text))
+        return await super()._send(text)
 
     async def process(self):
         session = self.session
@@ -25,11 +25,7 @@ class JSONPolling(StreamingTransport):
         meth = request.method
 
         if request.method == hdrs.METH_GET:
-            try:
-                callback = self.callback = request.query.get("c")
-            except Exception:
-                callback = self.callback = request.GET.get("c")
-
+            callback = self.callback = request.query.get("c")
             if not callback:
                 await self.session._remote_closed()
                 return web.HTTPInternalServerError(text='"callback" parameter required')
@@ -74,7 +70,7 @@ class JSONPolling(StreamingTransport):
             await session._remote_messages(messages)
 
             headers = (
-                (hdrs.CONTENT_TYPE, "text/html;charset=UTF-8"),
+                (hdrs.CONTENT_TYPE, "text/plain;charset=UTF-8"),
                 (hdrs.CACHE_CONTROL, CACHE_CONTROL),
             )
             headers += session_cookie(request)
@@ -82,3 +78,7 @@ class JSONPolling(StreamingTransport):
 
         else:
             return web.HTTPBadRequest(text="No support for such method: %s" % meth)
+
+
+class JSONPollingSend(JSONPolling):
+    create_session = False

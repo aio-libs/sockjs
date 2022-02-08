@@ -13,9 +13,8 @@ flake:
 fmt:
 	black sockjs tests setup.py
 
-
 develop:
-	python setup.py develop
+	pip install -e .[test]
 
 test: flake develop
 	pytest $(FLAGS) ./tests/
@@ -40,11 +39,6 @@ clean:
 	rm -rf coverage
 	rm -rf build
 	rm -rf cover
-	make -C docs clean
 	python setup.py clean
 
-doc:
-	make -C docs html
-	@echo "open file://`pwd`/docs/_build/html/index.html"
-
-.PHONY: all build venv flake test vtest testloop cov clean doc
+.PHONY: all build venv flake test vtest testloop cov clean

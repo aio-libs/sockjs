@@ -1,7 +1,5 @@
 from unittest import mock
 
-from aiohttp import web
-
 import pytest
 from aiohttp.test_utils import make_mocked_coro
 
@@ -10,11 +8,11 @@ from sockjs.transports import jsonp
 
 @pytest.fixture
 def make_transport(make_request, make_manager, make_handler, make_fut):
-    def maker(method="GET", path="/", query_params={}):
+    def maker(method="GET", path="/", query_params=None):
         handler = make_handler(None)
         manager = make_manager(handler)
         request = make_request(method, path, query_params=query_params)
-        session = manager.get("TestSessionJsonP", create=True, request=request)
+        session = manager.get("TestSessionJsonP", create=True)
         request.app.freeze()
         return jsonp.JSONPolling(manager, session, request)
 
@@ -27,7 +25,7 @@ async def test_streaming_send(make_transport):
 
     resp = trans.response = mock.Mock()
     resp.write = make_mocked_coro(None)
-    stop = await trans.send("text data")
+    stop = await trans._send("text data")
     resp.write.assert_called_with(b'/**/cb("text data");\r\n')
     assert stop
 
@@ -100,7 +98,7 @@ async def xtest_process_message(make_transport, make_fut):
     transp.session._remote_messages.assert_called_with(["msg1", "msg2"])
 
 
-async def test_session_has_request(make_transport, make_fut):
-    transp = make_transport(method="POST")
-    transp.session._remote_messages = make_fut(1)
-    assert isinstance(transp.session.request, web.Request)
+# async def test_session_has_request(make_transport, make_fut):
+#     transp = make_transport(method="POST")
+#     transp.session._remote_messages = make_fut(1)
+#     assert isinstance(transp.session.request, web.Request)

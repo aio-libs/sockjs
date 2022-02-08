@@ -4,6 +4,7 @@ from aiohttp import web
 from multidict import CIMultiDict
 
 from sockjs import protocol
+from sockjs.transports.base import Transport
 
 
 async def test_info(make_route, make_request):
@@ -62,8 +63,8 @@ async def test_iframe(make_route, make_request):
     text = """<!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <script src="http:sockjs-cdn"></script>
   <script>
     document.domain = document.domain;
@@ -148,14 +149,15 @@ async def _test_transport(make_route, make_request):
 
     params = []
 
-    class Transport:
+    class FakeTransport(Transport):
         def __init__(self, manager, session, request):
+            super().__init__(manager, session, request)
             params.append((manager, session, request))
 
         def process(self):
             return web.HTTPOk()
 
-    route = make_route(handlers={"test": (True, Transport)})
+    route = make_route(handlers={"test": FakeTransport})
     res = await route.handler(request)
     assert isinstance(res, web.HTTPOk)
     assert params[0] == (route.manager, route.manager["s1"], request)
@@ -170,14 +172,15 @@ async def test_fail_transport(make_route, make_request):
 
     params = []
 
-    class Transport:
+    class FakeTransport(Transport):
         def __init__(self, manager, session, request):
+            super().__init__(manager, session, request)
             params.append((manager, session, request))
 
         def process(self):
             raise Exception("Error")
 
-    route = make_route(handlers={"test": (True, Transport)})
+    route = make_route(handlers={"test": FakeTransport})
     res = await route.handler(request)
     assert isinstance(res, web.HTTPInternalServerError)
 
@@ -189,16 +192,14 @@ async def test_release_session_for_failed_transport(make_route, make_request):
         match_info={"transport": "test", "session": "s1", "server": "000"},
     )
 
-    class Transport:
-        def __init__(self, manager, session, request):
-            self.manager = manager
-            self.session = session
+    class FakeTransport(Transport):
+        create_session = True
 
         async def process(self):
-            await self.manager.acquire(self.session)
+            await self.manager.acquire(self.session, self.request)
             raise Exception("Error")
 
-    route = make_route(handlers={"test": (True, Transport)})
+    route = make_route(handlers={"test": FakeTransport})
     res = await route.handler(request)
     assert isinstance(res, web.HTTPInternalServerError)
 

@@ -1,14 +1,12 @@
 import asyncio
-from unittest import mock
+from asyncio import ensure_future
 from datetime import datetime, timedelta
-
-from aiohttp import web
+from unittest import mock
 
 import pytest
+from aiohttp import web
 
-from asyncio import ensure_future
-
-from sockjs import Session, SessionIsClosed, protocol, SessionIsAcquired
+from sockjs import Session, SessionIsAcquired, SessionIsClosed, protocol
 
 
 class TestSession:
@@ -17,18 +15,17 @@ class TestSession:
         now = dt.now.return_value = datetime.now()
 
         handler = make_handler([])
-        request = make_request("GET", "/TestPath")
-        session = Session("id", handler, request)
+        session = Session("id", handler)
 
         assert session.id == "id"
         assert not session.expired
-        assert session.expires == now + timedelta(seconds=10)
+        assert session.expires == now + timedelta(seconds=5)
 
         assert session._hits == 0
         assert session._heartbeats == 0
         assert session.state == protocol.STATE_NEW
 
-        session = Session("id", handler, request, timeout=timedelta(seconds=15))
+        session = Session("id", handler, disconnect_delay=15)
 
         assert session.id == "id"
         assert not session.expired
@@ -63,25 +60,29 @@ class TestSession:
 
         now = dt.now.return_value = now + timedelta(hours=1)
         session._tick()
-        assert session.expires == now + session.timeout
+        assert session.next_heartbeat == now + timedelta(
+            seconds=session.heartbeat_delay
+        )
 
     async def test_tick_different_timeoutk(self, mocker, make_session):
         dt = mocker.patch("sockjs.session.datetime")
         now = dt.now.return_value = datetime.now()
-        session = make_session("test", timeout=timedelta(seconds=20))
+        session = make_session("test", disconnect_delay=20)
 
         now = dt.now.return_value = now + timedelta(hours=1)
         session._tick()
-        assert session.expires == now + timedelta(seconds=20)
+        assert session.next_heartbeat == now + timedelta(
+            seconds=session.heartbeat_delay
+        )
 
     async def test_tick_custom(self, mocker, make_session):
         dt = mocker.patch("sockjs.session.datetime")
         now = dt.now.return_value = datetime.now()
-        session = make_session("test", timeout=timedelta(seconds=20))
+        session = make_session("test", disconnect_delay=20)
 
         now = dt.now.return_value = now + timedelta(hours=1)
-        session._tick(timedelta(seconds=30))
-        assert session.expires == now + timedelta(seconds=30)
+        session._tick(30)
+        assert session.next_heartbeat == now + timedelta(seconds=30)
 
     async def test_heartbeat(self, make_session):
         session = make_session("test")
@@ -93,17 +94,21 @@ class TestSession:
 
     async def test_heartbeat_transport(self, make_session):
         session = make_session("test")
-        session._heartbeat_transport = True
+        session._send_heartbeats = True
         session._heartbeat()
         assert list(session._queue) == [
             (protocol.FRAME_HEARTBEAT, protocol.FRAME_HEARTBEAT)
         ]
 
-    async def test_expire(self, make_session):
-        session = make_session("test")
-        assert not session.expired
+    async def test_expire(self, make_session, mocker):
+        dt = mocker.patch("sockjs.session.datetime")
+        now = dt.now.return_value = datetime.now()
 
+        session = make_session("test", disconnect_delay=5)
         session.expire()
+        assert session.expires == now + timedelta(seconds=5)
+        assert not session.expired
+        dt.now.return_value = now + timedelta(seconds=5)
         assert session.expired
 
     async def test_send(self, make_session):
@@ -157,9 +162,8 @@ class TestSession:
         ]
 
     async def test_feed_with_waiter(self, make_session):
-        loop = asyncio.get_event_loop()
         session = make_session("test")
-        session._waiter = waiter = loop.create_future()
+        session._waiter = waiter = asyncio.Future()
         session._feed(protocol.FRAME_MESSAGE, "msg")
 
         assert list(session._queue) == [(protocol.FRAME_MESSAGE, ["msg"])]
@@ -175,7 +179,7 @@ class TestSession:
             s._feed(protocol.FRAME_MESSAGE, "msg1")
 
         ensure_future(send())
-        frame, payload = await s._wait()
+        frame, payload = await s._get_frame()
         assert frame == protocol.FRAME_MESSAGE
         assert payload == 'a["msg1"]'
 
@@ -183,13 +187,13 @@ class TestSession:
         s = make_session("test")
         s.state = protocol.STATE_CLOSED
         with pytest.raises(SessionIsClosed):
-            await s._wait()
+            await s._get_frame()
 
     async def test_wait_message(self, make_session):
         s = make_session("test")
         s.state = protocol.STATE_OPEN
         s._feed(protocol.FRAME_MESSAGE, "msg1")
-        frame, payload = await s._wait()
+        frame, payload = await s._get_frame()
         assert frame == protocol.FRAME_MESSAGE
         assert payload == 'a["msg1"]'
 
@@ -197,7 +201,7 @@ class TestSession:
         s = make_session("test")
         s.state = protocol.STATE_OPEN
         s._feed(protocol.FRAME_CLOSE, (3000, "Go away!"))
-        frame, payload = await s._wait()
+        frame, payload = await s._get_frame()
         assert frame == protocol.FRAME_CLOSE
         assert payload == 'c[3000,"Go away!"]'
 
@@ -205,7 +209,7 @@ class TestSession:
         s = make_session("test")
         s.state = protocol.STATE_OPEN
         s._feed(protocol.FRAME_MESSAGE, "msg1")
-        frame, payload = await s._wait(pack=False)
+        frame, payload = await s._get_frame(pack=False)
         assert frame == protocol.FRAME_MESSAGE
         assert payload == ["msg1"]
 
@@ -213,7 +217,7 @@ class TestSession:
         s = make_session("test")
         s.state = protocol.STATE_OPEN
         s._feed(protocol.FRAME_CLOSE, (3000, "Go away!"))
-        frame, payload = await s._wait(pack=False)
+        frame, payload = await s._get_frame(pack=False)
         assert frame == protocol.FRAME_CLOSE
         assert payload == (3000, "Go away!")
 
@@ -231,30 +235,33 @@ class TestSession:
         assert session.state == protocol.STATE_CLOSED
         assert list(session._queue) == []
 
-    async def test_acquire_new_session(self, make_session):
-        manager = object()
+    async def test_acquire_new_session(self, make_manager, make_session, make_request):
+        manager = make_manager()
         messages = []
 
         session = make_session(result=messages)
         assert session.state == protocol.STATE_NEW
 
-        await session._acquire(manager)
+        await session._acquire(manager, request=make_request("GET", "/test/"))
         assert session.state == protocol.STATE_OPEN
         assert session.manager is manager
-        assert session._heartbeat_transport
+        assert session._send_heartbeats
         assert list(session._queue) == [(protocol.FRAME_OPEN, protocol.FRAME_OPEN)]
         assert messages == [(protocol.OpenMessage, session)]
 
-    async def test_acquire_exception_in_handler(self, make_session):
+    async def test_acquire_exception_in_handler(
+        self, make_manager, make_session, make_request
+    ):
         async def handler(msg, s):
             raise ValueError
 
         session = make_session(handler=handler)
         assert session.state == protocol.STATE_NEW
 
-        await session._acquire(object())
+        sm = make_manager()
+        await session._acquire(sm, request=make_request("GET", "/test/"))
         assert session.state == protocol.STATE_CLOSING
-        assert session._heartbeat_transport
+        assert session._send_heartbeats
         assert session.interrupted
         assert list(session._queue) == [
             (protocol.FRAME_OPEN, protocol.FRAME_OPEN),
@@ -302,7 +309,23 @@ class TestSession:
         session = make_session(result=messages)
 
         await session._remote_closed()
+        assert session.expires > datetime.now()
+        assert not session.expired
+        assert session.state == protocol.STATE_NEW
+        assert messages == []
+
+        session.expires = datetime.now()
         assert session.expired
+        await session._remote_closed()
+        assert session.state == protocol.STATE_CLOSED
+        assert messages == [(protocol.ClosedMessage, session)]
+
+        # Without delay
+        messages = []
+        session = make_session(result=messages, disconnect_delay=0)
+        await session._remote_closed()
+        assert session.expired
+        await session._remote_closed()
         assert session.state == protocol.STATE_CLOSED
         assert messages == [(protocol.ClosedMessage, session)]
 
@@ -317,12 +340,13 @@ class TestSession:
 
     async def test_remote_closed_with_waiter(self, make_session):
         messages = []
-        session = make_session(result=messages)
-        loop = asyncio.get_event_loop()
-        session._waiter = waiter = loop.create_future()
+        session = make_session(result=messages, disconnect_delay=0)
+        session._waiter = waiter = asyncio.Future()
 
+        now = datetime.now()
         await session._remote_closed()
         assert waiter.done()
+        assert session.expires <= now
         assert session.expired
         assert session._waiter is None
         assert session.state == protocol.STATE_CLOSED
@@ -330,9 +354,11 @@ class TestSession:
 
     async def test_remote_closed_exc_in_handler(self, make_handler, make_session):
         handler = make_handler([], exc=True)
-        session = make_session(handler=handler)
+        session = make_session(handler=handler, disconnect_delay=0)
 
+        now = datetime.now()
         await session._remote_closed()
+        assert session.expires <= now
         assert session.expired
         assert session.state == protocol.STATE_CLOSED
 
@@ -375,7 +401,10 @@ class TestSession:
 class TestSessionManager:
     async def test_request_available(self, make_manager, make_request):
         sm = make_manager()
-        s = sm.get("test", True, make_request("GET", "/test/"))
+        s = sm.get("test", True)
+        assert s.request is None
+        await sm.acquire(s, make_request("GET", "/test/"))
+        assert s.request is not None
         assert isinstance(s.request, web.Request)
 
     async def test_fresh(self, make_manager, make_session):
@@ -395,11 +424,12 @@ class TestSessionManager:
 
     async def test_add_expired(self, make_manager, make_session):
         sm = make_manager()
-        s = make_session()
-        s.expire()
+        session = make_session(disconnect_delay=0)
+        session.expire()
+        assert session.expires <= datetime.now()
 
         with pytest.raises(ValueError):
-            sm._add(s)
+            sm._add(session)
 
     async def test_get(self, make_manager, make_session):
         sm = make_manager()
@@ -424,16 +454,15 @@ class TestSessionManager:
         assert s.id in sm
         assert isinstance(s, Session)
 
-    async def test_acquire(self, make_manager, make_session):
+    async def test_acquire(self, make_manager, make_session, make_request):
         sm = make_manager()
         s1 = make_session()
         sm._add(s1)
         s1._acquire = mock.Mock()
-        loop = asyncio.get_event_loop()
-        s1._acquire.return_value = loop.create_future()
+        s1._acquire.return_value = asyncio.Future()
         s1._acquire.return_value.set_result(1)
 
-        s2 = await sm.acquire(s1)
+        s2 = await sm.acquire(s1, request=make_request("GET", "/test/"))
 
         assert s1 is s2
         assert s1.id in sm.acquired
@@ -441,27 +470,27 @@ class TestSessionManager:
         assert sm.is_acquired(s1)
         assert s1._acquire.called
 
-    async def test_acquire_unknown(self, make_manager, make_session):
+    async def test_acquire_unknown(self, make_manager, make_session, make_request):
         sm = make_manager()
         s = make_session()
         with pytest.raises(KeyError):
-            await sm.acquire(s)
+            await sm.acquire(s, request=make_request("GET", "/test/"))
 
-    async def test_acquire_locked(self, make_manager, make_session):
+    async def test_acquire_locked(self, make_manager, make_session, make_request):
         sm = make_manager()
         s = make_session()
         sm._add(s)
-        await sm.acquire(s)
+        await sm.acquire(s, request=make_request("GET", "/test/"))
 
         with pytest.raises(SessionIsAcquired):
-            await sm.acquire(s)
+            await sm.acquire(s, request=make_request("GET", "/test/"))
 
-    async def test_release(self, make_manager):
+    async def test_release(self, make_manager, make_request):
         sm = make_manager()
         s = sm.get("test", True)
         s._release = mock.Mock()
 
-        await sm.acquire(s)
+        await sm.acquire(s, request=make_request("GET", "/test/"))
         await sm.release(s)
 
         assert "test" not in sm.acquired
@@ -473,6 +502,7 @@ class TestSessionManager:
 
         s1 = sm.get("test1", True)
         s2 = sm.get("test2", True)
+        s2.disconnect_delay = 0
         s2.expire()
 
         active = list(sm.active_sessions())
@@ -514,75 +544,64 @@ class TestSessionManager:
 
         sm.start()
         assert sm.started
-        assert sm._hb_handle is not None
-
-        sm._heartbeat()
         assert sm._hb_task is not None
 
         hb_task = sm._hb_task
 
-        sm.stop()
+        await sm.stop()
         assert not sm.started
-        assert sm._hb_handle is None
         assert sm._hb_task is None
         assert hb_task._must_cancel
 
-    async def test_heartbeat_task(self, make_manager):
-        sm = make_manager()
-        sm._hb_task = mock.Mock()
-
-        await sm._heartbeat_task()
-        assert sm.started
-        assert sm._hb_task is None
-
-    async def test_gc_expire(self, make_manager, make_session):
+    async def test_gc_expire(self, make_manager, make_session, make_request):
         sm = make_manager()
         s = make_session()
 
         sm._add(s)
-        await sm.acquire(s)
+        await sm.acquire(s, request=make_request("GET", "/test/"))
         await sm.release(s)
 
-        s.expires = datetime.now() - timedelta(seconds=30)
+        now = datetime.now()
+        s.expires = now - timedelta(seconds=30)
+        assert s.expired
 
-        await sm._heartbeat_task()
+        await sm._gc_expired_sessions()
         assert s.id not in sm
         assert s.expired
         assert s.state == protocol.STATE_CLOSED
 
-    async def test_gc_expire_acquired(self, make_manager, make_session):
+    async def test_gc_expire_acquired(self, make_manager, make_session, make_request):
         sm = make_manager()
         s = make_session()
         sm._add(s)
-        await sm.acquire(s)
+        await sm.acquire(s, request=make_request("GET", "/test/"))
         s.expires = datetime.now() - timedelta(seconds=30)
-        await sm._heartbeat_task()
+        await sm._gc_expired_sessions()
 
         assert s.id not in sm
         assert s.id not in sm.acquired
         assert s.expired
         assert s.state == protocol.STATE_CLOSED
 
-    async def test_gc_one_expire(self, make_manager, make_session):
+    async def test_gc_one_expire(self, make_manager, make_session, make_request):
         sm = make_manager()
         s1 = make_session("id1")
         s2 = make_session("id2")
 
         sm._add(s1)
         sm._add(s2)
-        await sm.acquire(s1)
-        await sm.acquire(s2)
+        await sm.acquire(s1, request=make_request("GET", "/test/"))
+        await sm.acquire(s2, request=make_request("GET", "/test/"))
         await sm.release(s1)
         await sm.release(s2)
 
         s1.expires = datetime.now() - timedelta(seconds=30)
 
-        await sm._heartbeat_task()
+        await sm._gc_expired_sessions()
         assert s1.id not in sm
         assert s2.id in sm
 
     async def test_emits_warning_on_del(self, make_manager, make_session):
-
         sm = make_manager()
         s1 = make_session("id1")
         s2 = make_session("id2")
@@ -592,16 +611,12 @@ class TestSessionManager:
 
         with pytest.warns(RuntimeWarning) as warning:
             getattr(sm, "__del__")()
-            msg = (
-                "Unclosed sessions! Please call "
-                "`await SessionManager.clear()` before del"
-            )
+            msg = "Please call `await SessionManager.stop()` before del"
             assert warning[0].message.args[0] == msg
 
     async def test_does_not_emits_warning_on_del_if_no_sessions(
         self, make_manager, make_session
     ):
-
         sm = make_manager()
         s1 = make_session("id1")
         s2 = make_session("id2")

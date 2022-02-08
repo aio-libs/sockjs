@@ -1,21 +1,16 @@
 """ iframe-eventsource transport """
-from aiohttp import web, hdrs
-from sockjs.protocol import ENCODING
+from aiohttp import hdrs, web
 
 from .base import StreamingTransport
 from .utils import CACHE_CONTROL, session_cookie
 
 
 class EventsourceTransport(StreamingTransport):
-    async def send(self, text):
-        blob = "".join(("data: ", text, "\r\n\r\n")).encode(ENCODING)
-        await self.response.write(blob)
+    create_session = True
 
-        self.size += len(blob)
-        if self.size > self.maxsize:
-            return True
-        else:
-            return False
+    async def _send(self, text: str):
+        text = "".join(("data: ", text, "\r\n\r\n"))
+        return await super()._send(text)
 
     async def process(self):
         headers = (

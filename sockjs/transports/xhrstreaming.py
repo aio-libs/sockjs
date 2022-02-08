@@ -1,13 +1,15 @@
-from aiohttp import web, hdrs
+from aiohttp import hdrs, web
 
 from .base import StreamingTransport
-from .utils import CACHE_CONTROL, session_cookie, cors_headers, cache_headers
+from .utils import CACHE_CONTROL, cache_headers, cors_headers, session_cookie
 
 
 class XHRStreamingTransport(StreamingTransport):
-
-    maxsize = 131072  # 128K bytes
+    create_session = True
     open_seq = b"h" * 2048 + b"\n"
+
+    async def _send(self, text: str):
+        return await super()._send(text + "\n")
 
     async def process(self):
         request = self.request

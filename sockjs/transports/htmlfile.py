@@ -1,10 +1,11 @@
 """ iframe-htmlfile transport """
 import re
-from aiohttp import web, hdrs
 
-from ..protocol import dumps, ENCODING
+from aiohttp import hdrs, web
+
 from .base import StreamingTransport
-from .utils import CACHE_CONTROL, session_cookie, cors_headers
+from .utils import CACHE_CONTROL, cors_headers, session_cookie
+from ..protocol import dumps
 
 
 PRELUDE1 = b"""
@@ -25,28 +26,17 @@ PRELUDE2 = b""";
 
 
 class HTMLFileTransport(StreamingTransport):
-
-    maxsize = 131072  # 128K bytes
+    create_session = True
     check_callback = re.compile(r"^[a-zA-Z0-9_\.]+$")
 
-    async def send(self, text):
-        blob = ("<script>\np(%s);\n</script>\r\n" % dumps(text)).encode(ENCODING)
-        await self.response.write(blob)
-
-        self.size += len(blob)
-        if self.size > self.maxsize:
-            return True
-        else:
-            return False
+    async def _send(self, text: str):
+        text = "<script>\np(%s);\n</script>\r\n" % dumps(text)
+        return await super()._send(text)
 
     async def process(self):
         request = self.request
 
-        try:
-            callback = request.query.get("c", None)
-        except Exception:
-            callback = request.GET.get("c", None)
-
+        callback = request.query.get("c")
         if callback is None:
             await self.session._remote_closed()
             return web.HTTPInternalServerError(text='"callback" parameter required')

@@ -1,6 +1,8 @@
-import collections
+import dataclasses
 import hashlib
 from datetime import datetime
+from typing import Optional
+
 
 ENCODING = "utf-8"
 
@@ -74,8 +76,8 @@ FRAME_HEARTBEAT = "h"
 IFRAME_HTML = """<!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <script src="%s"></script>
   <script>
     document.domain = document.domain;
@@ -121,9 +123,13 @@ MSG_CLOSE = 3
 MSG_CLOSED = 4
 
 
-class SockjsMessage(collections.namedtuple("SockjsMessage", ["type", "data"])):
+@dataclasses.dataclass(frozen=True)
+class SockjsMessage:
+    type: int
+    data: Optional[str]
+
     @property
-    def tp(self):
+    def tp(self) -> int:
         return self.type
 
 

@@ -1,56 +1,77 @@
-import warnings
 import asyncio
 import collections
 import logging
-from datetime import datetime, timedelta
-
+import warnings
 from asyncio import ensure_future
+from datetime import datetime, timedelta
+from typing import List, Optional, Tuple
 
-from .protocol import STATE_NEW, STATE_OPEN, STATE_CLOSING, STATE_CLOSED
-from .protocol import FRAME_OPEN, FRAME_CLOSE
-from .protocol import FRAME_MESSAGE, FRAME_MESSAGE_BLOB, FRAME_HEARTBEAT
+from aiohttp import web
+
 from .exceptions import SessionIsAcquired, SessionIsClosed
-
-from .protocol import MSG_CLOSE, MSG_MESSAGE
-from .protocol import close_frame, message_frame, messages_frame
-from .protocol import SockjsMessage, OpenMessage, ClosedMessage
+from .protocol import (
+    ClosedMessage,
+    FRAME_CLOSE,
+    FRAME_HEARTBEAT,
+    FRAME_MESSAGE,
+    FRAME_MESSAGE_BLOB,
+    FRAME_OPEN,
+    MSG_CLOSE,
+    MSG_MESSAGE,
+    OpenMessage,
+    STATE_CLOSED,
+    STATE_CLOSING,
+    STATE_NEW,
+    STATE_OPEN,
+    SockjsMessage,
+    close_frame,
+    message_frame,
+    messages_frame,
+)
 
 
 log = logging.getLogger("sockjs")
 
 
-class Session(object):
-    """SockJS session object
+class Session:
+    """SockJS session object.
 
     ``state``: Session state
 
     ``manager``: Session manager that hold this session
 
     ``acquired``: Acquired state, indicates that transport is using session
-
-    ``timeout``: Session timeout
-
     """
 
-    manager = None
+    manager: Optional["SessionManager"] = None
     acquired = False
     state = STATE_NEW
     interrupted = False
     exception = None
+    app: Optional[web.Application] = None
 
     def __init__(
-        self, id, handler, request, *, timeout=timedelta(seconds=10), debug=False
+        self,
+        session_id,
+        handler,
+        *,
+        heartbeat_delay=25,
+        disconnect_delay=5,
+        debug=False
     ):
-        self.id = id
+        self.id = session_id
         self.handler = handler
-        self.request = request
-        self.expired = False
-        self.timeout = timeout
-        self.expires = datetime.now() + timeout
+        self.heartbeat_delay = heartbeat_delay
+        self.disconnect_delay = disconnect_delay
+        self.next_heartbeat = datetime.now() + timedelta(seconds=heartbeat_delay)
+        self.expires: Optional[datetime] = datetime.now() + timedelta(
+            seconds=disconnect_delay
+        )
+        self.request: Optional[web.Request] = None
 
         self._hits = 0
         self._heartbeats = 0
-        self._heartbeat_transport = False
+        self._send_heartbeats = False
         self._debug = debug
         self._waiter = None
         self._queue = collections.deque()
@@ -77,16 +98,37 @@ class Session(object):
 
         return " ".join(result)
 
+    def expire(self):
+        """Manually expire a session."""
+        expires = datetime.now()
+        if self.disconnect_delay:
+            expires += timedelta(seconds=self.disconnect_delay)
+        if not self.expires or self.expires > expires:
+            self.expires = expires
+
+    @property
+    def expired(self) -> bool:
+        if self.expires:
+            return self.expires <= datetime.now()
+        return False
+
     def _tick(self, timeout=None):
         if timeout is None:
-            self.expires = datetime.now() + self.timeout
+            self.next_heartbeat = datetime.now() + timedelta(
+                seconds=self.heartbeat_delay
+            )
         else:
-            self.expires = datetime.now() + timeout
+            self.next_heartbeat = datetime.now() + timedelta(seconds=timeout)
 
-    async def _acquire(self, manager, heartbeat=True):
+    async def _acquire(
+        self, manager: "SessionManager", request: web.Request, heartbeat=True
+    ):
         self.acquired = True
         self.manager = manager
-        self._heartbeat_transport = heartbeat
+        self.app = manager.app
+        self.request = request
+        self.expires = None
+        self._send_heartbeats = heartbeat
 
         self._tick()
         self._hits += 1
@@ -109,12 +151,14 @@ class Session(object):
     def _release(self):
         self.acquired = False
         self.manager = None
-        self._heartbeat_transport = False
+        self.request = None
+        self._send_heartbeats = False
 
     def _heartbeat(self):
         self._heartbeats += 1
-        if self._heartbeat:
+        if self._send_heartbeats:
             self._feed(FRAME_HEARTBEAT, FRAME_HEARTBEAT)
+            log.debug("heartbeat sent: %s", self.id)
 
     def _feed(self, frame, data):
         # pack messages
@@ -132,12 +176,12 @@ class Session(object):
             self._waiter = None
             if not waiter.cancelled():
                 waiter.set_result(True)
+        self._tick()
 
-    async def _wait(self, pack=True):
+    async def _get_frame(self, pack=True) -> Tuple[str, str]:
         if not self._queue and self.state != STATE_CLOSED:
             assert not self._waiter
-            loop = asyncio.get_event_loop()
-            self._waiter = loop.create_future()
+            self._waiter = asyncio.Future()
             await self._waiter
 
         if self._queue:
@@ -154,11 +198,12 @@ class Session(object):
             raise SessionIsClosed()
 
     async def _remote_close(self, exc=None):
-        """close session from remote."""
+        """Close session from remote."""
         if self.state in (STATE_CLOSING, STATE_CLOSED):
             return
 
         log.info("close session: %s", self.id)
+        self._tick()
         self.state = STATE_CLOSING
         if exc is not None:
             self.exception = exc
@@ -170,6 +215,10 @@ class Session(object):
 
     async def _remote_closed(self):
         if self.state == STATE_CLOSED:
+            return
+
+        if self.disconnect_delay and not self.expired:
+            self.expire()
             return
 
         log.info("session closed: %s", self.id)
@@ -206,11 +255,7 @@ class Session(object):
             except Exception:
                 log.exception("Exception in message handler.")
 
-    def expire(self):
-        """Manually expire a session."""
-        self.expired = True
-
-    def send(self, msg):
+    def send(self, msg: str) -> bool:
         """send message to client."""
         assert isinstance(msg, str), "String is required"
 
@@ -218,9 +263,10 @@ class Session(object):
             log.info("outgoing message: %s, %s", self.id, str(msg)[:200])
 
         if self.state != STATE_OPEN:
-            return
+            return False
 
         self._feed(FRAME_MESSAGE, msg)
+        return True
 
     def send_frame(self, frm):
         """send message frame to client."""
@@ -250,132 +296,143 @@ _marker = object()
 class SessionManager(dict):
     """A basic session manager."""
 
-    _hb_handle = None  # heartbeat event loop timer
     _hb_task = None  # gc task
 
     def __init__(
         self,
-        name,
-        app,
+        name: str,
+        app: web.Application,
         handler,
-        heartbeat=25.0,
-        timeout=timedelta(seconds=5),
+        heartbeat_delay=25,
+        disconnect_delay=5,
         debug=False,
     ):
+        super().__init__()
         self.name = name
         self.route_name = "sockjs-url-%s" % name
         self.app = app
         self.handler = handler
         self.factory = Session
         self.acquired = {}
-        self.sessions = []
-        self.heartbeat = heartbeat
-        self.timeout = timeout
+        self.sessions: List[Session] = []
+        self.heartbeat_delay = heartbeat_delay
+        self.disconnect_delay = disconnect_delay
         self.debug = debug
 
-    def route_url(self, request):
-        return request.route_url(self.route_name)
+    def route_url(self, request: web.Request):
+        url = self.app.router[self.route_name].url_for()
+        return "%s://%s%s" % (request.scheme, request.host, url)
 
     @property
     def started(self):
-        return self._hb_handle is not None
+        return self._hb_task is not None
 
     def start(self):
-        if not self._hb_handle:
-            loop = asyncio.get_event_loop()
-            self._hb_handle = loop.call_later(self.heartbeat, self._heartbeat)
+        if not self._hb_task:
+            self._hb_task = asyncio.create_task(self._heartbeat_task())
 
-    def stop(self):
-        if self._hb_handle is not None:
-            self._hb_handle.cancel()
-            self._hb_handle = None
+    async def stop(self, _app=None):
         if self._hb_task is not None:
-            self._hb_task.cancel()
+            try:
+                self._hb_task.cancel()
+            except RuntimeError:
+                pass  # an event loop already stopped
             self._hb_task = None
+        await self.clear()
 
     def _heartbeat(self):
         if self._hb_task is None:
             self._hb_task = ensure_future(self._heartbeat_task())
 
-    async def _heartbeat_task(self):
-        sessions = self.sessions
+    async def _check_expiration(self, session: Session):
+        if session.expired:
+            log.debug("session expired: %s", session.id)
+            # Session is to be GC'd immediately
+            if session.id in self.acquired:
+                await self.release(session)
+            if session.state == STATE_OPEN:
+                await session._remote_close()
+            if session.state == STATE_CLOSING:
+                await session._remote_closed()
+            return session.id
 
+    async def _gc_expired_sessions(self):
+        sessions = self.sessions
         if sessions:
-            now = datetime.now()
+            tasks = [self._check_expiration(session) for session in sessions]
+            expired_session_ids = await asyncio.gather(*tasks)
 
             idx = 0
-            while idx < len(sessions):
-                session = sessions[idx]
-
-                session._heartbeat()
-
-                if session.expires < now:
-                    # Session is to be GC'd immedietely
-                    if session.id in self.acquired:
-                        await self.release(session)
-                    if session.state == STATE_OPEN:
-                        await session._remote_close()
-                    if session.state == STATE_CLOSING:
-                        await session._remote_closed()
-
-                    del self[session.id]
-                    del self.sessions[idx]
+            for session_id in expired_session_ids:
+                if session_id is None:
+                    idx += 1
                     continue
+                del self[session_id]
+                del sessions[idx]
 
-                idx += 1
+    async def _heartbeat_task(self):
+        while True:
+            await asyncio.sleep(self.heartbeat_delay)
+            await self._gc_expired_sessions()
+            # Send heartbeat
+            now = datetime.now()
+            for session in self.sessions:
+                if session.next_heartbeat <= now:
+                    session._heartbeat()
 
-        self._hb_task = None
-        loop = asyncio.get_event_loop()
-        self._hb_handle = loop.call_later(self.heartbeat, self._heartbeat)
-
-    def _add(self, session):
+    def _add(self, session: Session):
         if session.expired:
             raise ValueError("Can not add expired session")
 
         session.manager = self
-        session.registry = self.app
+        session.app = self.app
 
         self[session.id] = session
         self.sessions.append(session)
         return session
 
-    def get(self, id, create=False, request=None, default=_marker):
-        session = super(SessionManager, self).get(id, None)
+    def get(
+        self,
+        session_id,
+        create=False,
+        default=_marker,
+    ) -> Session:
+        session = super().get(session_id, None)
         if session is None:
             if create:
                 session = self._add(
                     self.factory(
-                        id,
+                        session_id,
                         self.handler,
-                        request,
-                        timeout=self.timeout,
+                        heartbeat_delay=self.heartbeat_delay,
+                        disconnect_delay=self.disconnect_delay,
                         debug=self.debug,
                     )
                 )
             else:
                 if default is not _marker:
                     return default
-                raise KeyError(id)
+                raise KeyError(session_id)
 
         return session
 
-    async def acquire(self, s):
-        sid = s.id
+    async def acquire(self, session: Session, request: web.Request):
+        sid = session.id
 
         if sid in self.acquired:
             raise SessionIsAcquired("Another connection still open")
         if sid not in self:
             raise KeyError("Unknown session")
 
-        await s._acquire(self)
+        await session._acquire(self, request)
 
         self.acquired[sid] = True
-        return s
+        return session
 
     def is_acquired(self, session):
         return session.id in self.acquired
 
-    async def release(self, s):
+    async def release(self, s: Session):
         if s.id in self.acquired:
             s._release()
             del self.acquired[s.id]
@@ -389,10 +446,11 @@ class SessionManager(dict):
         """Manually expire all sessions in the pool."""
         for session in list(self.values()):
             if session.state != STATE_CLOSED:
+                session.disconnect_delay = 0
                 await session._remote_closed()
 
         self.sessions.clear()
-        super(SessionManager, self).clear()
+        super().clear()
 
     def broadcast(self, message):
         blob = message_frame(message)
@@ -402,10 +460,8 @@ class SessionManager(dict):
                 session.send_frame(blob)
 
     def __del__(self):
-        if len(self.sessions):
+        if len(self.sessions) or self._hb_task is not None:
             warnings.warn(
-                "Unclosed sessions! "
-                "Please call `await SessionManager.clear()` before del",
+                "Please call `await SessionManager.stop()` before del",
                 RuntimeWarning,
             )
-        self.stop()

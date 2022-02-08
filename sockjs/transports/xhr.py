@@ -1,14 +1,18 @@
-from aiohttp import web, hdrs
+from aiohttp import hdrs, web
 
 from .base import StreamingTransport
-from .utils import CACHE_CONTROL, session_cookie, cors_headers, cache_headers
+from .utils import CACHE_CONTROL, cache_headers, cors_headers, session_cookie
 
 
 class XHRTransport(StreamingTransport):
     """Long polling derivative transports,
     used for XHRPolling and JSONPolling."""
 
+    create_session = True
     maxsize = 0
+
+    async def _send(self, text: str):
+        return await super()._send(text + "\n")
 
     async def process(self):
         request = self.request
