@@ -96,9 +96,3 @@ async def xtest_process_message(make_transport, make_fut):
     resp = await transp.process()
     assert resp.status == 200
     transp.session._remote_messages.assert_called_with(["msg1", "msg2"])
-
-
-# async def test_session_has_request(make_transport, make_fut):
-#     transp = make_transport(method="POST")
-#     transp.session._remote_messages = make_fut(1)
-#     assert isinstance(transp.session.request, web.Request)

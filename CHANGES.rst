@@ -5,11 +5,6 @@ CHANGES
 0.12.0 (2022-02-08)
 -------------------
 
-- Fixed processing of heartbeats and a session expiration.
-- Fixed ping-pong based heartbeats for web-socket connections.
-- Added arguments ``heartbeat_delay`` and ``disconnect_delay`` into
-  ``Session.__init__()``.
-- Added argument ``disconnect_delay`` into ``SessionManager.__init__()``.
 - **Breaking change:** Removed argument ``timeout`` from ``Session.__init__()``
   and ``SessionManager.__init__()``.
 - **Breaking change:** Argument ``heartbeat`` of ``SessionManager.__init__()``
@@ -17,6 +12,11 @@ CHANGES
 - **Breaking change:** ``Session.registry`` renamed into ``Session.app``.
 - **Breaking change:** Deleted method ``SessionManager.route_url()``.
 - **Breaking change:** Dropped support of Python < 3.7
+- Fixed processing of heartbeats and a session expiration.
+- Fixed ping-pong based heartbeats for web-socket connections.
+- Added arguments ``heartbeat_delay`` and ``disconnect_delay`` into
+  ``Session.__init__()``.
+- Added argument ``disconnect_delay`` into ``SessionManager.__init__()``.
 
 0.11.0 (2020-10-22)
 -------------------

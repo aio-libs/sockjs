@@ -60,9 +60,3 @@ async def test_process_bad_callback(make_transport, make_fut):
     resp = await transp.process()
     assert transp.session._remote_closed.called
     assert resp.status == 500
-
-
-# async def test_session_has_request(make_transport, make_fut):
-#     transp = make_transport(method="POST")
-#     transp.session._remote_messages = make_fut(1)
-#     assert isinstance(transp.session.request, web.Request)

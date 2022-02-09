@@ -40,9 +40,3 @@ async def test_process(make_transport, make_fut):
     resp = await transp.process()
     assert transp.handle_session.called
     assert resp.status == 200
-
-
-# async def test_session_has_request(make_transport, make_fut):
-#     transp = make_transport(method="POST")
-#     transp.session._remote_messages = make_fut(1)
-#     assert isinstance(transp.session.request, web.Request)

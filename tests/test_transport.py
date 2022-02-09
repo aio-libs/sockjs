@@ -75,12 +75,3 @@ async def test_handle_session_closed(make_transport, make_fut):
     await trans.handle_session()
     trans.session._remote_closed.assert_called_with()
     trans._send.assert_called_with('c[3000,"Go away!"]')
-
-
-# async def test_session_has_request(make_transport, make_fut):
-#     transp = make_transport(method="POST")
-#     session = transp.session
-#     session._remote_messages = make_fut(1)
-#     assert session.request is None
-#     await transp.process()
-#     assert isinstance(session.request, web.Request)
