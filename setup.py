@@ -55,7 +55,6 @@ setup(
             "multidict",
             "yarl",
             "pytest-aiohttp",
-            "pytest-timeout",
             "pytest-mock",
             "cykooz.testing",
             'aiohttp_cors',
