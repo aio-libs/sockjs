@@ -1,6 +1,7 @@
 import logging
 import os
 
+import aiohttp_cors
 from aiohttp import web
 
 import sockjs
@@ -32,6 +33,23 @@ if __name__ == '__main__':
 
     app = web.Application()
     app.router.add_route('GET', '/', index)
-    sockjs.add_endpoint(app, chat_msg_handler, name='chat', prefix='/sockjs/')
+
+    # Configure default CORS settings.
+    cors = aiohttp_cors.setup(app, defaults={
+        '*': aiohttp_cors.ResourceOptions(
+            allow_credentials=True,
+            expose_headers='*',
+            allow_headers='*',
+            max_age=31536000,
+        )
+    })
+
+    sockjs.add_endpoint(
+        app,
+        chat_msg_handler,
+        name='chat',
+        prefix='/sockjs/',
+        cors_config=cors,
+    )
 
     web.run_app(app)

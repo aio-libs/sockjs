@@ -1,6 +1,7 @@
 from unittest import mock
 
 import pytest
+from aiohttp import web
 from aiohttp.test_utils import make_mocked_coro
 
 from sockjs.transports import htmlfile
@@ -47,9 +48,9 @@ async def test_process_no_callback(make_transport, make_fut):
     transp.session = mock.Mock()
     transp.session._remote_closed = make_fut(1)
 
-    resp = await transp.process()
+    with pytest.raises(web.HTTPInternalServerError):
+        await transp.process()
     assert transp.session._remote_closed.called
-    assert resp.status == 500
 
 
 async def test_process_bad_callback(make_transport, make_fut):
@@ -57,6 +58,6 @@ async def test_process_bad_callback(make_transport, make_fut):
     transp.session = mock.Mock()
     transp.session._remote_closed = make_fut(1)
 
-    resp = await transp.process()
+    with pytest.raises(web.HTTPInternalServerError):
+        await transp.process()
     assert transp.session._remote_closed.called
-    assert resp.status == 500

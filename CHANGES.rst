@@ -2,6 +2,16 @@
 CHANGES
 =======
 
+0.13.0 (not-released)
+---------------------
+
+- Added argument ``cors_config`` into function ``add_endpoint()``
+  to support of CORS settings from ``aiohttp_cors``.
+- Function ``add_endpoint()`` now returns all registered routes.
+- Replaced returning instances of error HTTP responses
+  on raising its as exceptions.
+- Changed name of some routes.
+
 0.12.0 (2022-02-08)
 -------------------
 

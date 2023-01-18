@@ -1,7 +1,8 @@
 import codecs
 import os
 import re
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
 
 
 with codecs.open(
@@ -34,6 +35,7 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: Implementation :: CPython",
         "Topic :: Internet :: WWW/HTTP",
         "Framework :: AsyncIO",
@@ -45,7 +47,7 @@ setup(
     packages=find_packages(),
     python_requires=">=3.7.0",
     install_requires=[
-        "aiohttp>=3.0.0",
+        "aiohttp>=3.7.4",
     ],
     extras_require={
         "test": [
@@ -54,6 +56,9 @@ setup(
             "yarl",
             "pytest-aiohttp",
             "pytest-timeout",
+            "pytest-mock",
+            "cykooz.testing",
+            'aiohttp_cors',
         ],
     },
     include_package_data=True,

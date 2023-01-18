@@ -1,14 +1,15 @@
 import asyncio
 from unittest import mock
 
+import aiohttp_cors
 import pytest
 from aiohttp import web
-from aiohttp.test_utils import make_mocked_coro, make_mocked_request
+from aiohttp.test_utils import TestClient, make_mocked_coro, make_mocked_request
 from aiohttp.web_urldispatcher import UrlMappingMatchInfo
 from multidict import CIMultiDict
 from yarl import URL
 
-from sockjs import Session, SessionManager, transports
+from sockjs import Session, SessionManager, add_endpoint, transports
 from sockjs.route import SockJSRoute
 
 
@@ -125,3 +126,24 @@ def make_route(make_manager, make_handler, app):
         return SockJSRoute("sm", sm, "http:sockjs-cdn", handlers, (), True)
 
     return maker
+
+
+@pytest.fixture(name='test_client')
+async def test_client_fixture(app, aiohttp_client, make_handler) -> TestClient:
+    handler = make_handler(None)
+    # Configure default CORS settings.
+    cors = aiohttp_cors.setup(app, defaults={
+        '*': aiohttp_cors.ResourceOptions(
+            allow_credentials=True,
+            expose_headers='*',
+            allow_headers='*',
+            max_age=31536000,
+        )
+    })
+    add_endpoint(
+        app,
+        handler,
+        name='main',
+        cors_config=cors,
+    )
+    return await aiohttp_client(app)

@@ -1,9 +1,14 @@
 import asyncio
 
+import pytest
 from aiohttp import web
+from aiohttp.test_utils import TestClient
+from cykooz.testing import D
 from multidict import CIMultiDict
 
 from sockjs import protocol
+from sockjs.route import ALL_METH_WO_OPTIONS
+from sockjs.transports import transport_handlers
 from sockjs.transports.base import Transport
 
 
@@ -29,22 +34,6 @@ async def test_info_entropy(make_route, make_request):
     entropy2 = protocol.loads(response.body.decode("utf-8"))["entropy"]
 
     assert entropy1 != entropy2
-
-
-async def test_info_options(make_route, make_request):
-    route = make_route()
-    request = make_request("OPTIONS", "/sm/")
-    response = await route.info_options(request)
-
-    assert response.status == 204
-
-    headers = response.headers
-    assert "Access-Control-Max-Age" in headers
-    assert "Cache-Control" in headers
-    assert "Expires" in headers
-    assert "Set-Cookie" in headers
-    assert "access-control-allow-credentials" in headers
-    assert "access-control-allow-origin" in headers
 
 
 async def test_greeting(make_route, make_request):
@@ -95,8 +84,8 @@ async def test_handler_unknown_transport(make_route, make_request):
     route = make_route()
     request = make_request("GET", "/sm/", match_info={"transport": "unknown"})
 
-    res = await route.handler(request)
-    assert isinstance(res, web.HTTPNotFound)
+    with pytest.raises(web.HTTPNotFound):
+        await route.handler(request)
 
 
 async def test_handler_emptry_session(make_route, make_request):
@@ -104,8 +93,8 @@ async def test_handler_emptry_session(make_route, make_request):
     request = make_request(
         "GET", "/sm/", match_info={"transport": "websocket", "session": ""}
     )
-    res = await route.handler(request)
-    assert isinstance(res, web.HTTPNotFound)
+    with pytest.raises(web.HTTPNotFound):
+        await route.handler(request)
 
 
 async def test_handler_bad_session_id(make_route, make_request):
@@ -115,8 +104,8 @@ async def test_handler_bad_session_id(make_route, make_request):
         "/sm/",
         match_info={"transport": "websocket", "session": "test.1", "server": "000"},
     )
-    res = await route.handler(request)
-    assert isinstance(res, web.HTTPNotFound)
+    with pytest.raises(web.HTTPNotFound):
+        await route.handler(request)
 
 
 async def test_handler_bad_server_id(make_route, make_request):
@@ -126,8 +115,8 @@ async def test_handler_bad_server_id(make_route, make_request):
         "/sm/",
         match_info={"transport": "websocket", "session": "test", "server": "test.1"},
     )
-    res = await route.handler(request)
-    assert isinstance(res, web.HTTPNotFound)
+    with pytest.raises(web.HTTPNotFound):
+        await route.handler(request)
 
 
 async def test_new_session_before_read(make_route, make_request):
@@ -137,8 +126,8 @@ async def test_new_session_before_read(make_route, make_request):
         "/sm/",
         match_info={"transport": "xhr_send", "session": "s1", "server": "000"},
     )
-    res = await route.handler(request)
-    assert isinstance(res, web.HTTPNotFound)
+    with pytest.raises(web.HTTPNotFound):
+        await route.handler(request)
 
 
 async def _test_transport(make_route, make_request):
@@ -181,8 +170,8 @@ async def test_fail_transport(make_route, make_request):
             raise Exception("Error")
 
     route = make_route(handlers={"test": FakeTransport})
-    res = await route.handler(request)
-    assert isinstance(res, web.HTTPInternalServerError)
+    with pytest.raises(web.HTTPInternalServerError):
+        await route.handler(request)
 
 
 async def test_release_session_for_failed_transport(make_route, make_request):
@@ -200,8 +189,8 @@ async def test_release_session_for_failed_transport(make_route, make_request):
             raise Exception("Error")
 
     route = make_route(handlers={"test": FakeTransport})
-    res = await route.handler(request)
-    assert isinstance(res, web.HTTPInternalServerError)
+    with pytest.raises(web.HTTPInternalServerError):
+        await route.handler(request)
 
     s1 = route.manager["s1"]
     assert not route.manager.is_acquired(s1)
@@ -227,3 +216,40 @@ async def _test_raw_websocket_fail(make_route, make_request):
     request = make_request("GET", "/sm/")
     res = await route.websocket(request)
     assert not isinstance(res, web.HTTPNotFound)
+
+
+@pytest.mark.parametrize(
+    ('url', 'method'),
+    [
+        ('/sockjs', "GET"),
+        ('/sockjs/', "GET"),
+        ('/sockjs/info', "GET"),
+    ] + [
+        (f'/sockjs/serv1/234/{transport}', method)
+        for transport in transport_handlers.keys()
+        for method in ALL_METH_WO_OPTIONS
+    ] + [
+        ('/sockjs/websocket', "GET"),
+        ('/sockjs/iframe.html', "GET"),
+        ('/sockjs/iframe12.html', "GET"),
+    ]
+)
+async def test_cors_preflight(test_client: TestClient, url, method):
+    origin = "http://my_example.com"
+    headers = {
+        "HOST": "server.example.com",
+        "ACCESS-CONTROL-REQUEST-METHOD": method,
+        "ACCESS-CONTROL-REQUEST-HEADERS": "origin, x-requested-with",
+        "ORIGIN": origin,
+    }
+
+    response = await test_client.options(url, headers=headers)
+    assert response.status in (200, 204)
+
+    headers = response.headers
+    assert dict(headers) == D({
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Methods": method,
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Max-Age": "31536000"
+    })

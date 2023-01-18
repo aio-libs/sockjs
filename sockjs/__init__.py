@@ -13,7 +13,7 @@ from .route import add_endpoint, get_manager
 from .session import Session, SessionManager
 
 
-__version__ = "0.12.0"
+__version__ = "0.13.0"
 
 
 __all__ = (

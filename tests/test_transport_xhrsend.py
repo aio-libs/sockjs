@@ -1,4 +1,5 @@
 import pytest
+from aiohttp import web
 
 from sockjs.transports import xhrsend
 
@@ -18,8 +19,8 @@ def make_transport(make_manager, make_request, make_handler, make_fut):
 
 async def test_not_supported_meth(make_transport):
     transp = make_transport(method="PUT")
-    resp = await transp.process()
-    assert resp.status == 403
+    with pytest.raises(web.HTTPForbidden):
+        await transp.process()
 
 
 async def xtest_no_payload(make_transport, make_fut):

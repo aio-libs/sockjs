@@ -4,9 +4,15 @@ import inspect
 import json
 import logging
 import random
-from typing import Iterable, Type
+from typing import Iterable, Optional, Type
 
 from aiohttp import hdrs, web
+
+
+try:
+    from aiohttp_cors import CorsConfig
+except ImportError:
+    CorsConfig = None
 
 from .protocol import IFRAME_HTML
 from .session import SessionManager
@@ -17,6 +23,7 @@ from .transports.utils import CACHE_CONTROL, cache_headers, cors_headers, sessio
 
 
 log = logging.getLogger("sockjs")
+ALL_METH_WO_OPTIONS = hdrs.METH_ALL - {hdrs.METH_OPTIONS}
 
 
 def get_manager(name, app) -> SessionManager:
@@ -28,19 +35,23 @@ def _gen_endpoint_name():
 
 
 def add_endpoint(
-    app: web.Application,
-    handler,
-    *,
-    name="",
-    prefix="/sockjs",
-    manager=None,
-    disable_transports=(),
-    sockjs_cdn="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js",  # noqa
-    cookie_needed=True
-):
+        app: web.Application,
+        handler,
+        *,
+        name="",
+        prefix="/sockjs",
+        manager=None,
+        disable_transports=(),
+        sockjs_cdn="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js",  # noqa
+        cookie_needed=True,
+        cors_config: Optional[CorsConfig] = None,
+) -> list[web.AbstractRoute]:
+    registered_routes = []
+
     assert callable(handler), handler
-    if not asyncio.iscoroutinefunction(handler) and not inspect.isgeneratorfunction(
-        handler
+    if (
+            not asyncio.iscoroutinefunction(handler)
+            and not inspect.isgeneratorfunction(handler)
     ):
         sync_handler = handler
 
@@ -76,57 +87,80 @@ def add_endpoint(
     )
 
     prefix = prefix.rstrip("/")
-    route_name = "sockjs-url-%s-greeting" % name
-    router.add_route(hdrs.METH_GET, prefix, route.greeting, name=route_name)
-
-    route_name = "sockjs-url-%s" % name
-    router.add_route(hdrs.METH_GET, "%s/" % prefix, route.greeting, name=route_name)
-
-    route_name = "sockjs-%s" % name
-    router.add_route(
-        hdrs.METH_ANY,
-        "%s/{server}/{session}/{transport}" % prefix,
-        route.handler,
-        name=route_name,
+    route_name = "sockjs-greeting-%s" % name
+    registered_routes.append(
+        router.add_route(hdrs.METH_GET, prefix, route.greeting, name=route_name)
     )
+
+    route_name = "sockjs-greeting-ts-%s" % name
+    registered_routes.append(
+        router.add_route(hdrs.METH_GET, "%s/" % prefix, route.greeting, name=route_name)
+    )
+
+    resource = router.add_resource(
+        "%s/{server}/{session}/{transport}" % prefix,
+        name=f"sockjs-transport-{name}"
+    )
+    for method in ALL_METH_WO_OPTIONS:
+        registered_routes.append(
+            resource.add_route(
+                method,
+                route.handler,
+            )
+        )
 
     route_name = "sockjs-websocket-%s" % name
-    router.add_route(
-        hdrs.METH_GET, "%s/websocket" % prefix, route.websocket, name=route_name
+    registered_routes.append(
+        router.add_route(
+            hdrs.METH_GET, "%s/websocket" % prefix, route.websocket, name=route_name
+        )
     )
 
-    router.add_route(
-        hdrs.METH_GET, "%s/info" % prefix, route.info, name="sockjs-info-%s" % name
-    )
-    router.add_route(
-        hdrs.METH_OPTIONS,
-        "%s/info" % prefix,
-        route.info_options,
-        name="sockjs-info-options-%s" % name,
+    registered_routes.append(
+        router.add_route(
+            hdrs.METH_GET,
+            "%s/info" % prefix,
+            route.info,
+            name="sockjs-info-%s" % name,
+        )
     )
 
     route_name = "sockjs-iframe-%s" % name
-    router.add_route(
-        hdrs.METH_GET, "%s/iframe.html" % prefix, route.iframe, name=route_name
+    registered_routes.append(
+        router.add_route(
+            hdrs.METH_GET, "%s/iframe.html" % prefix, route.iframe, name=route_name
+        )
     )
 
     route_name = "sockjs-iframe-ver-%s" % name
-    router.add_route(
-        hdrs.METH_GET, "%s/iframe{version}.html" % prefix, route.iframe, name=route_name
+    registered_routes.append(
+        router.add_route(
+            hdrs.METH_GET,
+            "%s/iframe{version}.html" % prefix,
+            route.iframe,
+            name=route_name
+        )
     )
 
     app.on_cleanup.append(manager.stop)
 
+    if cors_config is not None:
+        # Configure CORS on all routes.
+        for route in registered_routes:
+            cors_config.add(route)
+
+    return registered_routes
+
 
 class SockJSRoute:
     def __init__(
-        self,
-        name: str,
-        manager: SessionManager,
-        sockjs_cdn: str,
-        handlers,
-        disable_transports: Iterable[str],
-        cookie_needed=True,
+            self,
+            name: str,
+            manager: SessionManager,
+            sockjs_cdn: str,
+            handlers,
+            disable_transports: Iterable[str],
+            cookie_needed=True,
     ):
         self.name = name
         self.manager = manager
@@ -135,6 +169,9 @@ class SockJSRoute:
         self.cookie_needed = cookie_needed
         self.iframe_html = (IFRAME_HTML % sockjs_cdn).encode("utf-8")
         self.iframe_html_hxd = hashlib.md5(self.iframe_html).hexdigest()
+        self._transport_names = sorted(
+            set(transport_handlers.keys()) - self.disable_transports
+        )
 
     async def handler(self, request):
         info = request.match_info
@@ -143,7 +180,7 @@ class SockJSRoute:
         tid = info["transport"]
 
         if tid not in self.handlers or tid in self.disable_transports:
-            return web.HTTPNotFound()
+            raise web.HTTPNotFound()
 
         transport: Type[Transport] = self.handlers[tid]
 
@@ -154,12 +191,12 @@ class SockJSRoute:
 
         sid = info["session"]
         if not sid or "." in sid or "." in info["server"]:
-            return web.HTTPNotFound()
+            raise web.HTTPNotFound()
 
         try:
             session = transport.get_session(manager, sid)
         except KeyError:
-            return web.HTTPNotFound(headers=session_cookie(request))
+            raise web.HTTPNotFound(headers=session_cookie(request))
 
         t = transport(manager, session, request)
         try:
@@ -167,12 +204,12 @@ class SockJSRoute:
         except asyncio.CancelledError:
             raise
         except web.HTTPException as exc:
-            return exc
+            raise exc
         except Exception:
             log.exception("Exception in transport: %s" % tid)
             if manager.is_acquired(session):
                 await manager.release(session)
-            return web.HTTPInternalServerError()
+            raise web.HTTPInternalServerError()
 
     async def websocket(self, request):
         if not self.manager.started:
@@ -188,7 +225,7 @@ class SockJSRoute:
         except asyncio.CancelledError:
             raise
         except web.HTTPException as exc:
-            return exc
+            raise exc
 
     async def info(self, request):
         resp = web.Response()
@@ -198,21 +235,12 @@ class SockJSRoute:
 
         info = {
             "entropy": random.randint(1, 2147483647),
-            "websocket": "websocket" not in self.disable_transports,
+            "websocket": "websocket" in self._transport_names,
             "cookie_needed": self.cookie_needed,
             "origins": ["*:*"],
+            "transports": self._transport_names,
         }
         resp.text = json.dumps(info)
-        return resp
-
-    async def info_options(self, request):
-        resp = web.Response(status=204)
-        resp.headers[hdrs.CONTENT_TYPE] = "application/json;charset=UTF-8"
-        resp.headers[hdrs.CACHE_CONTROL] = CACHE_CONTROL
-        resp.headers[hdrs.ACCESS_CONTROL_ALLOW_METHODS] = "OPTIONS, GET"
-        resp.headers.extend(cors_headers(request.headers))
-        resp.headers.extend(cache_headers())
-        resp.headers.extend(session_cookie(request))
         return resp
 
     async def iframe(self, request):
@@ -223,15 +251,15 @@ class SockJSRoute:
             response.headers.extend(cache_headers())
             return response
 
-        headers = (
-            (hdrs.CONTENT_TYPE, "text/html;charset=UTF-8"),
-            (hdrs.ETAG, self.iframe_html_hxd),
-        )
-        headers += cache_headers()
+        headers = {
+            hdrs.CONTENT_TYPE: "text/html;charset=UTF-8",
+            hdrs.ETAG: self.iframe_html_hxd,
+        }
+        headers.update(dict(cache_headers()))
         return web.Response(body=self.iframe_html, headers=headers)
 
     async def greeting(self, request):
         return web.Response(
             body=b"Welcome to SockJS!\n",
-            headers=((hdrs.CONTENT_TYPE, "text/plain; charset=UTF-8"),),
+            headers={hdrs.CONTENT_TYPE: "text/plain; charset=UTF-8"},
         )
