@@ -4,7 +4,7 @@ import inspect
 import json
 import logging
 import random
-from typing import Iterable, Optional, Type
+from typing import Iterable, List, Optional, Type
 
 from aiohttp import hdrs, web
 
@@ -45,7 +45,7 @@ def add_endpoint(
         sockjs_cdn="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js",  # noqa
         cookie_needed=True,
         cors_config: Optional[CorsConfig] = None,
-) -> list[web.AbstractRoute]:
+) -> List[web.AbstractRoute]:
     registered_routes = []
 
     assert callable(handler), handler
