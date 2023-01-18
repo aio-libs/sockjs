@@ -56,6 +56,7 @@ setup(
             "yarl",
             "pytest-aiohttp",
             "pytest-mock",
+            "pytest-timeout",
             "cykooz.testing",
             'aiohttp_cors',
         ],
