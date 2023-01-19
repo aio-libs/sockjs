@@ -19,7 +19,7 @@ from .session import SessionManager
 from .transports import transport_handlers
 from .transports.base import Transport
 from .transports.rawwebsocket import RawWebSocketTransport
-from .transports.utils import CACHE_CONTROL, cache_headers, cors_headers, session_cookie
+from .transports.utils import CACHE_CONTROL, cache_headers, session_cookie
 
 
 log = logging.getLogger("sockjs")
@@ -231,7 +231,6 @@ class SockJSRoute:
         resp = web.Response()
         resp.headers[hdrs.CONTENT_TYPE] = "application/json;charset=UTF-8"
         resp.headers[hdrs.CACHE_CONTROL] = CACHE_CONTROL
-        resp.headers.extend(cors_headers(request.headers))
 
         info = {
             "entropy": random.randint(1, 2147483647),

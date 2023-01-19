@@ -1,5 +1,6 @@
 """ iframe-eventsource transport """
 from aiohttp import hdrs, web
+from multidict import MultiDict
 
 from .base import StreamingTransport
 from .utils import CACHE_CONTROL, session_cookie
@@ -20,7 +21,7 @@ class EventsourceTransport(StreamingTransport):
         headers += session_cookie(self.request)
 
         # open sequence (sockjs protocol)
-        resp = self.response = web.StreamResponse(headers=headers)
+        resp = self.response = web.StreamResponse(headers=MultiDict(headers))
         await resp.prepare(self.request)
         await resp.write(b"\r\n")
 

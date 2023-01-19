@@ -1,7 +1,8 @@
 from aiohttp import hdrs, web
+from multidict import MultiDict
 
 from .base import StreamingTransport
-from .utils import CACHE_CONTROL, cache_headers, cors_headers, session_cookie
+from .utils import CACHE_CONTROL, cache_headers, session_cookie
 
 
 class XHRStreamingTransport(StreamingTransport):
@@ -20,15 +21,14 @@ class XHRStreamingTransport(StreamingTransport):
         )
 
         headers += session_cookie(request)
-        headers += cors_headers(request.headers)
 
         if request.method == hdrs.METH_OPTIONS:
             headers += ((hdrs.ACCESS_CONTROL_ALLOW_METHODS, "OPTIONS, POST"),)
             headers += cache_headers()
-            return web.Response(status=204, headers=headers)
+            return web.Response(status=204, headers=MultiDict(headers))
 
         # open sequence (sockjs protocol)
-        resp = self.response = web.StreamResponse(headers=headers)
+        resp = self.response = web.StreamResponse(headers=MultiDict(headers))
         resp.force_close()
         await resp.prepare(request)
         await resp.write(self.open_seq)

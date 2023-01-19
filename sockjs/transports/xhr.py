@@ -1,7 +1,8 @@
 from aiohttp import hdrs, web
+from multidict import MultiDict
 
 from .base import StreamingTransport
-from .utils import CACHE_CONTROL, cache_headers, cors_headers, session_cookie
+from .utils import CACHE_CONTROL, cache_headers, session_cookie
 
 
 class XHRTransport(StreamingTransport):
@@ -23,18 +24,16 @@ class XHRTransport(StreamingTransport):
                 (hdrs.ACCESS_CONTROL_ALLOW_METHODS, "OPTIONS, POST"),
             )
             headers += session_cookie(request)
-            headers += cors_headers(request.headers)
             headers += cache_headers()
-            return web.Response(status=204, headers=headers)
+            return web.Response(status=204, headers=MultiDict(headers))
 
         headers = (
             (hdrs.CONTENT_TYPE, "application/javascript; charset=UTF-8"),
             (hdrs.CACHE_CONTROL, CACHE_CONTROL),
         )
         headers += session_cookie(request)
-        headers += cors_headers(request.headers)
 
-        resp = self.response = web.StreamResponse(headers=headers)
+        resp = self.response = web.StreamResponse(headers=MultiDict(headers))
         await resp.prepare(request)
 
         await self.handle_session()

@@ -3,9 +3,10 @@ import re
 from urllib.parse import unquote_plus
 
 from aiohttp import hdrs, web
+from multidict import MultiDict
 
 from .base import StreamingTransport
-from .utils import CACHE_CONTROL, cors_headers, session_cookie
+from .utils import CACHE_CONTROL, session_cookie
 from ..protocol import ENCODING, dumps, loads
 
 
@@ -39,9 +40,8 @@ class JSONPolling(StreamingTransport):
                 (hdrs.CACHE_CONTROL, CACHE_CONTROL),
             )
             headers += session_cookie(request)
-            headers += cors_headers(request.headers)
 
-            resp = self.response = web.StreamResponse(headers=headers)
+            resp = self.response = web.StreamResponse(headers=MultiDict(headers))
             await resp.prepare(request)
 
             await self.handle_session()
@@ -74,7 +74,7 @@ class JSONPolling(StreamingTransport):
                 (hdrs.CACHE_CONTROL, CACHE_CONTROL),
             )
             headers += session_cookie(request)
-            return web.Response(body=b"ok", headers=headers)
+            return web.Response(body=b"ok", headers=MultiDict(headers))
 
         else:
             raise web.HTTPBadRequest(text="No support for such method: %s" % meth)

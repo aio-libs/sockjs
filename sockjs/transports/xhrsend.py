@@ -1,7 +1,8 @@
 from aiohttp import hdrs, web
+from multidict import MultiDict
 
 from .base import Transport
-from .utils import CACHE_CONTROL, cache_headers, cors_headers, session_cookie
+from .utils import CACHE_CONTROL, cache_headers, session_cookie
 from ..protocol import ENCODING, loads
 
 
@@ -20,9 +21,8 @@ class XHRSendTransport(Transport):
                 (hdrs.CONTENT_TYPE, "application/javascript; charset=UTF-8"),
             )
             headers += session_cookie(request)
-            headers += cors_headers(request.headers)
             headers += cache_headers()
-            return web.Response(status=204, headers=headers)
+            return web.Response(status=204, headers=MultiDict(headers))
 
         data = await request.read()
         if not data:
@@ -40,6 +40,5 @@ class XHRSendTransport(Transport):
             (hdrs.CACHE_CONTROL, CACHE_CONTROL),
         )
         headers += session_cookie(request)
-        headers += cors_headers(request.headers)
 
-        return web.Response(status=204, headers=headers)
+        return web.Response(status=204, headers=MultiDict(headers))

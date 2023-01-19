@@ -2,9 +2,10 @@
 import re
 
 from aiohttp import hdrs, web
+from multidict import MultiDict
 
 from .base import StreamingTransport
-from .utils import CACHE_CONTROL, cors_headers, session_cookie
+from .utils import CACHE_CONTROL, session_cookie
 from ..protocol import dumps
 
 
@@ -51,10 +52,9 @@ class HTMLFileTransport(StreamingTransport):
             (hdrs.CONNECTION, "close"),
         )
         headers += session_cookie(request)
-        headers += cors_headers(request.headers)
 
         # open sequence (sockjs protocol)
-        resp = self.response = web.StreamResponse(headers=headers)
+        resp = self.response = web.StreamResponse(headers=MultiDict(headers))
         await resp.prepare(self.request)
         await resp.write(
             b"".join((PRELUDE1, callback.encode("utf-8"), PRELUDE2, b" " * 1024))

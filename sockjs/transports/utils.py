@@ -9,20 +9,6 @@ from aiohttp import hdrs
 CACHE_CONTROL = "no-store, no-cache, no-transform, must-revalidate, max-age=0"
 
 
-def cors_headers(headers, nocreds=False):
-    origin = headers.get(hdrs.ORIGIN, "*")
-    cors = ((hdrs.ACCESS_CONTROL_ALLOW_ORIGIN, origin),)
-
-    ac_headers = headers.get(hdrs.ACCESS_CONTROL_REQUEST_HEADERS)
-    if ac_headers:
-        cors += ((hdrs.ACCESS_CONTROL_ALLOW_HEADERS, ac_headers),)
-
-    if origin != "*":
-        return cors + ((hdrs.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"),)
-    else:
-        return cors
-
-
 def session_cookie(request):
     cookie = request.cookies.get("JSESSIONID", "dummy")
     cookies = http.cookies.SimpleCookie()
