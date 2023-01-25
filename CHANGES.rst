@@ -7,6 +7,8 @@ CHANGES
 
 - Added argument ``cors_config`` into function ``add_endpoint()``
   to support of CORS settings from ``aiohttp_cors``.
+- Added arguments ``heartbeat_delay`` and ``disconnect_delay``
+  into function ``add_endpoint()``.
 - Function ``add_endpoint()`` now returns all registered routes.
 - Replaced returning instances of error HTTP responses
   on raising its as exceptions.

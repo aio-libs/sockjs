@@ -45,6 +45,8 @@ def add_endpoint(
         sockjs_cdn="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js",  # noqa
         cookie_needed=True,
         cors_config: Optional[CorsConfig] = None,
+        heartbeat_delay=25,
+        disconnect_delay=5,
 ) -> List[web.AbstractRoute]:
     registered_routes = []
 
@@ -65,7 +67,13 @@ def add_endpoint(
 
     # set session manager
     if manager is None:
-        manager = SessionManager(name, app, handler)
+        manager = SessionManager(
+            name,
+            app,
+            handler,
+            heartbeat_delay,
+            disconnect_delay,
+        )
 
     if manager.name != name:
         raise ValueError("Session manage must have same name as sockjs route")
