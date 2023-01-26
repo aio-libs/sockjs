@@ -86,6 +86,7 @@ class TestSession:
 
     async def test_heartbeat(self, make_session):
         session = make_session("test")
+        session._send_heartbeats = True
         assert session._heartbeats == 0
         session._heartbeat()
         assert session._heartbeats == 1
@@ -241,13 +242,22 @@ class TestSession:
 
         session = make_session(result=messages)
         assert session.state == protocol.STATE_NEW
+        assert session._hb_task is None
+        assert not session._send_heartbeats
 
-        await session._acquire(manager, request=make_request("GET", "/test/"))
+        await session.acquire(manager, request=make_request("GET", "/test/"))
         assert session.state == protocol.STATE_OPEN
         assert session.manager is manager
         assert session._send_heartbeats
+        assert session._hb_task is not None
         assert list(session._queue) == [(protocol.FRAME_OPEN, protocol.FRAME_OPEN)]
         assert messages == [(protocol.OpenMessage, session)]
+
+        hb_task = session._hb_task
+        session.release()
+        assert not session._send_heartbeats
+        assert session._hb_task is None
+        assert hb_task._must_cancel
 
     async def test_acquire_exception_in_handler(
         self, make_manager, make_session, make_request
@@ -259,7 +269,7 @@ class TestSession:
         assert session.state == protocol.STATE_NEW
 
         sm = make_manager()
-        await session._acquire(sm, request=make_request("GET", "/test/"))
+        await session.acquire(sm, request=make_request("GET", "/test/"))
         assert session.state == protocol.STATE_CLOSING
         assert session._send_heartbeats
         assert session.interrupted
@@ -458,9 +468,9 @@ class TestSessionManager:
         sm = make_manager()
         s1 = make_session()
         sm._add(s1)
-        s1._acquire = mock.Mock()
-        s1._acquire.return_value = asyncio.Future()
-        s1._acquire.return_value.set_result(1)
+        s1.acquire = mock.Mock()
+        s1.acquire.return_value = asyncio.Future()
+        s1.acquire.return_value.set_result(1)
 
         s2 = await sm.acquire(s1, request=make_request("GET", "/test/"))
 
@@ -468,7 +478,7 @@ class TestSessionManager:
         assert s1.id in sm.acquired
         assert sm.acquired[s1.id]
         assert sm.is_acquired(s1)
-        assert s1._acquire.called
+        assert s1.acquire.called
 
     async def test_acquire_unknown(self, make_manager, make_session, make_request):
         sm = make_manager()
@@ -488,14 +498,14 @@ class TestSessionManager:
     async def test_release(self, make_manager, make_request):
         sm = make_manager()
         s = sm.get("test", True)
-        s._release = mock.Mock()
+        s.release = mock.Mock()
 
         await sm.acquire(s, request=make_request("GET", "/test/"))
         await sm.release(s)
 
         assert "test" not in sm.acquired
         assert not sm.is_acquired(s)
-        assert s._release.called
+        assert s.release.called
 
     async def test_active_sessions(self, make_manager):
         sm = make_manager()
@@ -537,21 +547,21 @@ class TestSessionManager:
         assert s1.state == protocol.STATE_CLOSED
         assert s2.state == protocol.STATE_CLOSED
 
-    async def test_heartbeat(self, make_manager):
+    async def test_gc_task(self, make_manager):
         sm = make_manager()
         assert not sm.started
-        assert sm._hb_task is None
+        assert sm._gc_task is None
 
         sm.start()
         assert sm.started
-        assert sm._hb_task is not None
+        assert sm._gc_task is not None
 
-        hb_task = sm._hb_task
+        gc_task = sm._gc_task
 
         await sm.stop()
         assert not sm.started
-        assert sm._hb_task is None
-        assert hb_task._must_cancel
+        assert sm._gc_task is None
+        assert gc_task._must_cancel
 
     async def test_gc_expire(self, make_manager, make_session, make_request):
         sm = make_manager()

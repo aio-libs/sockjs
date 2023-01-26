@@ -48,15 +48,16 @@ class Session:
     interrupted = False
     exception = None
     app: Optional[web.Application] = None
+    _hb_task = None
 
     def __init__(
-        self,
-        session_id,
-        handler,
-        *,
-        heartbeat_delay=25,
-        disconnect_delay=5,
-        debug=False
+            self,
+            session_id,
+            handler,
+            *,
+            heartbeat_delay=25,
+            disconnect_delay=5,
+            debug=False
     ):
         self.id = session_id
         self.handler = handler
@@ -111,23 +112,17 @@ class Session:
             return self.expires <= datetime.now()
         return False
 
-    def _tick(self, timeout=None):
-        if timeout is None:
-            self.next_heartbeat = datetime.now() + timedelta(
-                seconds=self.heartbeat_delay
-            )
-        else:
-            self.next_heartbeat = datetime.now() + timedelta(seconds=timeout)
-
-    async def _acquire(
-        self, manager: "SessionManager", request: web.Request, heartbeat=True
+    async def acquire(
+            self,
+            manager: "SessionManager",
+            request: web.Request,
     ):
         self.acquired = True
         self.manager = manager
         self.app = manager.app
         self.request = request
         self.expires = None
-        self._send_heartbeats = heartbeat
+        self._send_heartbeats = self.heartbeat_delay > 0
 
         self._tick()
         self._hits += 1
@@ -147,16 +142,43 @@ class Session:
                 self._feed(FRAME_CLOSE, (3000, "Internal error"))
                 log.exception("Exception in open session handling.")
 
-    def _release(self):
+        if self._hb_task is None and self._send_heartbeats:
+            self._hb_task = asyncio.create_task(self._heartbeat_task())
+
+    def release(self):
         self.acquired = False
         self.manager = None
         self.request = None
         self._send_heartbeats = False
+        if self._hb_task is not None:
+            try:
+                self._hb_task.cancel()
+            except RuntimeError:
+                pass  # an event loop already stopped
+        self._hb_task = None
+
+    def _tick(self, timeout=None):
+        if timeout is None:
+            self.next_heartbeat = datetime.now() + timedelta(
+                seconds=self.heartbeat_delay
+            )
+        else:
+            self.next_heartbeat = datetime.now() + timedelta(seconds=timeout)
 
     def _heartbeat(self):
-        self._heartbeats += 1
         if self._send_heartbeats:
             self._feed(FRAME_HEARTBEAT, FRAME_HEARTBEAT)
+            self._heartbeats += 1
+
+    async def _heartbeat_task(self):
+        while True:
+            now = datetime.now()
+            if self.next_heartbeat <= now:
+                self._heartbeat()
+                self._tick()
+            delta = (self.next_heartbeat - now).total_seconds()
+            if delta > 0:
+                await asyncio.sleep(delta)
 
     def _feed(self, frame, data):
         # pack messages
@@ -294,16 +316,16 @@ _marker = object()
 class SessionManager(dict):
     """A basic session manager."""
 
-    _hb_task = None  # gc task
+    _gc_task = None
 
     def __init__(
-        self,
-        name: str,
-        app: web.Application,
-        handler,
-        heartbeat_delay=25,
-        disconnect_delay=5,
-        debug=False,
+            self,
+            name: str,
+            app: web.Application,
+            handler,
+            heartbeat_delay=25,
+            disconnect_delay=5,
+            debug=False,
     ):
         super().__init__()
         self.name = name
@@ -319,19 +341,19 @@ class SessionManager(dict):
 
     @property
     def started(self):
-        return self._hb_task is not None
+        return self._gc_task is not None
 
     def start(self):
-        if not self._hb_task:
-            self._hb_task = asyncio.create_task(self._heartbeat_task())
+        if not self._gc_task:
+            self._gc_task = asyncio.create_task(self._gc_sessions_task())
 
     async def stop(self, _app=None):
-        if self._hb_task is not None:
+        if self._gc_task is not None:
             try:
-                self._hb_task.cancel()
+                self._gc_task.cancel()
             except RuntimeError:
                 pass  # an event loop already stopped
-            self._hb_task = None
+        self._gc_task = None
         await self.clear()
 
     async def _check_expiration(self, session: Session):
@@ -345,6 +367,12 @@ class SessionManager(dict):
             if session.state == STATE_CLOSING:
                 await session._remote_closed()
             return session.id
+
+    async def _gc_sessions_task(self):
+        delay = max(self.disconnect_delay, 5)
+        while True:
+            await asyncio.sleep(delay)
+            await self._gc_expired_sessions()
 
     async def _gc_expired_sessions(self):
         sessions = self.sessions
@@ -360,22 +388,6 @@ class SessionManager(dict):
                 del self[session_id]
                 del sessions[idx]
 
-    async def _heartbeat_task(self):
-        delay = min(self.heartbeat_delay, self.disconnect_delay)
-        if delay <= 0:
-            delay = max(self.heartbeat_delay, self.disconnect_delay, 10)
-        while True:
-            await asyncio.sleep(delay)
-            await self._gc_expired_sessions()
-            self._heartbeat()
-
-    def _heartbeat(self):
-        # Send heartbeat
-        now = datetime.now()
-        for session in self.sessions:
-            if session.next_heartbeat <= now:
-                session._heartbeat()
-
     def _add(self, session: Session):
         if session.expired:
             raise ValueError("Can not add expired session")
@@ -388,10 +400,10 @@ class SessionManager(dict):
         return session
 
     def get(
-        self,
-        session_id,
-        create=False,
-        default=_marker,
+            self,
+            session_id,
+            create=False,
+            default=_marker,
     ) -> Session:
         session = super().get(session_id, None)
         if session is None:
@@ -420,7 +432,7 @@ class SessionManager(dict):
         if sid not in self:
             raise KeyError("Unknown session")
 
-        await session._acquire(self, request)
+        await session.acquire(self, request)
 
         self.acquired[sid] = True
         return session
@@ -430,7 +442,7 @@ class SessionManager(dict):
 
     async def release(self, s: Session):
         if s.id in self.acquired:
-            s._release()
+            s.release()
             del self.acquired[s.id]
 
     def active_sessions(self):
@@ -456,7 +468,7 @@ class SessionManager(dict):
                 session.send_frame(blob)
 
     def __del__(self):
-        if len(self.sessions) or self._hb_task is not None:
+        if len(self.sessions) or self._gc_task is not None:
             warnings.warn(
                 "Please call `await SessionManager.stop()` before del",
                 RuntimeWarning,

@@ -13,6 +13,9 @@ CHANGES
 - Replaced returning instances of error HTTP responses
   on raising its as exceptions.
 - Changed name of some routes.
+- Heartbeat task moved from ``SessionManager`` into ``Session``.
+- Methods ``_acquire`` and ``_release`` of ``Sessions`` renamed into
+  ``acquire`` and ``release``.
 
 0.12.0 (2022-02-08)
 -------------------
