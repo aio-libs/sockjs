@@ -74,7 +74,8 @@ class StreamingTransport(Transport, abc.ABC):
                 if self.timeout:
                     try:
                         frame, text = await asyncio.wait_for(
-                            self.session._get_frame(), timeout=self.timeout
+                            self.session._get_frame(),
+                            timeout=self.timeout,
                         )
                     except asyncio.futures.TimeoutError:
                         frame, text = FRAME_MESSAGE, "a[]"
@@ -89,7 +90,7 @@ class StreamingTransport(Transport, abc.ABC):
                 stop = await self._send(text)
                 if stop:
                     break
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, ConnectionError):
             await self.session._remote_close(exc=aiohttp.ClientConnectionError)
             await self.session._remote_closed()
             raise

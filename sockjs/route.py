@@ -209,10 +209,8 @@ class SockJSRoute:
         t = transport(manager, session, request)
         try:
             return await t.process()
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, web.HTTPException, ConnectionError):
             raise
-        except web.HTTPException as exc:
-            raise exc
         except Exception:
             log.exception("Exception in transport: %s" % tid)
             if manager.is_acquired(session):

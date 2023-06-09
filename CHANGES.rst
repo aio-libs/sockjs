@@ -16,6 +16,7 @@ CHANGES
 - Heartbeat task moved from ``SessionManager`` into ``Session``.
 - Methods ``_acquire`` and ``_release`` of ``Sessions`` renamed into
   ``acquire`` and ``release``.
+- Added processing of ``ConnectionError`` in ``StreamingTransport``.
 
 0.12.0 (2022-02-08)
 -------------------

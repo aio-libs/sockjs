@@ -23,6 +23,7 @@ class EventsourceTransport(StreamingTransport):
         # open sequence (sockjs protocol)
         resp = self.response = web.StreamResponse(headers=MultiDict(headers))
         await resp.prepare(self.request)
+        # Opera needs one more new line at the start.
         await resp.write(b"\r\n")
 
         # handle session
