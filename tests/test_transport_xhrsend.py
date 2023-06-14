@@ -1,7 +1,7 @@
 import pytest
 from aiohttp import web
 
-from sockjs.transports import xhrsend
+from sockjs.transports import xhr_pooling
 
 
 @pytest.fixture
@@ -12,7 +12,7 @@ def make_transport(make_manager, make_request, make_handler, make_fut):
         request = make_request(method, path, query_params=query_params)
         request.app.freeze()
         session = manager.get("TestSessionXhrSend", create=True)
-        return xhrsend.XHRSendTransport(manager, session, request)
+        return xhr_pooling.XHRSendTransport(manager, session, request)
 
     return maker
 

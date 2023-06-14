@@ -117,12 +117,13 @@ def add_endpoint(
             )
         )
 
-    route_name = "sockjs-websocket-%s" % name
-    registered_routes.append(
-        router.add_route(
-            hdrs.METH_GET, "%s/websocket" % prefix, route.websocket, name=route_name
+    if "websocket-raw" not in route.disable_transports:
+        route_name = "sockjs-websocket-%s" % name
+        registered_routes.append(
+            router.add_route(
+                hdrs.METH_GET, "%s/websocket" % prefix, route.websocket, name=route_name
+            )
         )
-    )
 
     registered_routes.append(
         router.add_route(
@@ -177,20 +178,23 @@ class SockJSRoute:
         self.cookie_needed = cookie_needed
         self.iframe_html = (IFRAME_HTML % sockjs_cdn).encode("utf-8")
         self.iframe_html_hxd = hashlib.md5(self.iframe_html).hexdigest()
+        transport_names = {
+            transport_class.name
+            for transport_class in transport_handlers.values()
+        }
+        transport_names.add("websocket-raw")
         self._transport_names = sorted(
-            set(transport_handlers.keys()) - self.disable_transports
+            transport_names - self.disable_transports
         )
 
     async def handler(self, request):
         info = request.match_info
 
         # lookup transport
-        tid = info["transport"]
-
-        if tid not in self.handlers or tid in self.disable_transports:
+        t_id = info["transport"]
+        transport: Optional[Type[Transport]] = self.handlers.get(t_id)
+        if transport is None or transport.name in self.disable_transports:
             raise web.HTTPNotFound()
-
-        transport: Type[Transport] = self.handlers[tid]
 
         # session
         manager = self.manager
@@ -209,13 +213,18 @@ class SockJSRoute:
         t = transport(manager, session, request)
         try:
             return await t.process()
-        except (asyncio.CancelledError, web.HTTPException, ConnectionError):
+        except (asyncio.CancelledError, web.HTTPException, ConnectionError) as e:
+            await session._remote_close(exc=e)
             raise
-        except Exception:
-            log.exception("Exception in transport: %s" % tid)
-            if manager.is_acquired(session):
-                await manager.release(session)
+        except Exception as e:
+            log.exception("Exception in transport: %s" % t_id)
+            await session._remote_close(exc=e)
             raise web.HTTPInternalServerError()
+        finally:
+            if manager.is_acquired(session):
+                await session._remote_close()
+                await session._remote_closed()
+                await manager.release(session)
 
     async def websocket(self, request):
         if not self.manager.started:

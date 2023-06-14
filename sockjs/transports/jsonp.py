@@ -11,6 +11,7 @@ from ..protocol import ENCODING, dumps, loads
 
 
 class JSONPolling(StreamingTransport):
+    name = "jsonp-polling"
     create_session = True
     maxsize = 0
     check_callback = re.compile(r"^[a-zA-Z0-9_\.]+$")
@@ -81,4 +82,5 @@ class JSONPolling(StreamingTransport):
 
 
 class JSONPollingSend(JSONPolling):
+    name = "jsonp-polling"
     create_session = False

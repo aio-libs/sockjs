@@ -17,6 +17,7 @@ from ..session import Session, SessionManager
 
 
 class Transport(abc.ABC):
+    name: str
     create_session = True
 
     @classmethod

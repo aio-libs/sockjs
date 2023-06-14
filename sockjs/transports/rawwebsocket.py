@@ -15,6 +15,7 @@ from ..session import Session, SessionManager
 
 
 class RawWebSocketTransport(Transport):
+    name = "websocket-raw"
     heartbeat_timeout = 10
 
     @classmethod

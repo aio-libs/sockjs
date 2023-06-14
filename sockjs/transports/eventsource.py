@@ -7,6 +7,7 @@ from .utils import CACHE_CONTROL, session_cookie
 
 
 class EventsourceTransport(StreamingTransport):
+    name = "eventsource"
     create_session = True
 
     async def _send(self, text: str):

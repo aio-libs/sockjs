@@ -6,6 +6,7 @@ from .utils import CACHE_CONTROL, cache_headers, session_cookie
 
 
 class XHRStreamingTransport(StreamingTransport):
+    name = "xhr-streaming"
     create_session = True
     open_seq = b"h" * 2048 + b"\n"
 

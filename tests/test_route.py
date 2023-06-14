@@ -21,6 +21,15 @@ async def test_info(make_route, make_request):
 
     assert info["websocket"]
     assert info["cookie_needed"]
+    assert info["transports"] == [
+        "eventsource",
+        "htmlfile",
+        "jsonp-polling",
+        "websocket",
+        "websocket-raw",
+        "xhr-polling",
+        "xhr-streaming",
+    ]
 
 
 async def test_info_entropy(make_route, make_request):
@@ -162,6 +171,8 @@ async def test_fail_transport(make_route, make_request):
     params = []
 
     class FakeTransport(Transport):
+        name = "test"
+
         def __init__(self, manager, session, request):
             super().__init__(manager, session, request)
             params.append((manager, session, request))
@@ -182,6 +193,7 @@ async def test_release_session_for_failed_transport(make_route, make_request):
     )
 
     class FakeTransport(Transport):
+        name = "test"
         create_session = True
 
         async def process(self):

@@ -20,6 +20,7 @@ log = logging.getLogger("sockjs")
 
 
 class WebSocketTransport(Transport):
+    name = "websocket"
     heartbeat_timeout = 10
 
     @classmethod

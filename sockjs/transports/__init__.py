@@ -3,8 +3,7 @@ from .eventsource import EventsourceTransport
 from .htmlfile import HTMLFileTransport
 from .jsonp import JSONPolling, JSONPollingSend
 from .websocket import WebSocketTransport
-from .xhr import XHRTransport
-from .xhrsend import XHRSendTransport
+from .xhr_pooling import XHRTransport, XHRSendTransport
 from .xhrstreaming import XHRStreamingTransport
 
 
