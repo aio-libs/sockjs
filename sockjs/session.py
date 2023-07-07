@@ -112,7 +112,8 @@ class Session:
         self._hits += 1
 
         if self.state == SessionState.NEW:
-            log.debug("open session: %s", self.id)
+            if self._debug:
+                log.debug("open session: %s", self.id)
             self.state = SessionState.OPEN
             self.feed(Frame.OPEN, Frame.OPEN.value)
             return True
@@ -280,7 +281,8 @@ class SessionManager:
 
     async def _check_expiration(self, session: Session):
         if session.expired:
-            log.debug("session expired: %s", session.id)
+            if self.debug:
+                log.debug("session expired: %s", session.id)
             # Session is to be GC'd immediately
             if session.id in self.acquired:
                 await self.release(session)
@@ -408,7 +410,8 @@ class SessionManager:
 
     async def remote_message(self, session: Session, msg):
         """Call handler with message received from client."""
-        log.debug("incoming message: %s, %s", session.id, msg[:200])
+        if self.debug:
+            log.debug("incoming message: %s, %s", session.id, msg[:200])
         session.tick()
 
         try:
@@ -421,7 +424,8 @@ class SessionManager:
         session.tick()
 
         for msg in messages:
-            log.debug("incoming message: %s, %s", session.id, msg[:200])
+            if self.debug:
+                log.debug("incoming message: %s, %s", session.id, msg[:200])
             try:
                 await self.handler(self, session, SockjsMessage(MsgType.MESSAGE, msg))
             except Exception:
@@ -432,7 +436,8 @@ class SessionManager:
         if session.state in (SessionState.CLOSING, SessionState.CLOSED):
             return
 
-        log.info("close session: %s", session.id)
+        if self.debug:
+            log.info("close session: %s", session.id)
         session.tick()
         session.state = SessionState.CLOSING
         if exc is not None:
@@ -452,7 +457,8 @@ class SessionManager:
             session.expire()
             return
 
-        log.info("session closed: %s", session.id)
+        if self.debug:
+            log.info("session closed: %s", session.id)
         session.state = SessionState.CLOSED
         session.expire()
         try:

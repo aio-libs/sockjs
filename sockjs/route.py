@@ -47,6 +47,7 @@ def add_endpoint(
         cors_config: Optional[CorsConfig] = None,
         heartbeat_delay=25,
         disconnect_delay=5,
+        debug=False,
 ) -> List[web.AbstractRoute]:
     registered_routes = []
 
@@ -73,6 +74,7 @@ def add_endpoint(
             handler,
             heartbeat_delay,
             disconnect_delay,
+            debug=debug,
         )
 
     if manager.name != name:

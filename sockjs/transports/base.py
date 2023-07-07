@@ -2,7 +2,7 @@ import abc
 import asyncio
 
 from aiohttp import web
-from aiohttp.web_exceptions import HTTPClientError
+from aiohttp.web_exceptions import HTTPClientError, HTTPError
 
 from ..exceptions import SessionIsAcquired, SessionIsClosed
 from ..protocol import (
@@ -101,7 +101,7 @@ class StreamingTransport(Transport, abc.ABC):
                 stop = await self._send(text)
                 if stop:
                     break
-        except (asyncio.CancelledError, ConnectionError) as e:
+        except (asyncio.CancelledError, ConnectionError, HTTPError) as e:
             await self.manager.remote_close(self.session, exc=e)
             await self.manager.remote_closed(self.session)
             raise
