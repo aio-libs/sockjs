@@ -5,21 +5,24 @@ import aiohttp_cors
 from aiohttp import web
 
 import sockjs
+from sockjs import SessionManager, Session, SockjsMessage, MsgType
 
 
 CHAT_FILE = open(
     os.path.join(os.path.dirname(__file__), 'chat.html'), 'rb').read()
 
 
-async def chat_msg_handler(msg, session):
-    if session.manager is None:
-        return
-    if msg.type == sockjs.MSG_OPEN:
-        session.manager.broadcast("Someone joined.")
-    elif msg.type == sockjs.MSG_MESSAGE:
-        session.manager.broadcast(msg.data)
-    elif msg.type == sockjs.MSG_CLOSED:
-        session.manager.broadcast("Someone left.")
+async def chat_msg_handler(
+        manager: SessionManager,
+        session: Session,
+        msg: SockjsMessage,
+):
+    if msg.type == MsgType.OPEN:
+        manager.broadcast("Someone joined.")
+    elif msg.type == MsgType.MESSAGE:
+        manager.broadcast(msg.data)
+    elif msg.type == MsgType.CLOSED:
+        manager.broadcast("Someone left.")
 
 
 def index(request):

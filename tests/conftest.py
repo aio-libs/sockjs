@@ -1,4 +1,5 @@
 import asyncio
+from typing import Optional
 from unittest import mock
 
 import aiohttp_cors
@@ -41,7 +42,7 @@ def make_handler():
             result = []
         output = result
 
-        async def handler(msg, s):
+        async def handler(manager, s, msg):
             if exc:
                 raise ValueError((msg, s))
             output.append((msg, s))
@@ -93,10 +94,15 @@ def make_request(app):
 
 @pytest.fixture
 def make_session(make_handler, make_request):
-    def maker(name="test", disconnect_delay=10, handler=None, result=None):
-        if handler is None:
-            handler = make_handler(result)
-        return Session(name, handler, disconnect_delay=disconnect_delay, debug=True)
+    def maker(
+            name="test",
+            disconnect_delay=10,
+            manager: Optional[SessionManager] = None
+    ):
+        session = Session(name, disconnect_delay=disconnect_delay, debug=True)
+        if manager:
+            manager.sessions[session.id] = session
+        return session
 
     return maker
 

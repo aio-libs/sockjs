@@ -39,11 +39,11 @@ async def xtest_bad_json(make_transport, make_fut):
 
 async def xtest_post_message(make_transport, make_fut):
     transp = make_transport()
-    transp.session._remote_messages = make_fut(1)
+    transp.manager.remote_messages = make_fut(1)
     transp.request.read = make_fut(b'["msg1","msg2"]')
     resp = await transp.process()
     assert resp.status == 204
-    transp.session._remote_messages.assert_called_with(["msg1", "msg2"])
+    transp.manager.remote_messages.assert_called_with(["msg1", "msg2"])
 
 
 async def test_OPTIONS(make_transport):

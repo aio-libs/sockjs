@@ -17,6 +17,34 @@ CHANGES
 - Methods ``_acquire`` and ``_release`` of ``Sessions`` renamed into
   ``acquire`` and ``release``.
 - Added processing of ``ConnectionError`` in ``StreamingTransport``.
+- Changed arguments of handler function. Now handler function must be defined
+  like ``async def handler(manager, session, msg):``
+- Constants:
+
+  - FRAME_OPEN
+  - FRAME_CLOSE
+  - FRAME_MESSAGE
+  - FRAME_MESSAGE_BLOB
+  - FRAME_HEARTBEAT
+
+  replaced by ``Frame`` enums with corresponding values.
+- Constants:
+
+  - MSG_OPEN
+  - MSG_MESSAGE
+  - MSG_CLOSE
+  - MSG_CLOSED
+
+  replaced by ``MsgType`` enums with corresponding values.
+- Constants:
+
+  - STATE_NEW
+  - STATE_OPEN
+  - STATE_CLOSING
+  - STATE_CLOSED
+
+  replaced by ``SessionState`` enums with corresponding values.
+
 
 0.12.0 (2022-02-08)
 -------------------

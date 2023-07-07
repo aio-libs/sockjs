@@ -22,6 +22,7 @@ class JSONPolling(StreamingTransport):
         return await super()._send(text)
 
     async def process(self):
+        manager = self.manager
         session = self.session
         request = self.request
         meth = request.method
@@ -29,11 +30,11 @@ class JSONPolling(StreamingTransport):
         if request.method == hdrs.METH_GET:
             callback = self.callback = request.query.get("c")
             if not callback:
-                await self.session._remote_closed()
+                await self.manager.remote_closed(self.session)
                 raise web.HTTPInternalServerError(text='"callback" parameter required')
 
             elif not self.check_callback.match(callback):
-                await self.session._remote_closed()
+                await self.manager.remote_closed(self.session)
                 raise web.HTTPInternalServerError(text='invalid "callback" parameter')
 
             headers = (
@@ -68,7 +69,7 @@ class JSONPolling(StreamingTransport):
             except Exception:
                 raise web.HTTPInternalServerError(text="Broken JSON encoding.")
 
-            await session._remote_messages(messages)
+            await manager.remote_messages(session, messages)
 
             headers = (
                 (hdrs.CONTENT_TYPE, "text/plain;charset=UTF-8"),

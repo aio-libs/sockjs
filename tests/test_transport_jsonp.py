@@ -42,21 +42,21 @@ async def test_process(make_transport, make_fut):
 async def test_process_no_callback(make_transport, make_fut):
     transp = make_transport()
     transp.session = mock.Mock()
-    transp.session._remote_closed = make_fut(1)
+    transp.manager.remote_closed = make_fut(1)
 
     with pytest.raises(web.HTTPInternalServerError):
         await transp.process()
-    assert transp.session._remote_closed.called
+    assert transp.manager.remote_closed.called
 
 
 async def test_process_bad_callback(make_transport, make_fut):
     transp = make_transport(query_params={"c": "calback!!!!"})
     transp.session = mock.Mock()
-    transp.session._remote_closed = make_fut(1)
+    transp.manager.remote_closed = make_fut(1)
 
     with pytest.raises(web.HTTPInternalServerError):
         await transp.process()
-    assert transp.session._remote_closed.called
+    assert transp.manager.remote_closed.called
 
 
 async def test_process_not_supported(make_transport):
@@ -68,7 +68,6 @@ async def test_process_not_supported(make_transport):
 async def xtest_process_bad_encoding(make_transport, make_fut):
     transp = make_transport(method="POST")
     transp.request.read = make_fut(b"test")
-    transp.request.content_type
     transp.request._content_type = "application/x-www-form-urlencoded"
     resp = await transp.process()
     assert resp.status == 500
@@ -77,7 +76,6 @@ async def xtest_process_bad_encoding(make_transport, make_fut):
 async def xtest_process_no_payload(make_transport, make_fut):
     transp = make_transport(method="POST")
     transp.request.read = make_fut(b"d=")
-    transp.request.content_type
     transp.request._content_type = "application/x-www-form-urlencoded"
     resp = await transp.process()
     assert resp.status == 500
@@ -92,8 +90,8 @@ async def xtest_process_bad_json(make_transport, make_fut):
 
 async def xtest_process_message(make_transport, make_fut):
     transp = make_transport(method="POST")
-    transp.session._remote_messages = make_fut(1)
+    transp.manager.remote_messages = make_fut(1)
     transp.request.read = make_fut(b'["msg1","msg2"]')
     resp = await transp.process()
     assert resp.status == 200
-    transp.session._remote_messages.assert_called_with(["msg1", "msg2"])
+    transp.manager.remote_messages.assert_called_with(["msg1", "msg2"])

@@ -4,7 +4,7 @@ import pytest
 from aiohttp import web
 from aiohttp.test_utils import make_mocked_coro
 
-from sockjs import protocol
+from sockjs import SessionState
 from sockjs.transports import base
 
 
@@ -55,23 +55,25 @@ async def test_handle_session_interrupted(make_transport, make_fut):
 
 async def test_handle_session_closing(make_transport, make_fut):
     trans = make_transport()
+    manager = trans.manager
     trans._send = make_fut(1)
     trans.session.interrupted = False
-    trans.session.state = protocol.STATE_CLOSING
-    trans.session._remote_closed = make_fut(1)
+    trans.session.state = SessionState.CLOSING
+    manager.remote_closed = make_fut(1)
     trans.response = web.StreamResponse()
     await trans.handle_session()
-    trans.session._remote_closed.assert_called_with()
+    manager.remote_closed.assert_called()
     trans._send.assert_called_with('c[3000,"Go away!"]')
 
 
 async def test_handle_session_closed(make_transport, make_fut):
     trans = make_transport()
+    manager = trans.manager
     trans._send = make_fut(1)
     trans.session.interrupted = False
-    trans.session.state = protocol.STATE_CLOSED
-    trans.session._remote_closed = make_fut(1)
+    trans.session.state = SessionState.CLOSED
+    manager.remote_closed = make_fut(1)
     trans.response = web.StreamResponse()
     await trans.handle_session()
-    trans.session._remote_closed.assert_called_with()
+    manager.remote_closed.assert_called()
     trans._send.assert_called_with('c[3000,"Go away!"]')

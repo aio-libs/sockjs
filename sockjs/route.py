@@ -15,7 +15,7 @@ except ImportError:
     CorsConfig = None
 
 from .protocol import IFRAME_HTML
-from .session import SessionManager
+from .session import SessionManager, HandlerType
 from .transports import transport_handlers
 from .transports.base import Transport
 from .transports.rawwebsocket import RawWebSocketTransport
@@ -36,7 +36,7 @@ def _gen_endpoint_name():
 
 def add_endpoint(
         app: web.Application,
-        handler,
+        handler: HandlerType,
         *,
         name="",
         prefix="/sockjs",
@@ -57,8 +57,8 @@ def add_endpoint(
     ):
         sync_handler = handler
 
-        async def handler(msg, session):
-            return sync_handler(msg, session)
+        async def handler(m, s, msg):
+            return sync_handler(m, s, msg)
 
     router = app.router
 
@@ -192,8 +192,8 @@ class SockJSRoute:
 
         # lookup transport
         t_id = info["transport"]
-        transport: Optional[Type[Transport]] = self.handlers.get(t_id)
-        if transport is None or transport.name in self.disable_transports:
+        transport_class: Optional[Type[Transport]] = self.handlers.get(t_id)
+        if transport_class is None or transport_class.name in self.disable_transports:
             raise web.HTTPNotFound()
 
         # session
@@ -206,24 +206,26 @@ class SockJSRoute:
             raise web.HTTPNotFound()
 
         try:
-            session = transport.get_session(manager, sid)
+            session = transport_class.get_session(manager, sid)
         except KeyError:
             raise web.HTTPNotFound(headers=session_cookie(request))
 
-        t = transport(manager, session, request)
+        transport = transport_class(manager, session, request)
         try:
-            return await t.process()
+            return await transport.process()
         except (asyncio.CancelledError, web.HTTPException, ConnectionError) as e:
-            await session._remote_close(exc=e)
+            if transport.create_session:
+                await manager.remote_close(session, exc=e)
             raise
         except Exception as e:
             log.exception("Exception in transport: %s" % t_id)
-            await session._remote_close(exc=e)
+            if transport.create_session:
+                await manager.remote_close(session, exc=e)
             raise web.HTTPInternalServerError()
         finally:
-            if manager.is_acquired(session):
-                await session._remote_close()
-                await session._remote_closed()
+            if transport.create_session and manager.is_acquired(session):
+                await manager.remote_close(session)
+                await manager.remote_closed(session)
                 await manager.release(session)
 
     async def websocket(self, request):

@@ -204,7 +204,7 @@ async def test_release_session_for_failed_transport(make_route, make_request):
     with pytest.raises(web.HTTPInternalServerError):
         await route.handler(request)
 
-    s1 = route.manager["s1"]
+    s1 = route.manager.sessions["s1"]
     assert not route.manager.is_acquired(s1)
 
 

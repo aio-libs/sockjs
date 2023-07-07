@@ -7,8 +7,8 @@ import pytest
 from aiohttp import WSMessage, WSMsgType
 from aiohttp.test_utils import make_mocked_coro
 
-from sockjs import MSG_CLOSED, MSG_MESSAGE, MSG_OPEN, Session
-from sockjs.protocol import FRAME_CLOSE, SockjsMessage
+from sockjs import MsgType, Session, Frame
+from sockjs.protocol import SockjsMessage
 from sockjs.transports import WebSocketTransport
 
 
@@ -20,7 +20,7 @@ def make_transport(make_manager, make_request, make_handler, make_fut):
         request = make_request(method, path, query_params=query_params)
         request.app.freeze()
         session = manager.get("TestSessionWebsocket", create=True)
-        session._get_frame = make_fut((FRAME_CLOSE, ""))
+        session.get_frame = make_fut((Frame.CLOSE, ""))
         return WebSocketTransport(manager, session, request)
 
     return maker
@@ -31,6 +31,8 @@ async def xtest_process_release_acquire_and_remote_closed(make_transport):
     transp.session.interrupted = False
     transp.manager.acquire = make_mocked_coro()
     transp.manager.release = make_mocked_coro()
+    transp.manager.remote_closed = make_mocked_coro()
+
     resp = await transp.process()
     await transp.manager.clear()
 
@@ -38,7 +40,7 @@ async def xtest_process_release_acquire_and_remote_closed(make_transport):
     assert resp.headers.get("upgrade", "").lower() == "websocket"
     assert resp.headers.get("connection", "").lower() == "upgrade"
 
-    transp.session._remote_closed.assert_called_once_with()
+    assert transp.manager.remote_closed.called
     assert transp.manager.acquire.called
     assert transp.manager.release.called
 
@@ -48,15 +50,15 @@ async def test_server_close(app, make_manager, make_request):
 
     loop = asyncio.get_running_loop()
 
-    async def handler(msg: SockjsMessage, session: Session):
+    async def handler(manager, session: Session, msg: SockjsMessage):
         nonlocal reached_closed
-        if msg.type == MSG_OPEN:
+        if msg.type == MsgType.OPEN:
             # To reproduce the ordering which makes the issue
             loop.call_later(0.05, session.close)
-        elif msg.type == MSG_MESSAGE:
+        elif msg.type == MsgType.MESSAGE:
             # To reproduce the ordering which makes the issue
             loop.call_later(0.05, session.close)
-        elif msg.type == MSG_CLOSED:
+        elif msg.type == MsgType.CLOSED:
             reached_closed = True
 
     app.freeze()

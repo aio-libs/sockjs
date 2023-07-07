@@ -1,19 +1,21 @@
 import abc
 import asyncio
 
-import aiohttp
 from aiohttp import web
+from aiohttp.web_exceptions import HTTPClientError
 
 from ..exceptions import SessionIsAcquired, SessionIsClosed
 from ..protocol import (
     ENCODING,
-    FRAME_CLOSE,
-    FRAME_MESSAGE,
-    STATE_CLOSED,
-    STATE_CLOSING,
     close_frame,
+    SessionState,
+    Frame,
 )
 from ..session import Session, SessionManager
+
+
+class HTTPClientClosedConnection(HTTPClientError):
+    status_code = 499
 
 
 class Transport(abc.ABC):
@@ -24,7 +26,12 @@ class Transport(abc.ABC):
     def get_session(cls, manager: SessionManager, session_id: str) -> Session:
         return manager.get(session_id, create=cls.create_session)
 
-    def __init__(self, manager: SessionManager, session: Session, request: web.Request):
+    def __init__(
+            self,
+            manager: SessionManager,
+            session: Session,
+            request: web.Request,
+    ):
         self.manager = manager
         self.session = session
         self.request = request
@@ -44,10 +51,13 @@ class StreamingTransport(Transport, abc.ABC):
         self.response = None
 
     async def _send(self, text: str):
-        blob = text.encode(ENCODING)
-        await self.response.write(blob)
-        self.size += len(blob)
-        return self.size > self.maxsize
+        try:
+            blob = text.encode(ENCODING)
+            await self.response.write(blob)
+            self.size += len(blob)
+            return self.size > self.maxsize
+        except ConnectionResetError as e:
+            raise HTTPClientClosedConnection() from e
 
     async def handle_session(self):
         assert self.response is not None, "Response is not specified."
@@ -58,8 +68,8 @@ class StreamingTransport(Transport, abc.ABC):
             return
 
         # session is closing or closed
-        if self.session.state in (STATE_CLOSING, STATE_CLOSED):
-            await self.session._remote_closed()
+        if self.session.state in (SessionState.CLOSING, SessionState.CLOSED):
+            await self.manager.remote_closed(self.session)
             await self._send(close_frame(3000, "Go away!"))
             return
 
@@ -75,25 +85,25 @@ class StreamingTransport(Transport, abc.ABC):
                 if self.timeout:
                     try:
                         frame, text = await asyncio.wait_for(
-                            self.session._get_frame(),
+                            self.session.get_frame(),
                             timeout=self.timeout,
                         )
                     except asyncio.futures.TimeoutError:
-                        frame, text = FRAME_MESSAGE, "a[]"
+                        frame, text = Frame.MESSAGE, "a[]"
                 else:
-                    frame, text = await self.session._get_frame()
+                    frame, text = await self.session.get_frame()
 
-                if frame == FRAME_CLOSE:
-                    await self.session._remote_closed()
+                if frame == Frame.CLOSE:
+                    await self.manager.remote_closed(self.session)
                     await self._send(text)
                     break
 
                 stop = await self._send(text)
                 if stop:
                     break
-        except (asyncio.CancelledError, ConnectionError):
-            await self.session._remote_close(exc=aiohttp.ClientConnectionError)
-            await self.session._remote_closed()
+        except (asyncio.CancelledError, ConnectionError) as e:
+            await self.manager.remote_close(self.session, exc=e)
+            await self.manager.remote_closed(self.session)
             raise
         except SessionIsClosed:
             pass

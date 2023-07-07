@@ -69,7 +69,7 @@ class XHRSendTransport(Transport):
         except Exception:
             raise web.HTTPInternalServerError(text="Broken JSON encoding.")
 
-        await self.session._remote_messages(messages)
+        await self.manager.remote_messages(self.session, messages)
 
         headers = (
             (hdrs.CONTENT_TYPE, "text/plain; charset=UTF-8"),

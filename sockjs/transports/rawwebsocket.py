@@ -10,7 +10,7 @@ from async_timeout import timeout
 from .base import Transport
 from .utils import cancel_tasks
 from ..exceptions import SessionIsClosed
-from ..protocol import FRAME_CLOSE, FRAME_HEARTBEAT, FRAME_MESSAGE, FRAME_MESSAGE_BLOB
+from ..protocol import Frame
 from ..session import Session, SessionManager
 
 
@@ -28,7 +28,7 @@ class RawWebSocketTransport(Transport):
 
         # Generate unique session_id based on given ID.
         orig_session_id = session_id
-        while session_id in manager:
+        while session_id in manager.sessions:
             session_id = "%s-%s" % (orig_session_id, uuid4().hex[-8:])
         return super().get_session(manager, session_id)
 
@@ -40,28 +40,28 @@ class RawWebSocketTransport(Transport):
     async def server(self, ws: web.WebSocketResponse):
         while True:
             try:
-                frame, data = await self.session._get_frame(pack=False)
+                frame, data = await self.session.get_frame(pack=False)
             except SessionIsClosed:
                 break
 
-            if frame == FRAME_MESSAGE:
+            if frame == Frame.MESSAGE:
                 for text in data:
                     await ws.send_str(text)
-            elif frame == FRAME_MESSAGE_BLOB:
+            elif frame == Frame.MESSAGE_BLOB:
                 data = data[1:]
                 if data.startswith("["):
                     data = data[1:-1]
                 await ws.send_str(data)
-            elif frame == FRAME_HEARTBEAT:
+            elif frame == Frame.HEARTBEAT:
                 await ws.ping()
                 if self._wait_pong_task is None:
                     self._wait_pong_task = asyncio.create_task(self._wait_pong())
                     self._wait_pong_task.add_done_callback(self._wait_done_callback)
-            elif frame == FRAME_CLOSE:
+            elif frame == Frame.CLOSE:
                 try:
                     await ws.close(message=b"Go away!")
                 finally:
-                    await self.session._remote_closed()
+                    await self.manager.remote_closed(self.session)
 
     async def _wait_pong(self):
         try:
@@ -84,17 +84,17 @@ class RawWebSocketTransport(Transport):
             if msg.type == web.WSMsgType.text:
                 if not msg.data:
                     continue
-                await self.session._remote_message(msg.data)
+                await self.manager.remote_message(self.session, msg.data)
             elif msg.type == web.WSMsgType.close:
-                await self.session._remote_close()
+                await self.manager.remote_close(self.session)
             elif msg.type in (web.WSMsgType.closed, web.WSMsgType.closing):
-                await self.session._remote_closed()
+                await self.manager.remote_closed(self.session)
                 break
             elif msg.type == web.WSMsgType.PONG:
-                self.session._tick()
+                self.session.tick()
             elif msg.type == web.WSMsgType.PING:
                 await ws.pong(msg.data)
-                self.session._tick()
+                self.session.tick()
 
     async def process(self):
         # start websocket connection
@@ -117,7 +117,7 @@ class RawWebSocketTransport(Transport):
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            await self.session._remote_close(exc)
+            await self.manager.remote_close(self.session, exc)
         finally:
             self.session.expire()
             await self.manager.release(self.session)

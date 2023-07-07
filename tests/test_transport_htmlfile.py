@@ -46,18 +46,18 @@ async def test_process(make_transport, make_fut):
 async def test_process_no_callback(make_transport, make_fut):
     transp = make_transport()
     transp.session = mock.Mock()
-    transp.session._remote_closed = make_fut(1)
+    transp.manager.remote_closed = make_fut(1)
 
     with pytest.raises(web.HTTPInternalServerError):
         await transp.process()
-    assert transp.session._remote_closed.called
+    assert transp.manager.remote_closed.called
 
 
 async def test_process_bad_callback(make_transport, make_fut):
     transp = make_transport(query_params={"c": "calback!!!!"})
     transp.session = mock.Mock()
-    transp.session._remote_closed = make_fut(1)
+    transp.manager.remote_closed = make_fut(1)
 
     with pytest.raises(web.HTTPInternalServerError):
         await transp.process()
-    assert transp.session._remote_closed.called
+    assert transp.manager.remote_closed.called

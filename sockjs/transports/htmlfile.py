@@ -40,11 +40,11 @@ class HTMLFileTransport(StreamingTransport):
 
         callback = request.query.get("c")
         if callback is None:
-            await self.session._remote_closed()
+            await self.manager.remote_closed(self.session)
             raise web.HTTPInternalServerError(text='"callback" parameter required')
 
         elif not self.check_callback.match(callback):
-            await self.session._remote_closed()
+            await self.manager.remote_closed(self.session)
             raise web.HTTPInternalServerError(text='invalid "callback" parameter')
 
         headers = (

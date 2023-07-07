@@ -12,7 +12,7 @@ from async_timeout import timeout
 from .base import Transport
 from .utils import cancel_tasks
 from ..exceptions import SessionIsClosed
-from ..protocol import FRAME_CLOSE, FRAME_HEARTBEAT, STATE_CLOSED, close_frame, loads
+from ..protocol import SessionState, Frame, close_frame, loads
 from ..session import Session, SessionManager
 
 
@@ -33,7 +33,7 @@ class WebSocketTransport(Transport):
 
         # Generate unique session_id based on given ID.
         orig_session_id = session_id
-        while session_id in manager:
+        while session_id in manager.sessions:
             session_id = "%s-%s" % (orig_session_id, uuid4().hex[-8:])
         return super().get_session(manager, session_id)
 
@@ -45,11 +45,11 @@ class WebSocketTransport(Transport):
     async def server(self, ws: web.WebSocketResponse):
         while True:
             try:
-                frame, data = await self.session._get_frame()
+                frame, data = await self.session.get_frame()
             except SessionIsClosed:
                 break
 
-            if frame == FRAME_HEARTBEAT:
+            if frame == Frame.HEARTBEAT:
                 await ws.ping()
                 log.debug("Send WS PING")
                 if self._wait_pong_task is None:
@@ -59,11 +59,11 @@ class WebSocketTransport(Transport):
 
             await ws.send_str(data)
 
-            if frame == FRAME_CLOSE:
+            if frame == Frame.CLOSE:
                 try:
                     await ws.close()
                 finally:
-                    await self.session._remote_closed()
+                    await self.manager.remote_closed(self.session)
 
     async def _wait_pong(self):
         try:
@@ -91,26 +91,26 @@ class WebSocketTransport(Transport):
                 try:
                     text = loads(data)
                 except Exception as exc:
-                    await self.session._remote_close(exc)
-                    await self.session._remote_closed()
+                    await self.manager.remote_close(self.session, exc)
+                    await self.manager.remote_closed(self.session)
                     await ws.close(message=b"broken json")
                     break
 
                 if data.startswith("["):
-                    await self.session._remote_messages(text)
+                    await self.manager.remote_messages(self.session, text)
                 else:
-                    await self.session._remote_message(text)
+                    await self.manager.remote_message(self.session, text)
             elif msg.type == web.WSMsgType.PONG:
                 log.debug("Received WS PONG")
-                self.session._tick()
+                self.session.tick()
             elif msg.type == web.WSMsgType.PING:
                 log.debug("Received WS PING")
                 await ws.pong(msg.data)
-                self.session._tick()
+                self.session.tick()
             elif msg.type == web.WSMsgType.close:
-                await self.session._remote_close()
+                await self.manager.remote_close(self.session)
             elif msg.type in (web.WSMsgType.closed, web.WSMsgType.closing):
-                await self.session._remote_closed()
+                await self.manager.remote_closed(self.session)
                 break
 
     async def process(self):
@@ -130,7 +130,7 @@ class WebSocketTransport(Transport):
         # session was interrupted
         if self.session.interrupted:
             await ws.send_str(close_frame(1002, "Connection interrupted"))
-        elif self.session.state == STATE_CLOSED:
+        elif self.session.state == SessionState.CLOSED:
             await ws.send_str(close_frame(3000, "Go away!"))
         else:
             try:
@@ -148,7 +148,7 @@ class WebSocketTransport(Transport):
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                await self.session._remote_close(exc)
+                await self.manager.remote_close(self.session, exc)
             finally:
                 self.session.expire()
                 await self.manager.release(self.session)
