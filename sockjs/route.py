@@ -7,6 +7,7 @@ import random
 from typing import Iterable, List, Optional, Type
 
 from aiohttp import hdrs, web
+from aiohttp.web_request import Request
 
 
 try:
@@ -189,7 +190,7 @@ class SockJSRoute:
             transport_names - self.disable_transports
         )
 
-    async def handler(self, request):
+    async def handler(self, request: Request):
         info = request.match_info
 
         # lookup transport
@@ -212,6 +213,7 @@ class SockJSRoute:
         except KeyError:
             raise web.HTTPNotFound(headers=session_cookie(request))
 
+        request["sockjs_transport_name"] = transport_class.name
         transport = transport_class(manager, session, request)
         try:
             return await transport.process()
