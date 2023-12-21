@@ -2,6 +2,66 @@
 CHANGES
 =======
 
+0.13.0 (not-released)
+---------------------
+
+- Added argument ``cors_config`` into function ``add_endpoint()``
+  to support of CORS settings from ``aiohttp_cors``.
+- Added arguments ``heartbeat_delay`` and ``disconnect_delay``
+  into function ``add_endpoint()``.
+- Function ``add_endpoint()`` now returns all registered routes.
+- Replaced returning instances of error HTTP responses
+  on raising its as exceptions.
+- Changed name of some routes.
+- Heartbeat task moved from ``SessionManager`` into ``Session``.
+- Methods ``_acquire`` and ``_release`` of ``Sessions`` renamed into
+  ``acquire`` and ``release``.
+- Added processing of ``ConnectionError`` in ``StreamingTransport``.
+- Changed arguments of handler function. Now handler function must be defined
+  like ``async def handler(manager, session, msg):``
+- Constants:
+
+  - FRAME_OPEN
+  - FRAME_CLOSE
+  - FRAME_MESSAGE
+  - FRAME_MESSAGE_BLOB
+  - FRAME_HEARTBEAT
+
+  replaced by ``Frame`` enums with corresponding values.
+- Constants:
+
+  - MSG_OPEN
+  - MSG_MESSAGE
+  - MSG_CLOSE
+  - MSG_CLOSED
+
+  replaced by ``MsgType`` enums with corresponding values.
+- Constants:
+
+  - STATE_NEW
+  - STATE_OPEN
+  - STATE_CLOSING
+  - STATE_CLOSED
+
+  replaced by ``SessionState`` enums with corresponding values.
+
+
+0.12.0 (2022-02-08)
+-------------------
+
+- **Breaking change:** Removed argument ``timeout`` from ``Session.__init__()``
+  and ``SessionManager.__init__()``.
+- **Breaking change:** Argument ``heartbeat`` of ``SessionManager.__init__()``
+  renamed into ``heartbeat_delay``.
+- **Breaking change:** ``Session.registry`` renamed into ``Session.app``.
+- **Breaking change:** Deleted method ``SessionManager.route_url()``.
+- **Breaking change:** Dropped support of Python < 3.7
+- Fixed processing of heartbeats and a session expiration.
+- Fixed ping-pong based heartbeats for web-socket connections.
+- Added arguments ``heartbeat_delay`` and ``disconnect_delay`` into
+  ``Session.__init__()``.
+- Added argument ``disconnect_delay`` into ``SessionManager.__init__()``.
+
 0.11.0 (2020-10-22)
 -------------------
 

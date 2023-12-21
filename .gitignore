@@ -6,6 +6,7 @@ eggs
 sources
 dist
 develop-eggs
+build
 *.egg-info
 *.pyc
 *.pyo

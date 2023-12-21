@@ -4,7 +4,6 @@ include README.rst
 include Makefile
 include sockjs-testsrv.py
 graft sockjs
-graft docs
 graft examples
 graft tests
 global-exclude *.pyc
