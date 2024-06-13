@@ -46,6 +46,7 @@ setup(
     python_requires=">=3.10.0",
     install_requires=[
         "aiohttp>=3.7.4",
+        "async-timeout>=4.0.3",
     ],
     extras_require={
         "test": [
