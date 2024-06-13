@@ -27,10 +27,10 @@ class Transport(abc.ABC):
         return manager.get(session_id, create=cls.create_session)
 
     def __init__(
-            self,
-            manager: SessionManager,
-            session: Session,
-            request: web.Request,
+        self,
+        manager: SessionManager,
+        session: Session,
+        request: web.Request,
     ):
         self.manager = manager
         self.session = session

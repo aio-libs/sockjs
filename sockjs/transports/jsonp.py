@@ -1,4 +1,5 @@
 """jsonp transport"""
+
 import re
 from urllib.parse import unquote_plus
 

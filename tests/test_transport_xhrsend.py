@@ -46,7 +46,7 @@ async def xtest_post_message(make_transport, make_fut):
     transp.manager.remote_messages.assert_called_with(["msg1", "msg2"])
 
 
-async def test_OPTIONS(make_transport):
+async def test_options(make_transport):
     transp = make_transport(method="OPTIONS")
     resp = await transp.process()
     assert resp.status == 204

@@ -39,9 +39,9 @@ _months = [
 try:
     import ujson as json
 
-
     kwargs = {}  # pragma: no cover
 except ImportError:  # pragma: no cover
+
     def dthandler(obj):
         if isinstance(obj, datetime):
             now = obj.timetuple()
@@ -55,7 +55,6 @@ except ImportError:  # pragma: no cover
                 now[5],
             )
 
-
     kwargs = {"default": dthandler, "separators": (",", ":")}
 
     # Faster
@@ -68,6 +67,7 @@ except ImportError:  # pragma: no cover
 
 # Frames
 # ------
+
 
 @enum.unique
 class Frame(enum.Enum):
@@ -122,6 +122,7 @@ def messages_frame(messages):
 
 # Handler messages
 # ---------------------
+
 
 @enum.unique
 class MsgType(enum.Enum):

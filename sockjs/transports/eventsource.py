@@ -1,4 +1,5 @@
-""" iframe-eventsource transport """
+"""iframe-eventsource transport"""
+
 from aiohttp import hdrs, web
 from multidict import MultiDict
 

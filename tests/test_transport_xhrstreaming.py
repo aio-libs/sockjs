@@ -24,7 +24,7 @@ async def test_process(make_transport, make_fut):
     assert resp.status == 200
 
 
-async def test_process_OPTIONS(make_transport):
+async def test_process_options(make_transport):
     transp = make_transport(method="OPTIONS")
     resp = await transp.process()
     assert resp.status == 204

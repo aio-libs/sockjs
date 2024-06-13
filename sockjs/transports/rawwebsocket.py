@@ -1,4 +1,5 @@
 """raw websocket transport."""
+
 import asyncio
 from asyncio import ensure_future
 from typing import Optional

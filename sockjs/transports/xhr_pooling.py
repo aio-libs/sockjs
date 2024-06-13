@@ -9,6 +9,7 @@ from ..protocol import loads, ENCODING
 class XHRTransport(StreamingTransport):
     """Long polling derivative transports,
     used for XHRPolling and JSONPolling."""
+
     name = "xhr-polling"
     create_session = True
     maxsize = 0

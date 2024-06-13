@@ -6,7 +6,14 @@ from unittest import mock
 import pytest
 from aiohttp import web
 
-from sockjs import Session, SessionIsAcquired, SessionIsClosed, protocol, SessionState, Frame
+from sockjs import (
+    Session,
+    SessionIsAcquired,
+    SessionIsClosed,
+    protocol,
+    SessionState,
+    Frame,
+)
 
 
 class TestSession:
@@ -95,9 +102,7 @@ class TestSession:
         session = make_session("test")
         session._send_heartbeats = True
         session.heartbeat()
-        assert list(session._queue) == [
-            (Frame.HEARTBEAT, Frame.HEARTBEAT.value)
-        ]
+        assert list(session._queue) == [(Frame.HEARTBEAT, Frame.HEARTBEAT.value)]
 
     async def test_expire(self, make_session, mocker):
         dt = mocker.patch("sockjs.session.datetime")
@@ -234,7 +239,13 @@ class TestSession:
         assert session.state == SessionState.CLOSED
         assert list(session._queue) == []
 
-    async def test_acquire_new_session(self, make_manager, make_session, make_request, make_handler):
+    async def test_acquire_new_session(
+        self,
+        make_manager,
+        make_session,
+        make_request,
+        make_handler,
+    ):
         messages = []
         handler = make_handler(result=messages)
         manager = make_manager(handler)
@@ -284,9 +295,16 @@ class TestSession:
         await manager.remote_close(session)
         assert not session.interrupted
         assert session.state == SessionState.CLOSING
-        assert messages == [(protocol.SockjsMessage(protocol.MsgType.CLOSE, None), session)]
+        assert messages == [
+            (protocol.SockjsMessage(protocol.MsgType.CLOSE, None), session)
+        ]
 
-    async def test_remote_close_idempotent(self, make_session, make_manager, make_handler):
+    async def test_remote_close_idempotent(
+        self,
+        make_session,
+        make_manager,
+        make_handler,
+    ):
         messages = []
         handler = make_handler(result=messages)
         manager = make_manager(handler)
@@ -297,7 +315,12 @@ class TestSession:
         assert session.state == SessionState.CLOSED
         assert messages == []
 
-    async def test_remote_close_with_exc(self, make_session, make_manager, make_handler):
+    async def test_remote_close_with_exc(
+        self,
+        make_session,
+        make_manager,
+        make_handler,
+    ):
         messages = []
         handler = make_handler(result=messages)
         manager = make_manager(handler)
@@ -307,9 +330,16 @@ class TestSession:
         await manager.remote_close(session, exc=exc)
         assert session.interrupted
         assert session.state == SessionState.CLOSING
-        assert messages == [(protocol.SockjsMessage(protocol.MsgType.CLOSE, exc), session)]
+        assert messages == [
+            (protocol.SockjsMessage(protocol.MsgType.CLOSE, exc), session)
+        ]
 
-    async def test_remote_close_exc_in_handler(self, make_session, make_manager, make_handler):
+    async def test_remote_close_exc_in_handler(
+        self,
+        make_session,
+        make_manager,
+        make_handler,
+    ):
         handler = make_handler([], exc=True)
         manager = make_manager(handler)
         session = make_session()
@@ -347,7 +377,12 @@ class TestSession:
         assert session.state == SessionState.CLOSED
         assert messages == [(protocol.CLOSED_MESSAGE, session)]
 
-    async def test_remote_closed_idempotent(self, make_session, make_manager, make_handler):
+    async def test_remote_closed_idempotent(
+        self,
+        make_session,
+        make_manager,
+        make_handler,
+    ):
         messages = []
         handler = make_handler(result=messages)
         manager = make_manager(handler)
@@ -358,7 +393,12 @@ class TestSession:
         assert session.state == SessionState.CLOSED
         assert messages == []
 
-    async def test_remote_closed_with_waiter(self, make_session, make_manager, make_handler):
+    async def test_remote_closed_with_waiter(
+        self,
+        make_session,
+        make_manager,
+        make_handler,
+    ):
         messages = []
         handler = make_handler(result=messages)
         manager = make_manager(handler)
@@ -374,7 +414,12 @@ class TestSession:
         assert session.state == SessionState.CLOSED
         assert messages == [(protocol.CLOSED_MESSAGE, session)]
 
-    async def test_remote_closed_exc_in_handler(self, make_session, make_manager, make_handler):
+    async def test_remote_closed_exc_in_handler(
+        self,
+        make_session,
+        make_manager,
+        make_handler,
+    ):
         handler = make_handler([], exc=True)
         manager = make_manager(handler)
         session = make_session(disconnect_delay=0)

@@ -36,26 +36,25 @@ def _gen_endpoint_name():
 
 
 def add_endpoint(
-        app: web.Application,
-        handler: HandlerType,
-        *,
-        name="",
-        prefix="/sockjs",
-        manager=None,
-        disable_transports=(),
-        sockjs_cdn="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js",  # noqa
-        cookie_needed=True,
-        cors_config: Optional[CorsConfig] = None,
-        heartbeat_delay=25,
-        disconnect_delay=5,
-        debug=False,
+    app: web.Application,
+    handler: HandlerType,
+    *,
+    name="",
+    prefix="/sockjs",
+    manager=None,
+    disable_transports=(),
+    sockjs_cdn="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js",  # noqa
+    cookie_needed=True,
+    cors_config: Optional[CorsConfig] = None,
+    heartbeat_delay=25,
+    disconnect_delay=5,
+    debug=False,
 ) -> List[web.AbstractRoute]:
     registered_routes = []
 
     assert callable(handler), handler
-    if (
-            not asyncio.iscoroutinefunction(handler)
-            and not inspect.isgeneratorfunction(handler)
+    if not asyncio.iscoroutinefunction(handler) and not inspect.isgeneratorfunction(
+        handler
     ):
         sync_handler = handler
 
@@ -109,8 +108,7 @@ def add_endpoint(
     )
 
     resource = router.add_resource(
-        "%s/{server}/{session}/{transport}" % prefix,
-        name=f"sockjs-transport-{name}"
+        "%s/{server}/{session}/{transport}" % prefix, name=f"sockjs-transport-{name}"
     )
     for method in ALL_METH_WO_OPTIONS:
         registered_routes.append(
@@ -124,7 +122,10 @@ def add_endpoint(
         route_name = "sockjs-websocket-%s" % name
         registered_routes.append(
             router.add_route(
-                hdrs.METH_GET, "%s/websocket" % prefix, route.websocket, name=route_name
+                hdrs.METH_GET,
+                "%s/websocket" % prefix,
+                route.websocket,
+                name=route_name,
             )
         )
 
@@ -150,7 +151,7 @@ def add_endpoint(
             hdrs.METH_GET,
             "%s/iframe{version}.html" % prefix,
             route.iframe,
-            name=route_name
+            name=route_name,
         )
     )
 
@@ -166,13 +167,13 @@ def add_endpoint(
 
 class SockJSRoute:
     def __init__(
-            self,
-            name: str,
-            manager: SessionManager,
-            sockjs_cdn: str,
-            handlers,
-            disable_transports: Iterable[str],
-            cookie_needed=True,
+        self,
+        name: str,
+        manager: SessionManager,
+        sockjs_cdn: str,
+        handlers,
+        disable_transports: Iterable[str],
+        cookie_needed=True,
     ):
         self.name = name
         self.manager = manager
@@ -182,13 +183,10 @@ class SockJSRoute:
         self.iframe_html = (IFRAME_HTML % sockjs_cdn).encode("utf-8")
         self.iframe_html_hxd = hashlib.md5(self.iframe_html).hexdigest()
         transport_names = {
-            transport_class.name
-            for transport_class in transport_handlers.values()
+            transport_class.name for transport_class in transport_handlers.values()
         }
         transport_names.add("websocket-raw")
-        self._transport_names = sorted(
-            transport_names - self.disable_transports
-        )
+        self._transport_names = sorted(transport_names - self.disable_transports)
 
     async def handler(self, request: Request):
         info = request.match_info

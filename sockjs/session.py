@@ -42,12 +42,7 @@ class Session:
     _hb_task = None
 
     def __init__(
-            self,
-            session_id: str,
-            *,
-            heartbeat_delay=25,
-            disconnect_delay=5,
-            debug=False
+        self, session_id: str, *, heartbeat_delay=25, disconnect_delay=5, debug=False,
     ):
         self.id = session_id
         self.heartbeat_delay = heartbeat_delay
@@ -243,13 +238,13 @@ class SessionManager:
     _gc_task = None
 
     def __init__(
-            self,
-            name: str,
-            app: web.Application,
-            handler: HandlerType,
-            heartbeat_delay=25,
-            disconnect_delay=5,
-            debug=False,
+        self,
+        name: str,
+        app: web.Application,
+        handler: HandlerType,
+        heartbeat_delay=25,
+        disconnect_delay=5,
+        debug=False,
     ):
         self.name = name
         self.route_name = "sockjs-url-%s" % name
@@ -301,10 +296,7 @@ class SessionManager:
     async def _gc_expired_sessions(self):
         sessions = self.sessions
         if sessions:
-            tasks = [
-                self._check_expiration(session)
-                for session in sessions.values()
-            ]
+            tasks = [self._check_expiration(session) for session in sessions.values()]
             expired_session_ids = await asyncio.gather(*tasks)
 
             idx = 0
@@ -321,13 +313,13 @@ class SessionManager:
         self.sessions[session.id] = session
         return session
 
-    _T = TypeVar('_T')
+    _T = TypeVar("_T")
 
     def get(
-            self,
-            session_id,
-            create=False,
-            default: _T = _marker,
+        self,
+        session_id,
+        create=False,
+        default: _T = _marker,
     ) -> Union[Session, _T]:
         session = self.sessions.get(session_id, None)
         if session is None:

@@ -95,9 +95,7 @@ def make_request(app):
 @pytest.fixture
 def make_session(make_handler, make_request):
     def maker(
-            name="test",
-            disconnect_delay=10,
-            manager: Optional[SessionManager] = None
+        name="test", disconnect_delay=10, manager: Optional[SessionManager] = None
     ):
         session = Session(name, disconnect_delay=disconnect_delay, debug=True)
         if manager:
@@ -108,7 +106,7 @@ def make_session(make_handler, make_request):
 
 
 @pytest.fixture
-async def make_manager(event_loop, app, make_handler, make_session):
+async def make_manager(app, make_handler, make_session):
     managers = []
 
     def maker(handler=None):
@@ -134,22 +132,25 @@ def make_route(make_manager, make_handler, app):
     return maker
 
 
-@pytest.fixture(name='test_client')
+@pytest.fixture(name="test_client")
 async def test_client_fixture(app, aiohttp_client, make_handler) -> TestClient:
     handler = make_handler(None)
     # Configure default CORS settings.
-    cors = aiohttp_cors.setup(app, defaults={
-        '*': aiohttp_cors.ResourceOptions(
-            allow_credentials=True,
-            expose_headers='*',
-            allow_headers='*',
-            max_age=31536000,
-        )
-    })
+    cors = aiohttp_cors.setup(
+        app,
+        defaults={
+            "*": aiohttp_cors.ResourceOptions(
+                allow_credentials=True,
+                expose_headers="*",
+                allow_headers="*",
+                max_age=31536000,
+            )
+        },
+    )
     add_endpoint(
         app,
         handler,
-        name='main',
+        name="main",
         cors_config=cors,
     )
     return await aiohttp_client(app)
