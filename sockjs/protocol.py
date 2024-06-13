@@ -1,13 +1,19 @@
-import collections
+import dataclasses
+import enum
 import hashlib
 from datetime import datetime
+from typing import Union
+
 
 ENCODING = "utf-8"
 
-STATE_NEW = 0
-STATE_OPEN = 1
-STATE_CLOSING = 2
-STATE_CLOSED = 3
+
+@enum.unique
+class SessionState(enum.Enum):
+    NEW = 0
+    OPEN = 1
+    CLOSING = 2
+    CLOSED = 3
 
 
 _days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -62,11 +68,14 @@ except ImportError:  # pragma: no cover
 # Frames
 # ------
 
-FRAME_OPEN = "o"
-FRAME_CLOSE = "c"
-FRAME_MESSAGE = "a"
-FRAME_MESSAGE_BLOB = "a1"
-FRAME_HEARTBEAT = "h"
+
+@enum.unique
+class Frame(enum.Enum):
+    OPEN = "o"
+    CLOSE = "c"
+    MESSAGE = "a"
+    MESSAGE_BLOB = "a1"
+    HEARTBEAT = "h"
 
 
 # ------------------
@@ -74,8 +83,8 @@ FRAME_HEARTBEAT = "h"
 IFRAME_HTML = """<!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <script src="%s"></script>
   <script>
     document.domain = document.domain;
@@ -89,7 +98,6 @@ IFRAME_HTML = """<!DOCTYPE html>
 </html>
 """.strip()
 
-
 IFRAME_MD5 = hashlib.md5(IFRAME_HTML.encode()).hexdigest()
 
 loads = json.loads
@@ -101,32 +109,39 @@ def dumps(data):
 
 
 def close_frame(code, reason):
-    return FRAME_CLOSE + json.dumps([code, reason], **kwargs)
+    return Frame.CLOSE.value + json.dumps([code, reason], **kwargs)
 
 
 def message_frame(message):
-    return FRAME_MESSAGE + json.dumps([message], **kwargs)
+    return Frame.MESSAGE.value + json.dumps([message], **kwargs)
 
 
 def messages_frame(messages):
-    return FRAME_MESSAGE + json.dumps(messages, **kwargs)
+    return Frame.MESSAGE.value + json.dumps(messages, **kwargs)
 
 
 # Handler messages
 # ---------------------
 
-MSG_OPEN = 1
-MSG_MESSAGE = 2
-MSG_CLOSE = 3
-MSG_CLOSED = 4
+
+@enum.unique
+class MsgType(enum.Enum):
+    OPEN = 1
+    MESSAGE = 2
+    CLOSE = 3
+    CLOSED = 4
 
 
-class SockjsMessage(collections.namedtuple("SockjsMessage", ["type", "data"])):
+@dataclasses.dataclass(frozen=True)
+class SockjsMessage:
+    type: MsgType
+    data: Union[str, Exception, None]
+
     @property
-    def tp(self):
+    def tp(self) -> MsgType:
         return self.type
 
 
-OpenMessage = SockjsMessage(MSG_OPEN, None)
-CloseMessage = SockjsMessage(MSG_CLOSE, None)
-ClosedMessage = SockjsMessage(MSG_CLOSED, None)
+OPEN_MESSAGE = SockjsMessage(MsgType.OPEN, None)
+CLOSE_MESSAGE = SockjsMessage(MsgType.CLOSE, None)
+CLOSED_MESSAGE = SockjsMessage(MsgType.CLOSED, None)

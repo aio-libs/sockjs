@@ -1,27 +1,10 @@
-# pyramid_sockjs
-
-# Session, SessionManager are not imported
-
-from sockjs.session import Session
-from sockjs.session import SessionManager
-from sockjs.exceptions import SessionIsClosed
-from sockjs.exceptions import SessionIsAcquired
-
-from sockjs.protocol import STATE_NEW
-from sockjs.protocol import STATE_OPEN
-from sockjs.protocol import STATE_CLOSING
-from sockjs.protocol import STATE_CLOSED
-
-from sockjs.protocol import MSG_OPEN
-from sockjs.protocol import MSG_MESSAGE
-from sockjs.protocol import MSG_CLOSE
-from sockjs.protocol import MSG_CLOSED
-
-from sockjs.route import get_manager, add_endpoint
+from .exceptions import SessionIsAcquired, SessionIsClosed
+from .protocol import SessionState, MsgType, Frame, SockjsMessage
+from .route import add_endpoint, get_manager
+from .session import Session, SessionManager
 
 
-__version__ = "0.11.0"
-
+__version__ = "0.13.0"
 
 __all__ = (
     "get_manager",
@@ -30,12 +13,8 @@ __all__ = (
     "SessionManager",
     "SessionIsClosed",
     "SessionIsAcquired",
-    "STATE_NEW",
-    "STATE_OPEN",
-    "STATE_CLOSING",
-    "STATE_CLOSED",
-    "MSG_OPEN",
-    "MSG_MESSAGE",
-    "MSG_CLOSE",
-    "MSG_CLOSED",
+    "SessionState",
+    "MsgType",
+    "Frame",
+    "SockjsMessage",
 )

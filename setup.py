@@ -1,7 +1,9 @@
 import codecs
 import os
 import re
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
+
 
 with codecs.open(
     os.path.join(os.path.abspath(os.path.dirname(__file__)), "sockjs", "__init__.py"),
@@ -12,8 +14,6 @@ with codecs.open(
         version = re.findall(r'^__version__ = "([^"]+)"\r?$', fp.read(), re.M)[0]
     except IndexError:
         raise RuntimeError("Unable to determine version.")
-
-install_requires = ["aiohttp >= 3.0.0"]
 
 
 def read(f):
@@ -31,10 +31,9 @@ setup(
         "Intended Audience :: Developers",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: Implementation :: CPython",
         "Topic :: Internet :: WWW/HTTP",
         "Framework :: AsyncIO",
@@ -44,8 +43,23 @@ setup(
     url="https://github.com/aio-libs/sockjs/",
     license="Apache 2",
     packages=find_packages(),
-    python_requires=">=3.5.3",
-    install_requires=install_requires,
+    python_requires=">=3.10.0",
+    install_requires=[
+        "aiohttp>=3.7.4",
+        "async-timeout>=4.0.3",
+    ],
+    extras_require={
+        "test": [
+            "pytest",
+            "multidict",
+            "yarl",
+            "pytest-aiohttp",
+            "pytest-mock",
+            "pytest-timeout",
+            "cykooz.testing",
+            "aiohttp_cors",
+        ],
+    },
     include_package_data=True,
     zip_safe=False,
 )

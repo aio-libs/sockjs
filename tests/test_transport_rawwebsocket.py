@@ -1,22 +1,22 @@
-from unittest import mock
 from asyncio import Future
+from unittest import mock
 
 import pytest
+from aiohttp import WSMessage, WSMsgType
 
 from sockjs.exceptions import SessionIsClosed
-from sockjs.protocol import FRAME_CLOSE, FRAME_HEARTBEAT
+from sockjs.protocol import Frame
 from sockjs.transports.rawwebsocket import RawWebSocketTransport
-
-from aiohttp import WSMessage, WSMsgType
+from sockjs.transports.utils import cancel_tasks
 
 
 @pytest.fixture
 def make_transport(make_request, make_fut):
-    def maker(method="GET", path="/", query_params={}):
+    def maker(method="GET", path="/", query_params=None):
         manager = mock.Mock()
         session = mock.Mock()
         session._remote_closed = make_fut(1)
-        session._wait = make_fut((FRAME_CLOSE, ""))
+        session._get_frame = make_fut((Frame.CLOSE, ""))
         request = make_request(method, path, query_params=query_params)
         request.app.freeze()
         return RawWebSocketTransport(manager, session, request)
@@ -42,7 +42,7 @@ async def xtest_ticks_pong(make_transport, make_fut):
     session = transp.session
 
     await transp.client(ws, session)
-    assert session._tick.called
+    assert session.tick.called
 
 
 async def test_sends_ping(make_transport, make_fut):
@@ -55,13 +55,15 @@ async def test_sends_ping(make_transport, make_fut):
     ws.ping.side_effect = [future]
 
     hb_future = Future()
-    hb_future.set_result((FRAME_HEARTBEAT, b""))
+    hb_future.set_result((Frame.HEARTBEAT, b""))
 
     session_close_future = Future()
     session_close_future.set_exception(SessionIsClosed)
 
     session = mock.Mock()
-    session._wait.side_effect = [hb_future, session_close_future]
+    session.get_frame.side_effect = [hb_future, session_close_future]
+    transp.session = session
 
-    await transp.server(ws, session)
+    await transp.server(ws)
     assert ws.ping.called
+    await cancel_tasks(transp._wait_pong_task)

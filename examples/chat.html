@@ -2,88 +2,98 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
   <script>
-    $(function() {
-      var conn = null;
+      $(function() {
+          let conn = null;
 
-      function log(msg) {
-        var control = $('#log');
-        control.html(control.html() + msg + '<br/>');
-        control.scrollTop(control.scrollTop() + 1000);
-      }
+          function log(msg)
+          {
+              const control = $('#log');
+              control.html(control.html() + msg + '<br/>');
+              control.scrollTop(control.scrollTop() + 1000);
+          }
 
-      function connect() {
-        disconnect();
+          function connect()
+          {
+              disconnect();
 
-        var transports = $('#protocols input:checked').map(function(){
-            return $(this).attr('id');
-        }).get();
+              const transports = $('#protocols input:checked').map(function() {
+                  return $(this).attr('id');
+              }).get();
 
-        conn = new SockJS('http://' + window.location.host + '/sockjs/', [], {debug: true, transports: transports});
+              conn = new SockJS('http://' + window.location.host + '/sockjs/', [], {
+                  debug: true,
+                  transports: transports
+              });
 
-        log('Connecting...');
+              log('Connecting...');
 
-        conn.onopen = function() {
-          log('Connected.');
-          update_ui();
-        };
+              conn.onopen = function() {
+                  log('Connected.');
+                  update_ui();
+              };
 
-        conn.onmessage = function(e) {
-          log('Received: ' + e.data);
-        };
+              conn.onmessage = function(e) {
+                  log('Received: ' + e.data);
+              };
 
-        conn.onclose = function() {
-          log('Disconnected.');
-          conn = null;
-          update_ui();
-        };
-      }
+              conn.onclose = function() {
+                  log('Disconnected.');
+                  conn = null;
+                  update_ui();
+              };
+          }
 
-      function disconnect() {
-        if (conn != null) {
-          log('Disconnecting...');
+          function disconnect()
+          {
+              if (conn != null)
+              {
+                  log('Disconnecting...');
 
-          conn.close();
-          conn = null;
+                  conn.close();
+                  conn = null;
 
-          update_ui();
-        }
-      }
+                  update_ui();
+              }
+          }
 
-      function update_ui() {
-        var msg = '';
+          function update_ui()
+          {
+              if (conn == null || conn.readyState != SockJS.OPEN)
+              {
+                  $('#status').text('disconnected');
+                  $('#connect').text('Connect');
+              } else
+              {
+                  $('#status').text('connected (' + conn.protocol + ')');
+                  $('#connect').text('Disconnect');
+              }
+          }
 
-        if (conn == null || conn.readyState != SockJS.OPEN) {
-          $('#status').text('disconnected');
-          $('#connect').text('Connect');
-        } else {
-          $('#status').text('connected (' + conn.protocol + ')');
-          $('#connect').text('Disconnect');
-        }
-      }
+          $('#connect').click(function() {
+              if (conn == null)
+              {
+                  connect();
+              } else
+              {
+                  disconnect();
+              }
 
-      $('#connect').click(function() {
-        if (conn == null) {
-          connect();
-        } else {
-          disconnect();
-        }
+              update_ui();
+              return false;
+          });
 
-        update_ui();
-        return false;
+          $('form').submit(function() {
+              const text = $('#text').val();
+              log('Sending: ' + text);
+              conn.send(text);
+              $('#text').val('').focus();
+              return false;
+          });
       });
-
-      $('form').submit(function() {
-        var text = $('#text').val();
-        log('Sending: ' + text);
-        conn.send(text);
-        $('#text').val('').focus();
-        return false;
-      });
-    });
-</script>
+  </script>
 </head>
 <body>
 <h3>Chat!</h3>
@@ -129,8 +139,8 @@
 <div id="log" style="width: 60em; height: 20em; overflow:auto; border: 1px solid black">
 </div>
 <form id="chatform">
-  <input id="text" type="text" />
-  <input type="submit" />
+  <input id="text" type="text"/>
+  <input type="submit"/>
 </form>
 </body>
 </html>

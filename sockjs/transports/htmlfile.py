@@ -1,10 +1,13 @@
-""" iframe-htmlfile transport """
-import re
-from aiohttp import web, hdrs
+"""iframe-htmlfile transport"""
 
-from ..protocol import dumps, ENCODING
+import re
+
+from aiohttp import hdrs, web
+from multidict import MultiDict
+
 from .base import StreamingTransport
-from .utils import CACHE_CONTROL, session_cookie, cors_headers
+from .utils import CACHE_CONTROL, session_cookie
+from ..protocol import dumps
 
 
 PRELUDE1 = b"""
@@ -25,35 +28,25 @@ PRELUDE2 = b""";
 
 
 class HTMLFileTransport(StreamingTransport):
-
-    maxsize = 131072  # 128K bytes
+    name = "htmlfile"
+    create_session = True
     check_callback = re.compile(r"^[a-zA-Z0-9_\.]+$")
 
-    async def send(self, text):
-        blob = ("<script>\np(%s);\n</script>\r\n" % dumps(text)).encode(ENCODING)
-        await self.response.write(blob)
-
-        self.size += len(blob)
-        if self.size > self.maxsize:
-            return True
-        else:
-            return False
+    async def _send(self, text: str):
+        text = "<script>\np(%s);\n</script>\r\n" % dumps(text)
+        return await super()._send(text)
 
     async def process(self):
         request = self.request
 
-        try:
-            callback = request.query.get("c", None)
-        except Exception:
-            callback = request.GET.get("c", None)
-
+        callback = request.query.get("c")
         if callback is None:
-            await self.session._remote_closed()
-            return web.HTTPInternalServerError(text='"callback" parameter required')
+            await self.manager.remote_closed(self.session)
+            raise web.HTTPInternalServerError(text='"callback" parameter required')
 
         elif not self.check_callback.match(callback):
-            await self.session._remote_closed()
-            return web.HTTPInternalServerError(text='invalid "callback" parameter')
+            await self.manager.remote_closed(self.session)
+            raise web.HTTPInternalServerError(text='invalid "callback" parameter')
 
         headers = (
             (hdrs.CONTENT_TYPE, "text/html; charset=UTF-8"),
@@ -61,10 +54,9 @@ class HTMLFileTransport(StreamingTransport):
             (hdrs.CONNECTION, "close"),
         )
         headers += session_cookie(request)
-        headers += cors_headers(request.headers)
 
         # open sequence (sockjs protocol)
-        resp = self.response = web.StreamResponse(headers=headers)
+        resp = self.response = web.StreamResponse(headers=MultiDict(headers))
         await resp.prepare(self.request)
         await resp.write(
             b"".join((PRELUDE1, callback.encode("utf-8"), PRELUDE2, b" " * 1024))

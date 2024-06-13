@@ -1,30 +1,28 @@
 import asyncio
-
-from datetime import timedelta
+from typing import Optional
 from unittest import mock
 
+import aiohttp_cors
 import pytest
-
 from aiohttp import web
+from aiohttp.test_utils import TestClient, make_mocked_coro, make_mocked_request
 from aiohttp.web_urldispatcher import UrlMappingMatchInfo
-from aiohttp.test_utils import make_mocked_request, make_mocked_coro
 from multidict import CIMultiDict
 from yarl import URL
 
-from sockjs import Session, SessionManager, transports
+from sockjs import Session, SessionManager, add_endpoint, transports
 from sockjs.route import SockJSRoute
 
 
-@pytest.fixture
-def app():
+@pytest.fixture(name="app")
+def app_fixture():
     return web.Application()
 
 
 @pytest.fixture
 def make_fut():
     def maker(val, makemock=True):
-        loop = asyncio.get_event_loop()
-        fut = loop.create_future()
+        fut = asyncio.Future()
         fut.set_result(val)
 
         if makemock:
@@ -39,41 +37,24 @@ def make_fut():
 
 @pytest.fixture
 def make_handler():
-    def maker(result, coro=True, exc=False):
+    def maker(result, exc=False):
         if result is None:
             result = []
         output = result
 
-        def handler(msg, s):
+        async def handler(manager, s, msg):
             if exc:
                 raise ValueError((msg, s))
             output.append((msg, s))
 
-        if coro:
-
-            async def async_handler(msg, s):
-                return handler(msg, s)
-
-            return async_handler
-        else:
-            return handler
-
-    return maker
-
-
-@pytest.fixture
-def make_route(make_handler, app):
-    def maker(handlers=transports.handlers):
-        handler = make_handler([])
-        sm = SessionManager("sm", app, handler)
-        return SockJSRoute("sm", sm, "http:sockjs-cdn", handlers, (), True)
+        return handler
 
     return maker
 
 
 @pytest.fixture
 def make_request(app):
-    def maker(method, path, query_params={}, headers=None, match_info=None):
+    def maker(method, path, query_params=None, headers=None, match_info=None):
         path = URL(path)
         if query_params:
             path = path.with_query(query_params)
@@ -98,7 +79,9 @@ def make_request(app):
         transport = mock.Mock()
         transport._drain_helper = make_mocked_coro()
         loop = asyncio.get_event_loop()
-        ret = make_mocked_request(method, str(path), headers, writer=writer, loop=loop)
+        ret = make_mocked_request(
+            method, str(path), headers, writer=writer, transport=transport, loop=loop
+        )
 
         if match_info is None:
             match_info = UrlMappingMatchInfo({}, mock.Mock())
@@ -112,23 +95,62 @@ def make_request(app):
 @pytest.fixture
 def make_session(make_handler, make_request):
     def maker(
-        name="test", timeout=timedelta(10), request=None, handler=None, result=None
+        name="test", disconnect_delay=10, manager: Optional[SessionManager] = None
     ):
-        if request is None:
-            request = make_request("GET", "/TestPath/")
-
-        if handler is None:
-            handler = make_handler(result)
-        return Session(name, handler, request, timeout=timeout, debug=True)
+        session = Session(name, disconnect_delay=disconnect_delay, debug=True)
+        if manager:
+            manager.sessions[session.id] = session
+        return session
 
     return maker
 
 
 @pytest.fixture
-def make_manager(app, make_handler, make_session):
+async def make_manager(app, make_handler, make_session):
+    managers = []
+
     def maker(handler=None):
         if handler is None:
             handler = make_handler([])
-        return SessionManager("sm", app, handler, debug=True)
+        manager = SessionManager("sm", app, handler, debug=True)
+        managers.append(manager)
+        return manager
+
+    yield maker
+
+    for sm in managers:
+        await sm.stop()
+
+
+@pytest.fixture
+def make_route(make_manager, make_handler, app):
+    def maker(handlers=transports.transport_handlers):
+        sm = make_manager()
+        app.on_cleanup.append(sm.stop)
+        return SockJSRoute("sm", sm, "http:sockjs-cdn", handlers, (), True)
 
     return maker
+
+
+@pytest.fixture(name="test_client")
+async def test_client_fixture(app, aiohttp_client, make_handler) -> TestClient:
+    handler = make_handler(None)
+    # Configure default CORS settings.
+    cors = aiohttp_cors.setup(
+        app,
+        defaults={
+            "*": aiohttp_cors.ResourceOptions(
+                allow_credentials=True,
+                expose_headers="*",
+                allow_headers="*",
+                max_age=31536000,
+            )
+        },
+    )
+    add_endpoint(
+        app,
+        handler,
+        name="main",
+        cors_config=cors,
+    )
+    return await aiohttp_client(app)
