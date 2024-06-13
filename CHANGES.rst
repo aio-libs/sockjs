@@ -3,7 +3,7 @@ CHANGES
 =======
 
 0.13.0 (2024-06-13)
----------------------
+-------------------
 
 - Added argument ``cors_config`` into function ``add_endpoint()``
   to support of CORS settings from ``aiohttp_cors``.
