@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.13.0 (not-released)
+0.13.0 (2024-06-13)
 ---------------------
 
 - Added argument ``cors_config`` into function ``add_endpoint()``
