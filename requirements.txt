@@ -3,6 +3,6 @@ pytest==8.2.2
 pytest-aiohttp==1.0.5
 pytest-mock==3.14.0
 pytest-timeout==2.3.1
-aiohttp==3.9.5
+aiohttp==3.10.2
 twine==5.1.0
 -e .[test]
