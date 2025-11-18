@@ -8,7 +8,6 @@ from uuid import uuid4
 
 from aiohttp import web
 from aiohttp.web_exceptions import HTTPMethodNotAllowed
-from async_timeout import timeout
 
 from .base import Transport
 from .utils import cancel_tasks

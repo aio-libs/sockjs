@@ -2,7 +2,6 @@ import asyncio
 import http.cookies
 from datetime import datetime, timedelta
 
-import async_timeout
 from aiohttp import hdrs
 
 
@@ -45,7 +44,7 @@ async def cancel_tasks(*coros_or_futures, timeout=1):
         waiting_to_complete.append(fut)
     if waiting_to_complete:
         try:
-            async with async_timeout.timeout(timeout):
+            async with asyncio.timeout(timeout):
                 await asyncio.gather(*waiting_to_complete, return_exceptions=True)
         except asyncio.TimeoutError:
             pass

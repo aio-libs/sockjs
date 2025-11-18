@@ -6,7 +6,6 @@ from typing import Optional
 from uuid import uuid4
 
 from aiohttp import web
-from async_timeout import timeout
 
 from .base import Transport
 from .utils import cancel_tasks
