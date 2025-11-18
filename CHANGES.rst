@@ -6,6 +6,7 @@ CHANGES
 -------------------
 
 - **Breaking change:** Dropped support of Python 3.10.
+- Replaced ``async_timeout`` with ``asyncio.timeout`` (#453).
 
 0.13.0 (2024-06-13)
 -------------------
