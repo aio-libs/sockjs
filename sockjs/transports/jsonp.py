@@ -15,7 +15,7 @@ class JSONPolling(StreamingTransport):
     name = "jsonp-polling"
     create_session = True
     maxsize = 0
-    check_callback = re.compile(r"^[a-zA-Z0-9_\.]+$")
+    check_callback = re.compile(r"^[a-zA-Z0-9_.]+$")
     callback = ""
 
     async def _send(self, text: str):

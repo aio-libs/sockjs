@@ -88,7 +88,7 @@ class StreamingTransport(Transport, abc.ABC):
                             self.session.get_frame(),
                             timeout=self.timeout,
                         )
-                    except asyncio.futures.TimeoutError:
+                    except asyncio.TimeoutError:
                         frame, text = Frame.MESSAGE, "a[]"
                 else:
                     frame, text = await self.session.get_frame()

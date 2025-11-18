@@ -65,7 +65,7 @@ class RawWebSocketTransport(Transport):
 
     async def _wait_pong(self):
         try:
-            async with timeout(self.heartbeat_timeout):
+            async with asyncio.timeout(self.heartbeat_timeout):
                 await self._pong_event.wait()
         except asyncio.TimeoutError:
             self.session.close(3000, "No response from heartbeat")

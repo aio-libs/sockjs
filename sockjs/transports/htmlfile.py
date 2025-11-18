@@ -30,7 +30,7 @@ PRELUDE2 = b""";
 class HTMLFileTransport(StreamingTransport):
     name = "htmlfile"
     create_session = True
-    check_callback = re.compile(r"^[a-zA-Z0-9_\.]+$")
+    check_callback = re.compile(r"^[a-zA-Z0-9_.]+$")
 
     async def _send(self, text: str):
         text = "<script>\np(%s);\n</script>\r\n" % dumps(text)
